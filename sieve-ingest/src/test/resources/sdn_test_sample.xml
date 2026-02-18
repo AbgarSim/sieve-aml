@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdnList xmlns="http://www.un.org/sanctions/1.0">
+  <publshInformation>
+    <Publish_Date>01/15/2026</Publish_Date>
+    <Record_Count>5</Record_Count>
+  </publshInformation>
+
+  <sdnEntry>
+    <uid>1001</uid>
+    <firstName>John</firstName>
+    <lastName>DOE</lastName>
+    <sdnType>Individual</sdnType>
+    <remarks>Test individual entry for unit testing.</remarks>
+    <programList>
+      <program>SDGT</program>
+      <program>IRAN</program>
+    </programList>
+    <akaList>
+      <aka>
+        <uid>1001</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>DOE</lastName>
+        <firstName>Johnny</firstName>
+      </aka>
+      <aka>
+        <uid>1002</uid>
+        <type>a.k.a.</type>
+        <category>weak</category>
+        <lastName>AL-DOE</lastName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <uid>1001</uid>
+        <address1>123 Main Street</address1>
+        <city>New York</city>
+        <stateOrProvince>NY</stateOrProvince>
+        <postalCode>10001</postalCode>
+        <country>US</country>
+      </address>
+    </addressList>
+    <idList>
+      <id>
+        <uid>1001</uid>
+        <idType>Passport</idType>
+        <idNumber>A12345678</idNumber>
+        <idCountry>US</idCountry>
+      </id>
+    </idList>
+    <dateOfBirthList>
+      <dateOfBirthItem>
+        <dateOfBirth>01/15/1980</dateOfBirth>
+      </dateOfBirthItem>
+    </dateOfBirthList>
+    <nationalityList>
+      <nationality>
+        <country>US</country>
+      </nationality>
+    </nationalityList>
+  </sdnEntry>
+
+  <sdnEntry>
+    <uid>2001</uid>
+    <lastName>ACME HOLDINGS LTD</lastName>
+    <sdnType>Entity</sdnType>
+    <remarks>Shell company used for sanctions evasion.</remarks>
+    <programList>
+      <program>CYBER2</program>
+    </programList>
+    <addressList>
+      <address>
+        <uid>2001</uid>
+        <city>London</city>
+        <country>GB</country>
+      </address>
+    </addressList>
+    <idList>
+      <id>
+        <uid>2001</uid>
+        <idType>Registration Number</idType>
+        <idNumber>UK-123456</idNumber>
+        <idCountry>GB</idCountry>
+      </id>
+    </idList>
+  </sdnEntry>
+
+  <sdnEntry>
+    <uid>3001</uid>
+    <lastName>OCEAN VOYAGER</lastName>
+    <sdnType>Vessel</sdnType>
+    <remarks>Bulk carrier flagged in Panama.</remarks>
+    <programList>
+      <program>IRAN</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>3001</uid>
+        <idType>IMO Number</idType>
+        <idNumber>9876543</idNumber>
+      </id>
+    </idList>
+  </sdnEntry>
+
+  <sdnEntry>
+    <uid>4001</uid>
+    <firstName>Maria</firstName>
+    <lastName>GONZALEZ</lastName>
+    <sdnType>Individual</sdnType>
+    <title>Dr.</title>
+    <programList>
+      <program>SDNTK</program>
+    </programList>
+    <akaList>
+      <aka>
+        <uid>4001</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>GONZALES</lastName>
+        <firstName>Maria</firstName>
+      </aka>
+    </akaList>
+    <nationalityList>
+      <nationality>
+        <country>MX</country>
+      </nationality>
+    </nationalityList>
+    <citizenshipList>
+      <citizenship>
+        <country>MX</country>
+      </citizenship>
+    </citizenshipList>
+    <placeOfBirthList>
+      <placeOfBirthItem>
+        <placeOfBirth>Mexico City</placeOfBirth>
+      </placeOfBirthItem>
+    </placeOfBirthList>
+  </sdnEntry>
+
+  <sdnEntry>
+    <uid>5001</uid>
+    <firstName>Ahmed</firstName>
+    <lastName>AL-RASHID</lastName>
+    <sdnType>Individual</sdnType>
+    <programList>
+      <program>SDGT</program>
+    </programList>
+    <akaList>
+      <aka>
+        <uid>5001</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>AL RASHID</lastName>
+        <firstName>Ahmad</firstName>
+      </aka>
+      <aka>
+        <uid>5002</uid>
+        <type>f.k.a.</type>
+        <category>weak</category>
+        <lastName>RASHID</lastName>
+        <firstName>Ahmed</firstName>
+      </aka>
+    </akaList>
+    <dateOfBirthList>
+      <dateOfBirthItem>
+        <dateOfBirth>03/22/1975</dateOfBirth>
+      </dateOfBirthItem>
+    </dateOfBirthList>
+    <idList>
+      <id>
+        <uid>5001</uid>
+        <idType>National ID No.</idType>
+        <idNumber>NAT-98765</idNumber>
+        <idCountry>SA</idCountry>
+      </id>
+      <id>
+        <uid>5002</uid>
+        <idType>Passport</idType>
+        <idNumber>P-54321</idNumber>
+        <idCountry>SA</idCountry>
+      </id>
+    </idList>
+  </sdnEntry>
+</sdnList>
