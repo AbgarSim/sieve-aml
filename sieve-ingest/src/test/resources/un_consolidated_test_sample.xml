@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<CONSOLIDATED_LIST xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" dateGenerated="2024-01-15T10:00:00.000Z">
+  <INDIVIDUALS>
+    <!-- Individual 1: Full individual with aliases, address, DOB, POB, document, nationality, title -->
+    <INDIVIDUAL>
+      <DATAID>1001</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ERIC</FIRST_NAME>
+      <SECOND_NAME>BADEGE</SECOND_NAME>
+      <THIRD_NAME>MUNDOS</THIRD_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDi.001</REFERENCE_NUMBER>
+      <LISTED_ON>2012-12-31</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>Test individual for unit testing purposes.</COMMENTS1>
+      <TITLE>
+        <VALUE>Dr.</VALUE>
+      </TITLE>
+      <DESIGNATION>
+        <VALUE>Military Commander</VALUE>
+      </DESIGNATION>
+      <NATIONALITY>
+        <VALUE>Democratic Republic of the Congo</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2016-10-13</VALUE>
+        <VALUE>2023-05-20</VALUE>
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>ERIC MUNDOS</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Low</QUALITY>
+        <ALIAS_NAME>The Commander</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>f.k.a.</QUALITY>
+        <ALIAS_NAME>ERIC JONES</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY/>
+        <ALIAS_NAME/>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS>
+        <STREET>123 Main Road</STREET>
+        <CITY>Kinshasa</CITY>
+        <STATE_PROVINCE>Kinshasa Province</STATE_PROVINCE>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </INDIVIDUAL_ADDRESS>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1971-03-15</DATE>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Goma</CITY>
+        <STATE_PROVINCE>North Kivu</STATE_PROVINCE>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT>
+        <TYPE_OF_DOCUMENT>Passport</TYPE_OF_DOCUMENT>
+        <NUMBER>OB 0243318</NUMBER>
+        <ISSUING_COUNTRY>Democratic Republic of the Congo</ISSUING_COUNTRY>
+      </INDIVIDUAL_DOCUMENT>
+      <INDIVIDUAL_DOCUMENT>
+        <TYPE_OF_DOCUMENT>National Identification Number</TYPE_OF_DOCUMENT>
+        <NUMBER>1-78-09-44621-80</NUMBER>
+        <NOTE>FARDC ID</NOTE>
+      </INDIVIDUAL_DOCUMENT>
+      <SORT_KEY/>
+      <SORT_KEY_LAST_MOD/>
+    </INDIVIDUAL>
+
+    <!-- Individual 2: Year-only DOB, multiple places of birth, no documents -->
+    <INDIVIDUAL>
+      <DATAID>1002</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>SADDAM</FIRST_NAME>
+      <SECOND_NAME>HUSSEIN</SECOND_NAME>
+      <THIRD_NAME>AL-TIKRITI</THIRD_NAME>
+      <UN_LIST_TYPE>IRQ</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>IQi.001</REFERENCE_NUMBER>
+      <LISTED_ON>2003-07-08</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>Former president of Iraq.</COMMENTS1>
+      <NATIONALITY>
+        <VALUE>Iraq</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2003-07-08</VALUE>
+      </LAST_DAY_UPDATED>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY>Good</QUALITY>
+        <ALIAS_NAME>Abu Ali</ALIAS_NAME>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS/>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <YEAR>1937</YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>al-Awja, near Tikrit</CITY>
+        <COUNTRY>Iraq</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Tikrit</CITY>
+        <COUNTRY>Iraq</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT/>
+      <SORT_KEY/>
+      <SORT_KEY_LAST_MOD/>
+    </INDIVIDUAL>
+
+    <!-- Individual 3: Minimal individual with only first name (no second name), no reference number -->
+    <INDIVIDUAL>
+      <DATAID>1003</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>MOHAMMED</FIRST_NAME>
+      <UN_LIST_TYPE>TAL</UN_LIST_TYPE>
+      <LISTED_ON>2001-01-25</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>Minimal entry for testing.</COMMENTS1>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY/>
+        <ALIAS_NAME/>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS/>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE/>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <COUNTRY/>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT/>
+      <SORT_KEY/>
+      <SORT_KEY_LAST_MOD/>
+    </INDIVIDUAL>
+
+    <!-- Individual 4: With FOURTH_NAME -->
+    <INDIVIDUAL>
+      <DATAID>1004</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>QUSAY</FIRST_NAME>
+      <SECOND_NAME>SADDAM</SECOND_NAME>
+      <THIRD_NAME>HUSSEIN</THIRD_NAME>
+      <FOURTH_NAME>AL-TIKRITI</FOURTH_NAME>
+      <UN_LIST_TYPE>IRQ</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>IQi.002</REFERENCE_NUMBER>
+      <LISTED_ON>2003-07-08</LISTED_ON>
+      <GENDER>Male</GENDER>
+      <COMMENTS1>Test entry with four name parts.</COMMENTS1>
+      <NATIONALITY>
+        <VALUE>Iraq</VALUE>
+      </NATIONALITY>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <INDIVIDUAL_ALIAS>
+        <QUALITY/>
+        <ALIAS_NAME/>
+      </INDIVIDUAL_ALIAS>
+      <INDIVIDUAL_ADDRESS/>
+      <INDIVIDUAL_DATE_OF_BIRTH>
+        <TYPE_OF_DATE>EXACT</TYPE_OF_DATE>
+        <DATE>1965-05-17</DATE>
+        <YEAR>1965</YEAR>
+      </INDIVIDUAL_DATE_OF_BIRTH>
+      <INDIVIDUAL_PLACE_OF_BIRTH>
+        <CITY>Baghdad</CITY>
+        <COUNTRY>Iraq</COUNTRY>
+      </INDIVIDUAL_PLACE_OF_BIRTH>
+      <INDIVIDUAL_DOCUMENT/>
+      <SORT_KEY/>
+      <SORT_KEY_LAST_MOD/>
+    </INDIVIDUAL>
+  </INDIVIDUALS>
+
+  <ENTITIES>
+    <!-- Entity 1: With aliases and address -->
+    <ENTITY>
+      <DATAID>2001</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>ADF</FIRST_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDe.001</REFERENCE_NUMBER>
+      <LISTED_ON>2014-06-30</LISTED_ON>
+      <COMMENTS1>Test entity for unit testing.</COMMENTS1>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <LAST_DAY_UPDATED>
+        <VALUE>2016-10-19</VALUE>
+        <VALUE>2020-08-19</VALUE>
+      </LAST_DAY_UPDATED>
+      <ENTITY_ALIAS>
+        <QUALITY>a.k.a.</QUALITY>
+        <ALIAS_NAME>Allied Democratic Forces</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ALIAS>
+        <QUALITY>f.k.a.</QUALITY>
+        <ALIAS_NAME>ADF/NALU</ALIAS_NAME>
+      </ENTITY_ALIAS>
+      <ENTITY_ADDRESS>
+        <STATE_PROVINCE>North Kivu</STATE_PROVINCE>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </ENTITY_ADDRESS>
+      <SORT_KEY/>
+      <SORT_KEY_LAST_MOD/>
+    </ENTITY>
+
+    <!-- Entity 2: Minimal entity -->
+    <ENTITY>
+      <DATAID>2002</DATAID>
+      <VERSIONNUM>1</VERSIONNUM>
+      <FIRST_NAME>BUTEMBO AIRLINES (BAL)</FIRST_NAME>
+      <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+      <REFERENCE_NUMBER>CDe.002</REFERENCE_NUMBER>
+      <LISTED_ON>2007-03-29</LISTED_ON>
+      <COMMENTS1>Privately-owned airline.</COMMENTS1>
+      <LIST_TYPE>
+        <VALUE>UN List</VALUE>
+      </LIST_TYPE>
+      <ENTITY_ALIAS>
+        <QUALITY/>
+        <ALIAS_NAME/>
+      </ENTITY_ALIAS>
+      <ENTITY_ADDRESS>
+        <CITY>Butembo</CITY>
+        <COUNTRY>Democratic Republic of the Congo</COUNTRY>
+      </ENTITY_ADDRESS>
+      <SORT_KEY/>
+      <SORT_KEY_LAST_MOD/>
+    </ENTITY>
+  </ENTITIES>
+</CONSOLIDATED_LIST>
