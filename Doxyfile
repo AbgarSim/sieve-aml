@@ -1,0 +1,39 @@
+# Doxyfile for Sieve AML — generates XML consumed by Sphinx/Breathe
+
+PROJECT_NAME           = "Sieve AML"
+PROJECT_NUMBER         = 0.1.0
+PROJECT_BRIEF          = "Open-source sanctions screening platform"
+
+# Input
+INPUT                  = sieve-core/src/main/java \
+                         sieve-match/src/main/java \
+                         sieve-ingest/src/main/java \
+                         sieve-address/src/main/java \
+                         sieve-server/src/main/java \
+                         sieve-cli/src/main/java
+RECURSIVE              = YES
+FILE_PATTERNS          = *.java
+EXCLUDE_PATTERNS       = */test/*
+
+# Java-specific
+OPTIMIZE_OUTPUT_JAVA   = YES
+JAVADOC_AUTOBRIEF      = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+
+# Output — XML only (consumed by Breathe)
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = doxygen/xml
+
+# Diagrams
+HAVE_DOT               = NO
+CLASS_DIAGRAMS         = NO
+
+# Miscellaneous
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES

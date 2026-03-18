@@ -55,6 +55,11 @@ Thumbs.db
 hs_err_pid*
 replay_pid*
 
+# Documentation build output
+doxygen/
+docs/_build/
+docs/.venv/
+
 # BlueJ files
 *.ctxt
 
