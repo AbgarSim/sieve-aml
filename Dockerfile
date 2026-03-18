@@ -75,7 +75,7 @@ RUN curl -sL https://public-read-libpostal-data.s3.amazonaws.com/v1.2.0/parser.t
 #   - libpostal headers + libs      (copied from stage 1 for JNI linking)
 #
 # Outputs (consumed by runtime stage):
-#   /app/sieve-server/target/*.jar                          — Spring Boot fat JAR
+#   /app/sieve-spring-server/target/*.jar                    — Spring Boot fat JAR
 #   /app/sieve-address/src/main/native/libsieve_postal.so   — JNI shared library
 # =============================================================================
 FROM maven:3.9-eclipse-temurin-21 AS java-build
@@ -95,6 +95,7 @@ COPY sieve-core/pom.xml sieve-core/
 COPY sieve-address/pom.xml sieve-address/
 COPY sieve-ingest/pom.xml sieve-ingest/
 COPY sieve-match/pom.xml sieve-match/
+COPY sieve-spring-server/pom.xml sieve-spring-server/
 COPY sieve-server/pom.xml sieve-server/
 COPY sieve-cli/pom.xml sieve-cli/
 COPY sieve-benchmark/pom.xml sieve-benchmark/
@@ -138,7 +139,7 @@ COPY --from=java-build /app/sieve-address/src/main/native/libsieve_postal.so /us
 RUN ldconfig
 
 # Copy application JAR
-COPY --from=java-build /app/sieve-server/target/*.jar app.jar
+COPY --from=java-build /app/sieve-spring-server/target/*.jar app.jar
 
 EXPOSE 8080
 

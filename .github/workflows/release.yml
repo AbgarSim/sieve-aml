@@ -39,6 +39,7 @@ jobs:
         with:
           generate_release_notes: true
           files: |
+            sieve-spring-server/target/sieve-spring-server-${{ steps.version.outputs.VERSION }}.jar
             sieve-server/target/sieve-server-${{ steps.version.outputs.VERSION }}.jar
             sieve-cli/target/sieve-cli-${{ steps.version.outputs.VERSION }}.jar
 

@@ -119,7 +119,7 @@ public final class HttpStressTest {
         System.out.println("─".repeat(94));
 
         int[] rampLevels = {1, 10, 50, 100, 500, concurrency};
-        int rampRequests = Math.min(1000, totalRequests / 4);
+        int rampRequests = Math.min(500, totalRequests / 4);
         for (int level : rampLevels) {
             if (level > concurrency) break;
             runPhase(level, rampRequests);

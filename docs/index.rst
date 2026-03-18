@@ -1,5 +1,11 @@
-Sieve AML
-=========
+.. image:: _static/sieve-aml-logo.svg
+   :alt: Sieve AML
+   :align: center
+   :width: 280px
+
+.. raw:: html
+
+   <br>
 
 **Open-source sanctions screening platform.**
 

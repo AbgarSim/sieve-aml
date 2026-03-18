@@ -27,6 +27,7 @@
         <module>sieve-address</module>
         <module>sieve-ingest</module>
         <module>sieve-match</module>
+        <module>sieve-spring-server</module>
         <module>sieve-server</module>
         <module>sieve-cli</module>
         <module>sieve-benchmark</module>
@@ -44,6 +45,7 @@
         <picocli.version>4.7.6</picocli.version>
         <jakarta-validation.version>3.1.0</jakarta-validation.version>
         <swagger-annotations.version>2.2.25</swagger-annotations.version>
+        <vertx.version>4.5.11</vertx.version>
 
         <!-- Test dependency versions -->
         <junit-bom.version>5.11.3</junit-bom.version>
@@ -100,6 +102,11 @@
             <dependency>
                 <groupId>dev.sieve</groupId>
                 <artifactId>sieve-match</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.sieve</groupId>
+                <artifactId>sieve-spring-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
