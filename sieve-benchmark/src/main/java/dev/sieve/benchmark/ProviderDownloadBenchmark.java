@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,13 +105,13 @@ public final class ProviderDownloadBenchmark {
         System.out.println("--- Parallel Downloads ---");
 
         Instant parStart = Instant.now();
-        Map<String, ProviderResult> parallelResults = new LinkedHashMap<>();
+        Map<String, ProviderResult> parallelResults = new ConcurrentHashMap<>();
 
         List<Thread> threads =
                 providers.entrySet().stream()
                         .map(
                                 entry ->
-                                        Thread.ofVirtual()
+                                        Thread.ofPlatform()
                                                 .start(
                                                         () -> {
                                                             String name = entry.getKey();
@@ -126,24 +127,19 @@ public final class ProviderDownloadBenchmark {
                                                                                         Instant
                                                                                                 .now())
                                                                                 .toMillis();
-                                                                synchronized (parallelResults) {
-                                                                    parallelResults.put(
-                                                                            name,
-                                                                            new ProviderResult(
-                                                                                    entities.size(),
-                                                                                    ms,
-                                                                                    null));
-                                                                }
+                                                                parallelResults.put(
+                                                                        name,
+                                                                        new ProviderResult(
+                                                                                entities.size(),
+                                                                                ms,
+                                                                                null));
                                                             } catch (ListIngestionException e) {
-                                                                synchronized (parallelResults) {
-                                                                    parallelResults.put(
-                                                                            name,
-                                                                            new ProviderResult(
-                                                                                    0,
-                                                                                    0,
-                                                                                    e
-                                                                                            .getMessage()));
-                                                                }
+                                                                parallelResults.put(
+                                                                        name,
+                                                                        new ProviderResult(
+                                                                                0,
+                                                                                0,
+                                                                                e.getMessage()));
                                                             }
                                                         }))
                         .toList();

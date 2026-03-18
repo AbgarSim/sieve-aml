@@ -52,41 +52,12 @@ public final class FuzzyMatchEngine implements MatchEngine {
         List<MatchResult> results = new ArrayList<>();
 
         for (SanctionedEntity entity : candidates) {
-            if (request.entityType().isPresent()
-                    && request.entityType().get() != entity.entityType()) {
+            if (shouldSkipEntity(request, entity)) {
                 continue;
             }
-
-            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
-            double threshold = request.threshold();
-
-            double bestScore = 0.0;
-            String bestField = "primaryName";
-
-            double primaryScore =
-                    JaroWinkler.similarityWithThreshold(
-                            normalizedQuery, cached.primaryName(), threshold);
-            if (primaryScore > bestScore) {
-                bestScore = primaryScore;
-                bestField = "primaryName";
-            }
-
-            if (bestScore < 1.0) {
-                List<String> aliases = cached.aliases();
-                for (int i = 0; i < aliases.size(); i++) {
-                    double aliasScore =
-                            JaroWinkler.similarityWithThreshold(
-                                    normalizedQuery, aliases.get(i), threshold);
-                    if (aliasScore > bestScore) {
-                        bestScore = aliasScore;
-                        bestField = "alias[" + i + "]";
-                        if (bestScore >= 1.0) break;
-                    }
-                }
-            }
-
-            if (bestScore >= request.threshold()) {
-                results.add(new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME));
+            MatchResult result = scoreEntity(normalizedQuery, entity, request.threshold());
+            if (result != null) {
+                results.add(result);
             }
         }
 
@@ -97,6 +68,40 @@ public final class FuzzyMatchEngine implements MatchEngine {
                 candidates.size(),
                 results.size());
         return results;
+    }
+
+    private static boolean shouldSkipEntity(ScreeningRequest request, SanctionedEntity entity) {
+        return request.entityType().isPresent()
+                && request.entityType().get() != entity.entityType();
+    }
+
+    private MatchResult scoreEntity(
+            String normalizedQuery, SanctionedEntity entity, double threshold) {
+        NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+
+        double bestScore =
+                JaroWinkler.similarityWithThreshold(
+                        normalizedQuery, cached.primaryName(), threshold);
+        String bestField = "primaryName";
+
+        if (bestScore < 1.0) {
+            List<String> aliases = cached.aliases();
+            for (int i = 0; i < aliases.size(); i++) {
+                double aliasScore =
+                        JaroWinkler.similarityWithThreshold(
+                                normalizedQuery, aliases.get(i), threshold);
+                if (aliasScore > bestScore) {
+                    bestScore = aliasScore;
+                    bestField = "alias[" + i + "]";
+                    if (bestScore >= 1.0) break;
+                }
+            }
+        }
+
+        if (bestScore >= threshold) {
+            return new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME);
+        }
+        return null;
     }
 
     private Collection<SanctionedEntity> resolveCandidates(

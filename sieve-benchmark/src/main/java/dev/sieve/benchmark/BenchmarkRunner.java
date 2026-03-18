@@ -45,7 +45,7 @@ public final class BenchmarkRunner {
     public static void main(String[] args) throws Exception {
         // Check for subcommands first
         if (args.length > 0 && "jmh".equals(args[0])) {
-            runJmh(Arrays.copyOfRange(args, 1, args.length));
+            runJmh();
             return;
         }
         if (args.length > 0 && "stress".equals(args[0])) {
@@ -64,6 +64,7 @@ public final class BenchmarkRunner {
                     printUsage();
                     return;
                 }
+                default -> log.warn("Unknown argument: {}", arg);
             }
         }
 
@@ -100,7 +101,7 @@ public final class BenchmarkRunner {
         System.out.println("Benchmark suite complete.");
     }
 
-    private static void runJmh(String[] jmhArgs) throws RunnerException {
+    private static void runJmh() throws RunnerException {
         System.out.println();
         System.out.println("╔══════════════════════════════════════════════════════════════════╗");
         System.out.println("║           Sieve AML — JMH Microbenchmarks                       ║");

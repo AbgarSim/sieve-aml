@@ -47,7 +47,7 @@ public final class CompositeMatchEngine implements MatchEngine {
 
         // Collect results from all engines
         List<MatchResult> firstResults = engines.getFirst().screen(request, index);
-        HashMap<String, MatchResult> bestByEntityId = new HashMap<>(firstResults.size() * 2);
+        HashMap<String, MatchResult> bestByEntityId = HashMap.newHashMap(firstResults.size());
         for (MatchResult result : firstResults) {
             bestByEntityId.put(result.entity().id(), result);
         }

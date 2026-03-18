@@ -128,79 +128,88 @@ public class JpaEntityIndex implements EntityIndex {
                             entity.lastUpdated(),
                             json);
 
-            // Searchable name columns from primaryName
-            NameInfo name = entity.primaryName();
-            row.setGivenName(name.givenName());
-            row.setFamilyName(name.familyName());
-            row.setMiddleName(name.middleName());
-            row.setTitle(name.title());
-
-            // First date of birth, place of birth, nationality, citizenship
-            if (!entity.datesOfBirth().isEmpty()) {
-                row.setDateOfBirth(entity.datesOfBirth().getFirst());
-            }
-            if (!entity.placesOfBirth().isEmpty()) {
-                row.setPlaceOfBirth(entity.placesOfBirth().getFirst());
-            }
-            if (!entity.nationalities().isEmpty()) {
-                row.setNationality(entity.nationalities().getFirst());
-            }
-            if (!entity.citizenships().isEmpty()) {
-                row.setCitizenship(entity.citizenships().getFirst());
-            }
-
-            // Child collections — aliases
-            for (NameInfo alias : entity.aliases()) {
-                row.getAliases()
-                        .add(
-                                new EntityAliasRow(
-                                        row,
-                                        alias.fullName(),
-                                        alias.givenName(),
-                                        alias.familyName(),
-                                        alias.middleName(),
-                                        alias.title(),
-                                        alias.nameType() != null
-                                                ? alias.nameType().name()
-                                                : "ALIAS",
-                                        alias.strength() != null ? alias.strength().name() : null,
-                                        alias.script() != null ? alias.script().name() : null));
-            }
-
-            // Child collections — addresses
-            for (Address addr : entity.addresses()) {
-                row.getAddresses()
-                        .add(
-                                new EntityAddressRow(
-                                        row,
-                                        addr.street(),
-                                        addr.city(),
-                                        addr.stateOrProvince(),
-                                        addr.postalCode(),
-                                        addr.country(),
-                                        addr.fullAddress()));
-            }
-
-            // Child collections — identifiers
-            for (Identifier ident : entity.identifiers()) {
-                row.getIdentifiers()
-                        .add(
-                                new EntityIdentifierRow(
-                                        row,
-                                        ident.type() != null ? ident.type().name() : "OTHER",
-                                        ident.value(),
-                                        ident.issuingCountry(),
-                                        ident.remarks()));
-            }
-
-            // Child collections — programs
-            for (SanctionsProgram prog : entity.programs()) {
-                row.getPrograms().add(new EntityProgramRow(row, prog.code(), prog.name()));
-            }
+            populateSearchableColumns(row, entity);
+            mapAliases(row, entity);
+            mapAddresses(row, entity);
+            mapIdentifiers(row, entity);
+            mapPrograms(row, entity);
 
             return row;
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize SanctionedEntity to JSON", e);
+        }
+    }
+
+    private static void populateSearchableColumns(
+            SanctionedEntityRow row, SanctionedEntity entity) {
+        NameInfo name = entity.primaryName();
+        row.setGivenName(name.givenName());
+        row.setFamilyName(name.familyName());
+        row.setMiddleName(name.middleName());
+        row.setTitle(name.title());
+
+        if (!entity.datesOfBirth().isEmpty()) {
+            row.setDateOfBirth(entity.datesOfBirth().getFirst());
+        }
+        if (!entity.placesOfBirth().isEmpty()) {
+            row.setPlaceOfBirth(entity.placesOfBirth().getFirst());
+        }
+        if (!entity.nationalities().isEmpty()) {
+            row.setNationality(entity.nationalities().getFirst());
+        }
+        if (!entity.citizenships().isEmpty()) {
+            row.setCitizenship(entity.citizenships().getFirst());
+        }
+    }
+
+    private static void mapAliases(SanctionedEntityRow row, SanctionedEntity entity) {
+        for (NameInfo alias : entity.aliases()) {
+            row.getAliases()
+                    .add(
+                            new EntityAliasRow(
+                                    row,
+                                    alias.fullName(),
+                                    alias.givenName(),
+                                    alias.familyName(),
+                                    alias.middleName(),
+                                    alias.title(),
+                                    alias.nameType() != null ? alias.nameType().name() : "ALIAS",
+                                    alias.strength() != null ? alias.strength().name() : null,
+                                    alias.script() != null ? alias.script().name() : null));
+        }
+    }
+
+    private static void mapAddresses(SanctionedEntityRow row, SanctionedEntity entity) {
+        for (Address addr : entity.addresses()) {
+            row.getAddresses()
+                    .add(
+                            new EntityAddressRow(
+                                    row,
+                                    addr.street(),
+                                    addr.city(),
+                                    addr.stateOrProvince(),
+                                    addr.postalCode(),
+                                    addr.country(),
+                                    addr.fullAddress()));
+        }
+    }
+
+    private static void mapIdentifiers(SanctionedEntityRow row, SanctionedEntity entity) {
+        for (Identifier ident : entity.identifiers()) {
+            row.getIdentifiers()
+                    .add(
+                            new EntityIdentifierRow(
+                                    row,
+                                    ident.type() != null ? ident.type().name() : "OTHER",
+                                    ident.value(),
+                                    ident.issuingCountry(),
+                                    ident.remarks()));
+        }
+    }
+
+    private static void mapPrograms(SanctionedEntityRow row, SanctionedEntity entity) {
+        for (SanctionsProgram prog : entity.programs()) {
+            row.getPrograms().add(new EntityProgramRow(row, prog.code(), prog.name()));
         }
     }
 

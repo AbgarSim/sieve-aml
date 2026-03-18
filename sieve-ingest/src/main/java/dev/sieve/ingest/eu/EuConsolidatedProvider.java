@@ -282,86 +282,101 @@ public final class EuConsolidatedProvider implements ListProvider {
         String entityId =
                 (euRefNumber != null && !euRefNumber.isBlank()) ? euRefNumber : "EU-" + logicalId;
 
-        EntityType entityType = EntityType.ENTITY;
-        List<NameAlias> nameAliases = new ArrayList<>();
-        List<Address> addresses = new ArrayList<>();
-        List<Identifier> identifiers = new ArrayList<>();
-        Set<String> citizenships = new LinkedHashSet<>();
-        List<LocalDate> datesOfBirth = new ArrayList<>();
-        Set<String> placesOfBirth = new LinkedHashSet<>();
-        Set<String> programs = new LinkedHashSet<>();
-        StringBuilder remarks = new StringBuilder();
-        Instant entryIntoForceDate = null;
+        EntityParseContext ctx = new EntityParseContext();
+        parseEntityElements(reader, ctx);
+        return assembleEntity(entityId, ctx);
+    }
 
+    /** Mutable accumulator for data collected while parsing a {@code <sanctionEntity>}. */
+    private static final class EntityParseContext {
+        EntityType entityType = EntityType.ENTITY;
+        final List<NameAlias> nameAliases = new ArrayList<>();
+        final List<Address> addresses = new ArrayList<>();
+        final List<Identifier> identifiers = new ArrayList<>();
+        final Set<String> citizenships = new LinkedHashSet<>();
+        final List<LocalDate> datesOfBirth = new ArrayList<>();
+        final Set<String> placesOfBirth = new LinkedHashSet<>();
+        final Set<String> programs = new LinkedHashSet<>();
+        final StringBuilder remarks = new StringBuilder();
+        Instant entryIntoForceDate = null;
+    }
+
+    private void parseEntityElements(XMLStreamReader reader, EntityParseContext ctx)
+            throws XMLStreamException {
         while (reader.hasNext()) {
             int event = reader.next();
 
             if (event == XMLStreamConstants.START_ELEMENT) {
-                String el = reader.getLocalName();
-                switch (el) {
-                    case "subjectType" -> entityType = parseSubjectType(reader);
-                    case "nameAlias" -> {
-                        NameAlias alias = parseNameAlias(reader);
-                        if (alias != null) {
-                            nameAliases.add(alias);
-                        }
-                    }
-                    case "address" -> {
-                        Address addr = parseAddress(reader);
-                        if (addr != null) {
-                            addresses.add(addr);
-                        }
-                    }
-                    case "identification" -> {
-                        Identifier ident = parseIdentification(reader);
-                        if (ident != null) {
-                            identifiers.add(ident);
-                        }
-                    }
-                    case "citizenship" -> {
-                        String country = attr(reader, "countryDescription");
-                        String code = attr(reader, "countryIso2Code");
-                        if (country != null
-                                && !country.isBlank()
-                                && !"UNKNOWN".equalsIgnoreCase(country)) {
-                            citizenships.add(country);
-                        } else if (code != null && !code.isBlank() && !"00".equals(code)) {
-                            citizenships.add(code);
-                        }
-                    }
-                    case "birthdate" -> parseBirthdate(reader, datesOfBirth, placesOfBirth);
-                    case "regulation" -> {
-                        String programme = attr(reader, "programme");
-                        if (programme != null && !programme.isBlank()) {
-                            programs.add(programme);
-                        }
-                        String dateStr = attr(reader, "entryIntoForceDate");
-                        Instant parsed = parseDate(dateStr);
-                        if (parsed != null
-                                && (entryIntoForceDate == null
-                                        || parsed.isBefore(entryIntoForceDate))) {
-                            entryIntoForceDate = parsed;
-                        }
-                    }
-                    case "remark" -> {
-                        String text = readText(reader);
-                        if (text != null) {
-                            if (!remarks.isEmpty()) remarks.append("; ");
-                            remarks.append(text);
-                        }
-                    }
-                    default -> {
-                        /* skip */
-                    }
-                }
+                handleEntityChild(reader, ctx);
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "sanctionEntity".equals(reader.getLocalName())) {
                 break;
             }
         }
+    }
 
+    private void handleEntityChild(XMLStreamReader reader, EntityParseContext ctx)
+            throws XMLStreamException {
+        String el = reader.getLocalName();
+        switch (el) {
+            case "subjectType" -> ctx.entityType = parseSubjectType(reader);
+            case "nameAlias" -> addIfNonNull(ctx.nameAliases, parseNameAlias(reader));
+            case "address" -> addIfNonNull(ctx.addresses, parseAddress(reader));
+            case "identification" -> addIfNonNull(ctx.identifiers, parseIdentification(reader));
+            case "citizenship" -> parseCitizenship(reader, ctx.citizenships);
+            case "birthdate" -> parseBirthdate(reader, ctx.datesOfBirth, ctx.placesOfBirth);
+            case "regulation" ->
+                    ctx.entryIntoForceDate =
+                            parseRegulation(reader, ctx.programs, ctx.entryIntoForceDate);
+            case "remark" -> appendRemark(reader, ctx.remarks);
+            default -> {
+                /* skip */
+            }
+        }
+    }
+
+    private static <T> void addIfNonNull(List<T> list, T item) {
+        if (item != null) {
+            list.add(item);
+        }
+    }
+
+    private void parseCitizenship(XMLStreamReader reader, Set<String> citizenships) {
+        String country = attr(reader, "countryDescription");
+        String code = attr(reader, "countryIso2Code");
+        if (country != null && !country.isBlank() && !"UNKNOWN".equalsIgnoreCase(country)) {
+            citizenships.add(country);
+        } else if (code != null && !code.isBlank() && !"00".equals(code)) {
+            citizenships.add(code);
+        }
+    }
+
+    private Instant parseRegulation(
+            XMLStreamReader reader, Set<String> programs, Instant currentEarliest) {
+        String programme = attr(reader, "programme");
+        if (programme != null && !programme.isBlank()) {
+            programs.add(programme);
+        }
+        String dateStr = attr(reader, "entryIntoForceDate");
+        Instant parsed = parseDate(dateStr);
+        if (parsed != null && (currentEarliest == null || parsed.isBefore(currentEarliest))) {
+            return parsed;
+        }
+        return currentEarliest;
+    }
+
+    private void appendRemark(XMLStreamReader reader, StringBuilder remarks)
+            throws XMLStreamException {
+        String text = readText(reader);
+        if (text != null) {
+            if (!remarks.isEmpty()) remarks.append("; ");
+            remarks.append(text);
+        }
+    }
+
+    private SanctionedEntity assembleEntity(String entityId, EntityParseContext ctx) {
         // Select primary name: first English-language alias, or first alias overall
-        NameAlias primaryAlias = selectPrimary(nameAliases);
+        NameAlias primaryAlias = selectPrimary(ctx.nameAliases);
         if (primaryAlias == null) {
             log.debug("Skipping EU entity with no usable name [id={}]", entityId);
             return null;
@@ -369,33 +384,33 @@ public final class EuConsolidatedProvider implements ListProvider {
 
         NameInfo primaryName = toNameInfo(primaryAlias, NameType.PRIMARY);
         List<NameInfo> aliases = new ArrayList<>();
-        for (NameAlias na : nameAliases) {
+        for (NameAlias na : ctx.nameAliases) {
             if (na != primaryAlias) {
                 aliases.add(toNameInfo(na, NameType.AKA));
             }
         }
 
         List<SanctionsProgram> sanctionsPrograms =
-                programs.stream()
+                ctx.programs.stream()
                         .map(p -> new SanctionsProgram(p, p, ListSource.EU_CONSOLIDATED))
                         .toList();
 
         // EU list doesn't have separate nationality field — use citizenships for both
         return new SanctionedEntity(
                 entityId,
-                entityType,
+                ctx.entityType,
                 ListSource.EU_CONSOLIDATED,
                 primaryName,
                 aliases,
-                addresses,
-                identifiers,
-                new ArrayList<>(citizenships),
-                new ArrayList<>(citizenships),
-                datesOfBirth,
-                new ArrayList<>(placesOfBirth),
-                remarks.isEmpty() ? null : remarks.toString(),
+                ctx.addresses,
+                ctx.identifiers,
+                new ArrayList<>(ctx.citizenships),
+                new ArrayList<>(ctx.citizenships),
+                ctx.datesOfBirth,
+                new ArrayList<>(ctx.placesOfBirth),
+                ctx.remarks.isEmpty() ? null : ctx.remarks.toString(),
                 sanctionsPrograms,
-                entryIntoForceDate,
+                ctx.entryIntoForceDate,
                 null);
     }
 

@@ -38,6 +38,10 @@ public final class HttpStressTest {
 
     private static final Logger log = LoggerFactory.getLogger(HttpStressTest.class);
 
+    private static final String SCREEN_ENDPOINT = "/api/v1/screen";
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String APPLICATION_JSON = "application/json";
+
     private static final String[] SCREEN_NAMES = {
         "Saddam Hussein",
         "Osama Bin Laden",
@@ -175,8 +179,8 @@ public final class HttpStressTest {
             String body = toJson("warmup test", 0.80);
             HttpRequest req =
                     HttpRequest.newBuilder()
-                            .uri(URI.create(baseUrl + "/api/v1/screen"))
-                            .header("Content-Type", "application/json")
+                            .uri(URI.create(baseUrl + SCREEN_ENDPOINT))
+                            .header(CONTENT_TYPE_HEADER, APPLICATION_JSON)
                             .POST(HttpRequest.BodyPublishers.ofString(body))
                             .build();
 
@@ -196,12 +200,7 @@ public final class HttpStressTest {
     }
 
     private StressResult runPhase(int threads, int requests) {
-        // Use multiple HttpClient instances to avoid connection pool bottleneck
-        int clientCount = Math.max(1, Math.min(threads / 10, 50));
-        HttpClient[] clients = new HttpClient[clientCount];
-        for (int i = 0; i < clientCount; i++) {
-            clients[i] = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-        }
+        HttpClient[] clients = createClients(threads);
 
         ConcurrentLinkedQueue<Long> latencies = new ConcurrentLinkedQueue<>();
         AtomicInteger completedCount = new AtomicInteger(0);
@@ -217,110 +216,155 @@ public final class HttpStressTest {
             for (int t = 0; t < threads; t++) {
                 final int threadId = t;
                 final int myRequests = requestsPerThread + (t < remainder ? 1 : 0);
-                final HttpClient client = clients[t % clientCount];
+                final HttpClient client = clients[t % clients.length];
 
                 executor.submit(
                         () -> {
-                            ready.countDown();
-                            try {
-                                go.await();
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                done.countDown();
-                                return;
-                            }
-
-                            for (int i = 0; i < myRequests; i++) {
-                                String name = SCREEN_NAMES[(threadId + i) % SCREEN_NAMES.length];
-                                double threshold = THRESHOLDS[(threadId + i) % THRESHOLDS.length];
-                                String body = toJson(name, threshold);
-
-                                HttpRequest req =
-                                        HttpRequest.newBuilder()
-                                                .uri(URI.create(baseUrl + "/api/v1/screen"))
-                                                .header("Content-Type", "application/json")
-                                                .POST(HttpRequest.BodyPublishers.ofString(body))
-                                                .build();
-
-                                long start = System.nanoTime();
-                                try {
-                                    HttpResponse<String> resp =
-                                            client.send(req, HttpResponse.BodyHandlers.ofString());
-                                    long elapsedUs = (System.nanoTime() - start) / 1_000;
-                                    latencies.add(elapsedUs);
-                                    completedCount.incrementAndGet();
-
-                                    if (resp.statusCode() != 200) {
-                                        errorCount.incrementAndGet();
-                                    }
-                                } catch (Exception e) {
-                                    long elapsedUs = (System.nanoTime() - start) / 1_000;
-                                    latencies.add(elapsedUs);
-                                    errorCount.incrementAndGet();
-                                    completedCount.incrementAndGet();
-                                }
-                            }
-
+                            if (!awaitGo(ready, go, done)) return;
+                            executeRequests(
+                                    client,
+                                    threadId,
+                                    myRequests,
+                                    latencies,
+                                    completedCount,
+                                    errorCount);
                             done.countDown();
                         });
             }
 
-            try {
-                ready.await();
-                Instant wallStart = Instant.now();
-                go.countDown();
-                done.await();
-                double wallSec = Duration.between(wallStart, Instant.now()).toMillis() / 1000.0;
-
-                // Compute stats
-                List<Long> sorted = new ArrayList<>(latencies);
-                sorted.sort(null);
-                int n = sorted.size();
-
-                if (n == 0) {
-                    StressResult result = new StressResult(0, 0, 0, 0, 0, 0, 0, wallSec);
-                    System.out.printf(
-                            "%-14d %12d %14s %12s %12s %12s %10d%n",
-                            threads, 0, "N/A", "N/A", "N/A", "N/A", errorCount.get());
-                    return result;
-                }
-
-                long sum = sorted.stream().mapToLong(Long::longValue).sum();
-                long avg = sum / n;
-                long p50 = sorted.get(n / 2);
-                long p99 = sorted.get((int) (n * 0.99));
-                long max = sorted.getLast();
-                double throughput = n / wallSec;
-                int errors = errorCount.get();
-
-                StressResult result =
-                        new StressResult(n, throughput, avg, p50, p99, max, errors, wallSec);
-
-                System.out.printf(
-                        "%-14d %12d %,14.0f %,12d %,12d %,12d %10d%n",
-                        threads, n, throughput, avg, p50, p99, errors);
-
-                return result;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return new StressResult(0, 0, 0, 0, 0, 0, 0, 0);
-            }
+            return awaitAndComputeResults(ready, go, done, latencies, errorCount, threads);
         } finally {
-            for (HttpClient c : clients) {
-                c.close();
-            }
+            closeClients(clients);
         }
     }
 
-    private void runThresholdPhase(int threads, int requests, double threshold) {
-        int clientCount = Math.max(1, Math.min(threads / 10, 50));
+    private HttpClient[] createClients(int threads) {
+        int clientCount = Math.clamp(threads / 10, 1, 50);
         HttpClient[] clients = new HttpClient[clientCount];
         for (int i = 0; i < clientCount; i++) {
             clients[i] = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         }
+        return clients;
+    }
+
+    private static boolean awaitGo(CountDownLatch ready, CountDownLatch go, CountDownLatch done) {
+        ready.countDown();
+        try {
+            go.await();
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            done.countDown();
+            return false;
+        }
+    }
+
+    private void executeRequests(
+            HttpClient client,
+            int threadId,
+            int count,
+            ConcurrentLinkedQueue<Long> latencies,
+            AtomicInteger completedCount,
+            AtomicInteger errorCount) {
+        for (int i = 0; i < count; i++) {
+            String name = SCREEN_NAMES[(threadId + i) % SCREEN_NAMES.length];
+            double threshold = THRESHOLDS[(threadId + i) % THRESHOLDS.length];
+            executeSingleRequest(client, name, threshold, latencies, completedCount, errorCount);
+        }
+    }
+
+    private void executeSingleRequest(
+            HttpClient client,
+            String name,
+            double threshold,
+            ConcurrentLinkedQueue<Long> latencies,
+            AtomicInteger completedCount,
+            AtomicInteger errorCount) {
+        String body = toJson(name, threshold);
+        HttpRequest req = buildScreenRequest(body);
+
+        long start = System.nanoTime();
+        try {
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            latencies.add((System.nanoTime() - start) / 1_000);
+            completedCount.incrementAndGet();
+            if (resp.statusCode() != 200) {
+                errorCount.incrementAndGet();
+            }
+        } catch (Exception e) {
+            latencies.add((System.nanoTime() - start) / 1_000);
+            errorCount.incrementAndGet();
+            completedCount.incrementAndGet();
+        }
+    }
+
+    private HttpRequest buildScreenRequest(String body) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + SCREEN_ENDPOINT))
+                .header(CONTENT_TYPE_HEADER, APPLICATION_JSON)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+    }
+
+    private StressResult awaitAndComputeResults(
+            CountDownLatch ready,
+            CountDownLatch go,
+            CountDownLatch done,
+            ConcurrentLinkedQueue<Long> latencies,
+            AtomicInteger errorCount,
+            int threads) {
+        try {
+            ready.await();
+            Instant wallStart = Instant.now();
+            go.countDown();
+            done.await();
+            double wallSec = Duration.between(wallStart, Instant.now()).toMillis() / 1000.0;
+            return computeStats(latencies, errorCount.get(), threads, wallSec);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new StressResult(0, 0, 0, 0, 0, 0, 0, 0);
+        }
+    }
+
+    private static StressResult computeStats(
+            ConcurrentLinkedQueue<Long> latencies, int errors, int threads, double wallSec) {
+        List<Long> sorted = new ArrayList<>(latencies);
+        sorted.sort(null);
+        int n = sorted.size();
+
+        if (n == 0) {
+            System.out.printf(
+                    "%-14d %12d %14s %12s %12s %12s %10d%n",
+                    threads, 0, "N/A", "N/A", "N/A", "N/A", errors);
+            return new StressResult(0, 0, 0, 0, 0, 0, 0, wallSec);
+        }
+
+        long sum = sorted.stream().mapToLong(Long::longValue).sum();
+        long avg = sum / n;
+        long p50 = sorted.get(n / 2);
+        long p99 = sorted.get((int) (n * 0.99));
+        long max = sorted.getLast();
+        double throughput = n / wallSec;
+
+        System.out.printf(
+                "%-14d %12d %,14.0f %,12d %,12d %,12d %10d%n",
+                threads, n, throughput, avg, p50, p99, errors);
+
+        return new StressResult(n, throughput, avg, p50, p99, max, errors, wallSec);
+    }
+
+    private static void closeClients(HttpClient[] clients) {
+        for (HttpClient c : clients) {
+            c.close();
+        }
+    }
+
+    private void runThresholdPhase(int threads, int requests, double threshold) {
+        HttpClient[] clients = createClients(threads);
 
         ConcurrentLinkedQueue<Long> latencies = new ConcurrentLinkedQueue<>();
         AtomicInteger completedCount = new AtomicInteger(0);
+        AtomicInteger errorCount = new AtomicInteger(0);
         CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch go = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);
@@ -330,40 +374,18 @@ public final class HttpStressTest {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (int t = 0; t < threads; t++) {
                 final int threadId = t;
-                final HttpClient client = clients[t % clientCount];
+                final HttpClient client = clients[t % clients.length];
 
                 executor.submit(
                         () -> {
-                            ready.countDown();
-                            try {
-                                go.await();
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                done.countDown();
-                                return;
-                            }
-
-                            for (int i = 0; i < requestsPerThread; i++) {
-                                String name = SCREEN_NAMES[(threadId + i) % SCREEN_NAMES.length];
-                                String body = toJson(name, threshold);
-
-                                HttpRequest req =
-                                        HttpRequest.newBuilder()
-                                                .uri(URI.create(baseUrl + "/api/v1/screen"))
-                                                .header("Content-Type", "application/json")
-                                                .POST(HttpRequest.BodyPublishers.ofString(body))
-                                                .build();
-
-                                long start = System.nanoTime();
-                                try {
-                                    client.send(req, HttpResponse.BodyHandlers.ofString());
-                                    latencies.add((System.nanoTime() - start) / 1_000);
-                                    completedCount.incrementAndGet();
-                                } catch (Exception e) {
-                                    latencies.add((System.nanoTime() - start) / 1_000);
-                                    completedCount.incrementAndGet();
-                                }
-                            }
+                            if (!awaitGo(ready, go, done)) return;
+                            executeFixedThresholdRequests(
+                                    client,
+                                    threadId,
+                                    requestsPerThread,
+                                    threshold,
+                                    latencies,
+                                    completedCount);
                             done.countDown();
                         });
             }
@@ -374,25 +396,51 @@ public final class HttpStressTest {
                 go.countDown();
                 done.await();
                 double wallSec = Duration.between(wallStart, Instant.now()).toMillis() / 1000.0;
-
-                List<Long> sorted = new ArrayList<>(latencies);
-                sorted.sort(null);
-                int n = sorted.size();
-                if (n == 0) return;
-
-                long avg = sorted.stream().mapToLong(Long::longValue).sum() / n;
-                long p99 = sorted.get((int) (n * 0.99));
-                double throughput = n / wallSec;
-
-                System.out.printf("%-12.2f %,14.0f %,12d %,12d%n", threshold, throughput, avg, p99);
+                printThresholdStats(latencies, threshold, wallSec);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         } finally {
-            for (HttpClient c : clients) {
-                c.close();
+            closeClients(clients);
+        }
+    }
+
+    private void executeFixedThresholdRequests(
+            HttpClient client,
+            int threadId,
+            int count,
+            double threshold,
+            ConcurrentLinkedQueue<Long> latencies,
+            AtomicInteger completedCount) {
+        for (int i = 0; i < count; i++) {
+            String name = SCREEN_NAMES[(threadId + i) % SCREEN_NAMES.length];
+            String body = toJson(name, threshold);
+            HttpRequest req = buildScreenRequest(body);
+
+            long start = System.nanoTime();
+            try {
+                client.send(req, HttpResponse.BodyHandlers.ofString());
+                latencies.add((System.nanoTime() - start) / 1_000);
+                completedCount.incrementAndGet();
+            } catch (Exception e) {
+                latencies.add((System.nanoTime() - start) / 1_000);
+                completedCount.incrementAndGet();
             }
         }
+    }
+
+    private static void printThresholdStats(
+            ConcurrentLinkedQueue<Long> latencies, double threshold, double wallSec) {
+        List<Long> sorted = new ArrayList<>(latencies);
+        sorted.sort(null);
+        int n = sorted.size();
+        if (n == 0) return;
+
+        long avg = sorted.stream().mapToLong(Long::longValue).sum() / n;
+        long p99 = sorted.get((int) (n * 0.99));
+        double throughput = n / wallSec;
+
+        System.out.printf("%-12.2f %,14.0f %,12d %,12d%n", threshold, throughput, avg, p99);
     }
 
     private static String toJson(String name, double threshold) {

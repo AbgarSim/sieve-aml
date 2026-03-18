@@ -184,10 +184,6 @@ public final class LibPostal {
 
     private static native boolean nativeSetupParserDataDir(String dataDir);
 
-    private static native boolean nativeSetupLanguageClassifier();
-
-    private static native boolean nativeSetupLanguageClassifierDataDir(String dataDir);
-
     private static native String[] nativeExpandAddress(String address);
 
     private static native String[][] nativeParseAddress(String address);
@@ -195,6 +191,4 @@ public final class LibPostal {
     private static native void nativeTeardown();
 
     private static native void nativeTeardownParser();
-
-    private static native void nativeTeardownLanguageClassifier();
 }

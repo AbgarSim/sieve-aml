@@ -64,7 +64,8 @@ class ScreeningRequestTest {
 
     @Test
     void shouldThrowWhenSourcesOptionalIsNull() {
-        assertThatThrownBy(() -> new ScreeningRequest("John Doe", Optional.empty(), null, 0.80))
+        Optional<dev.sieve.core.model.EntityType> entityType = Optional.empty();
+        assertThatThrownBy(() -> new ScreeningRequest("John Doe", entityType, null, 0.80))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("sources");
     }

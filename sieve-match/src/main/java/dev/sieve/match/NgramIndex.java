@@ -84,7 +84,12 @@ public final class NgramIndex {
             return entityById.values();
         }
 
-        // Count trigram hits per entity ID
+        HashMap<String, int[]> hitCounts = countTrigramHits(queryTrigrams);
+        int minHits = Math.max(1, (int) (queryTrigrams.size() * MIN_OVERLAP_RATIO));
+        return filterCandidates(hitCounts, minHits, normalizedQuery.length());
+    }
+
+    private HashMap<String, int[]> countTrigramHits(Set<String> queryTrigrams) {
         HashMap<String, int[]> hitCounts = new HashMap<>();
         Map<String, List<String>> snapshot = trigramToEntityIds;
 
@@ -96,37 +101,36 @@ public final class NgramIndex {
                 }
             }
         }
+        return hitCounts;
+    }
 
-        // Filter by minimum overlap and length ratio
-        int minHits = Math.max(1, (int) (queryTrigrams.size() * MIN_OVERLAP_RATIO));
-        int queryLen = normalizedQuery.length();
+    private List<SanctionedEntity> filterCandidates(
+            HashMap<String, int[]> hitCounts, int minHits, int queryLen) {
         List<SanctionedEntity> result = new ArrayList<>();
         Map<String, SanctionedEntity> entitySnapshot = entityById;
         Map<String, int[]> lengthSnapshot = entityNameLengths;
 
         for (Map.Entry<String, int[]> entry : hitCounts.entrySet()) {
-            if (entry.getValue()[0] >= minHits) {
-                // Length pre-filter: skip if name lengths diverge too much
-                int[] lengths = lengthSnapshot.get(entry.getKey());
-                if (lengths != null) {
-                    int shortest = lengths[0];
-                    int longest = lengths[1];
-                    if (queryLen > 0 && shortest > 0) {
-                        double ratio =
-                                (double) Math.max(queryLen, longest) / Math.min(queryLen, shortest);
-                        if (ratio > MAX_LENGTH_RATIO) {
-                            continue;
-                        }
-                    }
-                }
-                SanctionedEntity entity = entitySnapshot.get(entry.getKey());
-                if (entity != null) {
-                    result.add(entity);
-                }
+            if (entry.getValue()[0] < minHits) {
+                continue;
+            }
+            if (exceedsLengthRatio(lengthSnapshot.get(entry.getKey()), queryLen)) {
+                continue;
+            }
+            SanctionedEntity entity = entitySnapshot.get(entry.getKey());
+            if (entity != null) {
+                result.add(entity);
             }
         }
-
         return result;
+    }
+
+    private static boolean exceedsLengthRatio(int[] lengths, int queryLen) {
+        if (lengths == null || queryLen <= 0 || lengths[0] <= 0) {
+            return false;
+        }
+        double ratio = (double) Math.max(queryLen, lengths[1]) / Math.min(queryLen, lengths[0]);
+        return ratio > MAX_LENGTH_RATIO;
     }
 
     /** Returns the total number of indexed entities. */
@@ -141,49 +145,11 @@ public final class NgramIndex {
         }
 
         HashMap<String, List<String>> newTrigramMap = new HashMap<>();
-        HashMap<String, SanctionedEntity> newEntityById = new HashMap<>(currentSize * 2);
+        HashMap<String, SanctionedEntity> newEntityById = HashMap.newHashMap(currentSize);
+        indexAllEntities(index, nameCache, newTrigramMap, newEntityById);
+        deduplicateTrigramEntries(newTrigramMap);
 
-        for (SanctionedEntity entity : index.all()) {
-            String entityId = entity.id();
-            newEntityById.put(entityId, entity);
-
-            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
-
-            // Index primary name trigrams
-            for (String trigram : trigrams(cached.primaryName())) {
-                newTrigramMap.computeIfAbsent(trigram, k -> new ArrayList<>()).add(entityId);
-            }
-
-            // Index alias trigrams
-            for (String alias : cached.aliases()) {
-                for (String trigram : trigrams(alias)) {
-                    newTrigramMap.computeIfAbsent(trigram, k -> new ArrayList<>()).add(entityId);
-                }
-            }
-        }
-
-        // Deduplicate entity IDs per trigram (an entity may appear multiple times if
-        // the same trigram occurs in primary name and an alias)
-        for (Map.Entry<String, List<String>> entry : newTrigramMap.entrySet()) {
-            List<String> ids = entry.getValue();
-            if (ids.size() > 1) {
-                entry.setValue(List.copyOf(new HashSet<>(ids)));
-            }
-        }
-
-        // Build name length bounds per entity
-        HashMap<String, int[]> newLengths = new HashMap<>(currentSize * 2);
-        for (SanctionedEntity entity : index.all()) {
-            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
-            int shortest = cached.primaryName().length();
-            int longest = shortest;
-            for (String alias : cached.aliases()) {
-                int len = alias.length();
-                if (len < shortest) shortest = len;
-                if (len > longest) longest = len;
-            }
-            newLengths.put(entity.id(), new int[] {shortest, longest});
-        }
+        HashMap<String, int[]> newLengths = buildNameLengths(index, nameCache);
 
         trigramToEntityIds = newTrigramMap;
         entityById = newEntityById;
@@ -194,6 +160,63 @@ public final class NgramIndex {
                 "N-gram index rebuilt [entities={}, uniqueTrigrams={}]",
                 newEntityById.size(),
                 newTrigramMap.size());
+    }
+
+    private void indexAllEntities(
+            EntityIndex index,
+            NormalizedNameCache nameCache,
+            HashMap<String, List<String>> trigramMap,
+            HashMap<String, SanctionedEntity> entityMap) {
+        for (SanctionedEntity entity : index.all()) {
+            String entityId = entity.id();
+            entityMap.put(entityId, entity);
+            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+            indexEntityTrigrams(entityId, cached, trigramMap);
+        }
+    }
+
+    private static void indexEntityTrigrams(
+            String entityId,
+            NormalizedNameCache.NormalizedEntry cached,
+            HashMap<String, List<String>> trigramMap) {
+        for (String trigram : trigrams(cached.primaryName())) {
+            trigramMap.computeIfAbsent(trigram, k -> new ArrayList<>()).add(entityId);
+        }
+        for (String alias : cached.aliases()) {
+            for (String trigram : trigrams(alias)) {
+                trigramMap.computeIfAbsent(trigram, k -> new ArrayList<>()).add(entityId);
+            }
+        }
+    }
+
+    private static void deduplicateTrigramEntries(HashMap<String, List<String>> trigramMap) {
+        for (Map.Entry<String, List<String>> entry : trigramMap.entrySet()) {
+            List<String> ids = entry.getValue();
+            if (ids.size() > 1) {
+                entry.setValue(List.copyOf(new HashSet<>(ids)));
+            }
+        }
+    }
+
+    private HashMap<String, int[]> buildNameLengths(
+            EntityIndex index, NormalizedNameCache nameCache) {
+        HashMap<String, int[]> lengths = HashMap.newHashMap(index.size());
+        for (SanctionedEntity entity : index.all()) {
+            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+            lengths.put(entity.id(), computeLengthBounds(cached));
+        }
+        return lengths;
+    }
+
+    private static int[] computeLengthBounds(NormalizedNameCache.NormalizedEntry cached) {
+        int shortest = cached.primaryName().length();
+        int longest = shortest;
+        for (String alias : cached.aliases()) {
+            int len = alias.length();
+            if (len < shortest) shortest = len;
+            if (len > longest) longest = len;
+        }
+        return new int[] {shortest, longest};
     }
 
     /**
@@ -209,7 +232,7 @@ public final class NgramIndex {
             return Set.of();
         }
         int count = s.length() - N + 1;
-        HashSet<String> result = new HashSet<>(count * 2);
+        HashSet<String> result = HashSet.newHashSet(count);
         for (int i = 0; i < count; i++) {
             result.add(s.substring(i, i + N));
         }

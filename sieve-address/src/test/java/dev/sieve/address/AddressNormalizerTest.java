@@ -1,6 +1,7 @@
 package dev.sieve.address;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import dev.sieve.core.model.Address;
@@ -21,9 +22,10 @@ class AddressNormalizerTest {
     @Test
     void fallbackMode_isNotAvailable() {
         // init() should not crash even without libpostal installed
-        normalizer.init();
+        assertThatNoException().isThrownBy(() -> normalizer.init());
         // On a machine without libpostal, isAvailable() should be false
         // (On a machine WITH libpostal, it would be true — both cases are valid)
+        assertThat(normalizer.isAvailable()).isNotNull();
     }
 
     @Test
@@ -99,8 +101,8 @@ class AddressNormalizerTest {
     @Test
     void shutdown_doesNotThrow() {
         normalizer.init();
-        normalizer.shutdown();
+        assertThatNoException().isThrownBy(() -> normalizer.shutdown());
         // Double shutdown should also be safe
-        normalizer.shutdown();
+        assertThatNoException().isThrownBy(() -> normalizer.shutdown());
     }
 }
