@@ -54,8 +54,18 @@ html_theme_options = {
 
 # -- Breathe configuration (Doxygen integration) ----------------------------
 
-breathe_projects = {"sieve": "../doxygen/xml"}
+import os
+
+_doxygen_xml = os.path.join(os.path.dirname(__file__), "..", "doxygen", "xml")
+if not os.path.isdir(_doxygen_xml):
+    # Create empty fallback so Breathe directives are recognized but produce no output
+    os.makedirs(_doxygen_xml, exist_ok=True)
+
+breathe_projects = {"sieve": _doxygen_xml}
 breathe_default_project = "sieve"
+
+# Suppress Breathe lookup warnings (records/interfaces may not map cleanly)
+suppress_warnings = ["breathe", "docutils"]
 
 # -- Mermaid configuration ---------------------------------------------------
 

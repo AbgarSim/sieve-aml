@@ -30,7 +30,7 @@ XML_OUTPUT             = doxygen/xml
 
 # Diagrams
 HAVE_DOT               = NO
-CLASS_DIAGRAMS         = NO
+CLASS_GRAPH            = NO
 
 # Miscellaneous
 QUIET                  = YES

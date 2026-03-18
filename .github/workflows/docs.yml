@@ -39,7 +39,9 @@ jobs:
         run: pip install -r docs/requirements.txt
 
       - name: Generate Doxygen XML
-        run: doxygen Doxyfile
+        run: |
+          mkdir -p doxygen/xml
+          doxygen Doxyfile
 
       - name: Build Sphinx HTML
         run: sphinx-build -b html docs docs/_build/html -W --keep-going

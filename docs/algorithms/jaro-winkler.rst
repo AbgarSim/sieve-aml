@@ -36,7 +36,7 @@ Where:
 - *m* = number of matching characters
 - *t* = number of transpositions / 2
 - Characters are considered matching if they are the same and within
-  ⌊max(|s₁|, |s₂|) / 2⌋ - 1 positions of each other
+  ⌊max(\|s₁\|, \|s₂\|) / 2⌋ - 1 positions of each other
 
 **Example:**
 
