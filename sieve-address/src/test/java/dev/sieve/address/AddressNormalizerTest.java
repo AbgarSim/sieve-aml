@@ -21,11 +21,7 @@ class AddressNormalizerTest {
 
     @Test
     void fallbackMode_isNotAvailable() {
-        // init() should not crash even without libpostal installed
         assertThatNoException().isThrownBy(() -> normalizer.init());
-        // On a machine without libpostal, isAvailable() should be false
-        // (On a machine WITH libpostal, it would be true — both cases are valid)
-        assertThat(normalizer.isAvailable()).isNotNull();
     }
 
     @Test
