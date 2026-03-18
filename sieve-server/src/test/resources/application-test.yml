@@ -1,0 +1,27 @@
+sieve:
+  lists:
+    ofac-sdn:
+      enabled: false
+      url: https://localhost/test
+      refresh-cron: "0 0 0 31 12 *"
+    eu-consolidated:
+      enabled: false
+      url: https://localhost/test
+      refresh-cron: "0 0 0 31 12 *"
+    un-consolidated:
+      enabled: false
+      url: https://localhost/test
+      refresh-cron: "0 0 0 31 12 *"
+    uk-hmt:
+      enabled: false
+      url: https://localhost/test
+      refresh-cron: "0 0 0 31 12 *"
+  screening:
+    default-threshold: 0.80
+    max-results: 50
+  index:
+    type: in-memory
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
