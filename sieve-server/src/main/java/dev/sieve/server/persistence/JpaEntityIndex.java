@@ -4,9 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.IndexStats;
+import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.ListSource;
+import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
+import dev.sieve.core.model.SanctionsProgram;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -113,7 +117,7 @@ public class JpaEntityIndex implements EntityIndex {
     private SanctionedEntityRow toRow(SanctionedEntity entity) {
         try {
             String json = objectMapper.writeValueAsString(entity);
-            return new SanctionedEntityRow(
+            SanctionedEntityRow row = new SanctionedEntityRow(
                     entity.id(),
                     entity.entityType().name(),
                     entity.listSource().name(),
@@ -122,6 +126,73 @@ public class JpaEntityIndex implements EntityIndex {
                     entity.listedDate(),
                     entity.lastUpdated(),
                     json);
+
+            // Searchable name columns from primaryName
+            NameInfo name = entity.primaryName();
+            row.setGivenName(name.givenName());
+            row.setFamilyName(name.familyName());
+            row.setMiddleName(name.middleName());
+            row.setTitle(name.title());
+
+            // First date of birth, place of birth, nationality, citizenship
+            if (!entity.datesOfBirth().isEmpty()) {
+                row.setDateOfBirth(entity.datesOfBirth().getFirst());
+            }
+            if (!entity.placesOfBirth().isEmpty()) {
+                row.setPlaceOfBirth(entity.placesOfBirth().getFirst());
+            }
+            if (!entity.nationalities().isEmpty()) {
+                row.setNationality(entity.nationalities().getFirst());
+            }
+            if (!entity.citizenships().isEmpty()) {
+                row.setCitizenship(entity.citizenships().getFirst());
+            }
+
+            // Child collections — aliases
+            for (NameInfo alias : entity.aliases()) {
+                row.getAliases().add(new EntityAliasRow(
+                        row,
+                        alias.fullName(),
+                        alias.givenName(),
+                        alias.familyName(),
+                        alias.middleName(),
+                        alias.title(),
+                        alias.nameType() != null ? alias.nameType().name() : "ALIAS",
+                        alias.strength() != null ? alias.strength().name() : null,
+                        alias.script() != null ? alias.script().name() : null));
+            }
+
+            // Child collections — addresses
+            for (Address addr : entity.addresses()) {
+                row.getAddresses().add(new EntityAddressRow(
+                        row,
+                        addr.street(),
+                        addr.city(),
+                        addr.stateOrProvince(),
+                        addr.postalCode(),
+                        addr.country(),
+                        addr.fullAddress()));
+            }
+
+            // Child collections — identifiers
+            for (Identifier ident : entity.identifiers()) {
+                row.getIdentifiers().add(new EntityIdentifierRow(
+                        row,
+                        ident.type() != null ? ident.type().name() : "OTHER",
+                        ident.value(),
+                        ident.issuingCountry(),
+                        ident.remarks()));
+            }
+
+            // Child collections — programs
+            for (SanctionsProgram prog : entity.programs()) {
+                row.getPrograms().add(new EntityProgramRow(
+                        row,
+                        prog.code(),
+                        prog.name()));
+            }
+
+            return row;
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize SanctionedEntity to JSON", e);
         }

@@ -5,9 +5,8 @@ import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +40,20 @@ public final class CompositeMatchEngine implements MatchEngine {
 
     @Override
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
-        Map<String, MatchResult> bestByEntityId = new LinkedHashMap<>();
+        // Fast path: single engine — no dedup needed
+        if (engines.size() == 1) {
+            return engines.getFirst().screen(request, index);
+        }
 
-        for (MatchEngine engine : engines) {
-            List<MatchResult> engineResults = engine.screen(request, index);
+        // Collect results from all engines
+        List<MatchResult> firstResults = engines.getFirst().screen(request, index);
+        HashMap<String, MatchResult> bestByEntityId = new HashMap<>(firstResults.size() * 2);
+        for (MatchResult result : firstResults) {
+            bestByEntityId.put(result.entity().id(), result);
+        }
+
+        for (int e = 1; e < engines.size(); e++) {
+            List<MatchResult> engineResults = engines.get(e).screen(request, index);
             for (MatchResult result : engineResults) {
                 String entityId = result.entity().id();
                 MatchResult existing = bestByEntityId.get(entityId);

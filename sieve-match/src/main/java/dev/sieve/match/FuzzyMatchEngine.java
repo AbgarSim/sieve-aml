@@ -4,7 +4,6 @@ import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
-import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.match.algorithm.JaroWinkler;
 import java.util.ArrayList;
@@ -24,10 +23,31 @@ public final class FuzzyMatchEngine implements MatchEngine {
     private static final Logger log = LoggerFactory.getLogger(FuzzyMatchEngine.class);
     private static final String ALGORITHM_NAME = "JARO_WINKLER";
 
+    private final NormalizedNameCache nameCache;
+    private final NgramIndex ngramIndex;
+
+    /** Creates a fuzzy match engine with shared name cache and n-gram index. */
+    public FuzzyMatchEngine(NormalizedNameCache nameCache, NgramIndex ngramIndex) {
+        this.nameCache = nameCache;
+        this.ngramIndex = ngramIndex;
+    }
+
+    /** Creates a fuzzy match engine with a shared name cache (no n-gram filtering). */
+    public FuzzyMatchEngine(NormalizedNameCache nameCache) {
+        this(nameCache, new NgramIndex());
+    }
+
+    /** Creates a fuzzy match engine with its own name cache and n-gram index. */
+    public FuzzyMatchEngine() {
+        this(new NormalizedNameCache());
+    }
+
     @Override
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
+        nameCache.ensureBuilt(index);
+        ngramIndex.ensureBuilt(index, nameCache);
         String normalizedQuery = NameNormalizer.normalize(request.name());
-        Collection<SanctionedEntity> candidates = resolveCandidates(request, index);
+        Collection<SanctionedEntity> candidates = resolveCandidates(request, index, normalizedQuery);
         List<MatchResult> results = new ArrayList<>();
 
         for (SanctionedEntity entity : candidates) {
@@ -36,25 +56,29 @@ public final class FuzzyMatchEngine implements MatchEngine {
                 continue;
             }
 
+            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+            double threshold = request.threshold();
+
             double bestScore = 0.0;
             String bestField = "primaryName";
 
-            String primaryNormalized =
-                    NameNormalizer.normalize(entity.primaryName().fullName());
-            double primaryScore = JaroWinkler.similarity(normalizedQuery, primaryNormalized);
+            double primaryScore = JaroWinkler.similarityWithThreshold(
+                    normalizedQuery, cached.primaryName(), threshold);
             if (primaryScore > bestScore) {
                 bestScore = primaryScore;
                 bestField = "primaryName";
             }
 
-            List<NameInfo> aliases = entity.aliases();
-            for (int i = 0; i < aliases.size(); i++) {
-                String aliasNormalized =
-                        NameNormalizer.normalize(aliases.get(i).fullName());
-                double aliasScore = JaroWinkler.similarity(normalizedQuery, aliasNormalized);
-                if (aliasScore > bestScore) {
-                    bestScore = aliasScore;
-                    bestField = "alias[" + i + "]";
+            if (bestScore < 1.0) {
+                List<String> aliases = cached.aliases();
+                for (int i = 0; i < aliases.size(); i++) {
+                    double aliasScore = JaroWinkler.similarityWithThreshold(
+                            normalizedQuery, aliases.get(i), threshold);
+                    if (aliasScore > bestScore) {
+                        bestScore = aliasScore;
+                        bestField = "alias[" + i + "]";
+                        if (bestScore >= 1.0) break;
+                    }
                 }
             }
 
@@ -74,12 +98,13 @@ public final class FuzzyMatchEngine implements MatchEngine {
     }
 
     private Collection<SanctionedEntity> resolveCandidates(
-            ScreeningRequest request, EntityIndex index) {
+            ScreeningRequest request, EntityIndex index, String normalizedQuery) {
         if (request.sources().isPresent()) {
+            // Source-filtered queries are already narrow — no n-gram filtering needed
             return request.sources().get().stream()
                     .flatMap(source -> index.findBySource(source).stream())
                     .toList();
         }
-        return index.all();
+        return ngramIndex.candidates(normalizedQuery);
     }
 }

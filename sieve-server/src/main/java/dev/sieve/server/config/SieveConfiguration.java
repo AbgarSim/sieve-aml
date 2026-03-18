@@ -13,6 +13,8 @@ import dev.sieve.ingest.un.UnConsolidatedProvider;
 import dev.sieve.match.CompositeMatchEngine;
 import dev.sieve.match.ExactMatchEngine;
 import dev.sieve.match.FuzzyMatchEngine;
+import dev.sieve.match.NgramIndex;
+import dev.sieve.match.NormalizedNameCache;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -137,7 +139,11 @@ public class SieveConfiguration {
      */
     @Bean
     public MatchEngine matchEngine() {
-        return new CompositeMatchEngine(List.of(new ExactMatchEngine(), new FuzzyMatchEngine()));
+        NormalizedNameCache nameCache = new NormalizedNameCache();
+        NgramIndex ngramIndex = new NgramIndex();
+        return new CompositeMatchEngine(
+                List.of(new ExactMatchEngine(nameCache, ngramIndex),
+                        new FuzzyMatchEngine(nameCache, ngramIndex)));
     }
 
     /**

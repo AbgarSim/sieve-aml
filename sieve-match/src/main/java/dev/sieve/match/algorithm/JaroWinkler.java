@@ -21,6 +21,15 @@ public final class JaroWinkler {
     /** Maximum prefix length considered by the Winkler adjustment. */
     private static final int MAX_PREFIX_LENGTH = 4;
 
+    /** Initial capacity for thread-local reusable arrays. */
+    private static final int INITIAL_ARRAY_SIZE = 128;
+
+    /** Thread-local reusable boolean arrays to avoid allocation per call. */
+    private static final ThreadLocal<boolean[]> TL_MATCHED_1 =
+            ThreadLocal.withInitial(() -> new boolean[INITIAL_ARRAY_SIZE]);
+    private static final ThreadLocal<boolean[]> TL_MATCHED_2 =
+            ThreadLocal.withInitial(() -> new boolean[INITIAL_ARRAY_SIZE]);
+
     private JaroWinkler() {
         throw new AssertionError("Utility class — do not instantiate");
     }
@@ -54,6 +63,41 @@ public final class JaroWinkler {
     }
 
     /**
+     * Computes the Jaro-Winkler similarity, returning 0.0 early if it cannot meet the threshold.
+     *
+     * @param s1 the first string
+     * @param s2 the second string
+     * @param threshold minimum score; returns 0.0 if the result cannot meet this
+     * @return similarity score, or 0.0 if below threshold
+     */
+    public static double similarityWithThreshold(String s1, String s2, double threshold) {
+        if (s1 == null || s2 == null) {
+            return 0.0;
+        }
+        if (s1.equals(s2)) {
+            return 1.0;
+        }
+        if (s1.isEmpty() || s2.isEmpty()) {
+            return 0.0;
+        }
+
+        // Length-ratio upper bound: Jaro score <= (1 + 1 + min/max) / 3
+        int len1 = s1.length();
+        int len2 = s2.length();
+        int shorter = Math.min(len1, len2);
+        int longer = Math.max(len1, len2);
+        double maxPossibleJaro = (2.0 + (double) shorter / longer) / 3.0;
+        // With maximum Winkler boost (prefix=4)
+        double maxPossible = maxPossibleJaro
+                + (MAX_PREFIX_LENGTH * DEFAULT_PREFIX_SCALE * (1.0 - maxPossibleJaro));
+        if (maxPossible < threshold) {
+            return 0.0;
+        }
+
+        return similarity(s1, s2);
+    }
+
+    /**
      * Computes the Jaro similarity between two strings.
      *
      * @param s1 the first string, must not be {@code null}
@@ -73,8 +117,9 @@ public final class JaroWinkler {
             matchDistance = 0;
         }
 
-        boolean[] s1Matched = new boolean[s1Len];
-        boolean[] s2Matched = new boolean[s2Len];
+        // Reuse thread-local arrays to avoid allocation per call
+        boolean[] s1Matched = borrowArray(TL_MATCHED_1, s1Len);
+        boolean[] s2Matched = borrowArray(TL_MATCHED_2, s2Len);
 
         int matches = 0;
         int transpositions = 0;
@@ -95,6 +140,8 @@ public final class JaroWinkler {
         }
 
         if (matches == 0) {
+            clearArray(s1Matched, s1Len);
+            clearArray(s2Matched, s2Len);
             return 0.0;
         }
 
@@ -112,10 +159,32 @@ public final class JaroWinkler {
             k++;
         }
 
+        // Clean up for reuse
+        clearArray(s1Matched, s1Len);
+        clearArray(s2Matched, s2Len);
+
         return (((double) matches / s1Len)
                         + ((double) matches / s2Len)
                         + ((matches - transpositions / 2.0) / matches))
                 / 3.0;
+    }
+
+    /**
+     * Borrows a boolean array from a ThreadLocal, growing it if needed.
+     * The returned array is guaranteed to have at least {@code size} elements, all false.
+     */
+    private static boolean[] borrowArray(ThreadLocal<boolean[]> tl, int size) {
+        boolean[] arr = tl.get();
+        if (arr.length < size) {
+            arr = new boolean[size];
+            tl.set(arr);
+        }
+        return arr;
+    }
+
+    /** Clears the first {@code length} elements of the array for reuse. */
+    private static void clearArray(boolean[] arr, int length) {
+        java.util.Arrays.fill(arr, 0, length, false);
     }
 
     /**

@@ -71,7 +71,7 @@ public class ScreeningController {
     @ApiResponse(responseCode = "400", description = "Invalid request parameters")
     public ResponseEntity<ScreeningResponseDto> screen(
             @Valid @RequestBody ScreeningRequestDto requestDto) {
-        log.info("Screening request [name={}, threshold={}]", requestDto.name(), requestDto.threshold());
+        log.debug("Screening request [name={}, threshold={}]", requestDto.name(), requestDto.threshold());
 
         ScreeningRequest domainRequest =
                 mapper.toDomain(requestDto, properties.screening().defaultThreshold());
@@ -81,7 +81,7 @@ public class ScreeningController {
                 mapper.toScreeningResponse(
                         requestDto.name(), results, properties.screening().maxResults());
 
-        log.info(
+        log.debug(
                 "Screening complete [name={}, matches={}]",
                 requestDto.name(),
                 response.totalMatches());

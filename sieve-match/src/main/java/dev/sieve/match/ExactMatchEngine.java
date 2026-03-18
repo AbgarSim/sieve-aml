@@ -4,7 +4,6 @@ import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
-import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,10 +23,31 @@ public final class ExactMatchEngine implements MatchEngine {
     private static final Logger log = LoggerFactory.getLogger(ExactMatchEngine.class);
     private static final String ALGORITHM_NAME = "EXACT";
 
+    private final NormalizedNameCache nameCache;
+    private final NgramIndex ngramIndex;
+
+    /** Creates an exact match engine with shared name cache and n-gram index. */
+    public ExactMatchEngine(NormalizedNameCache nameCache, NgramIndex ngramIndex) {
+        this.nameCache = nameCache;
+        this.ngramIndex = ngramIndex;
+    }
+
+    /** Creates an exact match engine with a shared name cache (no n-gram filtering). */
+    public ExactMatchEngine(NormalizedNameCache nameCache) {
+        this(nameCache, new NgramIndex());
+    }
+
+    /** Creates an exact match engine with its own name cache and n-gram index. */
+    public ExactMatchEngine() {
+        this(new NormalizedNameCache());
+    }
+
     @Override
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
+        nameCache.ensureBuilt(index);
+        ngramIndex.ensureBuilt(index, nameCache);
         String normalizedQuery = NameNormalizer.normalize(request.name());
-        Collection<SanctionedEntity> candidates = resolveCandidates(request, index);
+        Collection<SanctionedEntity> candidates = resolveCandidates(request, index, normalizedQuery);
         List<MatchResult> results = new ArrayList<>();
 
         for (SanctionedEntity entity : candidates) {
@@ -36,19 +56,17 @@ public final class ExactMatchEngine implements MatchEngine {
                 continue;
             }
 
-            String primaryNormalized =
-                    NameNormalizer.normalize(entity.primaryName().fullName());
-            if (normalizedQuery.equals(primaryNormalized)) {
+            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+
+            if (normalizedQuery.equals(cached.primaryName())) {
                 results.add(
                         new MatchResult(entity, 1.0, "primaryName", ALGORITHM_NAME));
                 continue;
             }
 
-            List<NameInfo> aliases = entity.aliases();
+            List<String> aliases = cached.aliases();
             for (int i = 0; i < aliases.size(); i++) {
-                String aliasNormalized =
-                        NameNormalizer.normalize(aliases.get(i).fullName());
-                if (normalizedQuery.equals(aliasNormalized)) {
+                if (normalizedQuery.equals(aliases.get(i))) {
                     results.add(
                             new MatchResult(
                                     entity,
@@ -70,12 +88,12 @@ public final class ExactMatchEngine implements MatchEngine {
     }
 
     private Collection<SanctionedEntity> resolveCandidates(
-            ScreeningRequest request, EntityIndex index) {
+            ScreeningRequest request, EntityIndex index, String normalizedQuery) {
         if (request.sources().isPresent()) {
             return request.sources().get().stream()
                     .flatMap(source -> index.findBySource(source).stream())
                     .toList();
         }
-        return index.all();
+        return ngramIndex.candidates(normalizedQuery);
     }
 }

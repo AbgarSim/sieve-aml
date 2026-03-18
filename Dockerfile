@@ -53,6 +53,13 @@ RUN git clone --depth 1 https://github.com/openvenues/libpostal /opt/libpostal-s
     && make install \
     && ldconfig
 
+# Autoconf --datadir installs to ${datadir}/libpostal/ — flatten into /opt/libpostal-data/
+# so that transliteration, language_classifier, numex, address_expansions, and parser
+# are all directly under the data dir that we pass to libpostal_setup_datadir().
+RUN if [ -d /opt/libpostal-data/libpostal ]; then \
+        cp -rn /opt/libpostal-data/libpostal/* /opt/libpostal-data/ ; \
+    fi
+
 # Replace the default parser model with the Senzing v1.2.0 improved model
 # (~4% avg accuracy improvement across 89 countries, improved CJK parsing)
 # Source: https://github.com/Senzing/libpostal-data
@@ -74,7 +81,7 @@ RUN curl -sL https://public-read-libpostal-data.s3.amazonaws.com/v1.2.0/parser.t
 FROM maven:3.9-eclipse-temurin-21 AS java-build
 
 # Install gcc for JNI compilation; copy libpostal headers + libs from stage 1
-RUN apt-get update && apt-get install -y --no-install-recommends gcc make \
+RUN apt-get update && apt-get install -y --no-install-recommends gcc make libc-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=libpostal-build /usr/local/include/libpostal /usr/local/include/libpostal
 COPY --from=libpostal-build /usr/local/lib/libpostal* /usr/local/lib/
@@ -90,11 +97,12 @@ COPY sieve-ingest/pom.xml sieve-ingest/
 COPY sieve-match/pom.xml sieve-match/
 COPY sieve-server/pom.xml sieve-server/
 COPY sieve-cli/pom.xml sieve-cli/
+COPY sieve-benchmark/pom.xml sieve-benchmark/
 RUN mvn dependency:go-offline -B
 
-# Copy source and build Java
+# Copy source and build Java (exclude benchmark module — not needed at runtime)
 COPY . .
-RUN mvn -B -DskipTests clean package
+RUN mvn -B -DskipTests clean package -pl '!sieve-benchmark'
 
 # Build JNI native library (links against libpostal from stage 1)
 RUN cd sieve-address/src/main/native && make
