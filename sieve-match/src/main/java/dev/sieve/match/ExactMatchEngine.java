@@ -47,7 +47,8 @@ public final class ExactMatchEngine implements MatchEngine {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
         String normalizedQuery = NameNormalizer.normalize(request.name());
-        Collection<SanctionedEntity> candidates = resolveCandidates(request, index, normalizedQuery);
+        Collection<SanctionedEntity> candidates =
+                resolveCandidates(request, index, normalizedQuery);
         List<MatchResult> results = new ArrayList<>();
 
         for (SanctionedEntity entity : candidates) {
@@ -59,20 +60,14 @@ public final class ExactMatchEngine implements MatchEngine {
             NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
 
             if (normalizedQuery.equals(cached.primaryName())) {
-                results.add(
-                        new MatchResult(entity, 1.0, "primaryName", ALGORITHM_NAME));
+                results.add(new MatchResult(entity, 1.0, "primaryName", ALGORITHM_NAME));
                 continue;
             }
 
             List<String> aliases = cached.aliases();
             for (int i = 0; i < aliases.size(); i++) {
                 if (normalizedQuery.equals(aliases.get(i))) {
-                    results.add(
-                            new MatchResult(
-                                    entity,
-                                    1.0,
-                                    "alias[" + i + "]",
-                                    ALGORITHM_NAME));
+                    results.add(new MatchResult(entity, 1.0, "alias[" + i + "]", ALGORITHM_NAME));
                     break;
                 }
             }

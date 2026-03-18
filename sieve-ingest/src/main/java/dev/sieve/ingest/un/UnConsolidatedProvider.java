@@ -69,9 +69,7 @@ public final class UnConsolidatedProvider implements ListProvider {
     private final HttpClient httpClient;
     private volatile ListMetadata currentMetadata;
 
-    /**
-     * Creates a provider with the default UN consolidated list URL.
-     */
+    /** Creates a provider with the default UN consolidated list URL. */
     public UnConsolidatedProvider() {
         this(URI.create(DEFAULT_URL));
     }
@@ -156,7 +154,11 @@ public final class UnConsolidatedProvider implements ListProvider {
             Duration duration = Duration.between(start, now);
             currentMetadata =
                     new ListMetadata(
-                            ListSource.UN_CONSOLIDATED, now, etag, contentHash, sourceUri,
+                            ListSource.UN_CONSOLIDATED,
+                            now,
+                            etag,
+                            contentHash,
+                            sourceUri,
                             entities.size());
 
             log.info(
@@ -227,8 +229,8 @@ public final class UnConsolidatedProvider implements ListProvider {
     /**
      * Parses the UN consolidated list XML into sanctioned entities.
      *
-     * <p>The XML has two sections: {@code <INDIVIDUALS>} and {@code <ENTITIES>}. Each
-     * {@code <INDIVIDUAL>} or {@code <ENTITY>} element is a self-contained entry with nested child
+     * <p>The XML has two sections: {@code <INDIVIDUALS>} and {@code <ENTITIES>}. Each {@code
+     * <INDIVIDUAL>} or {@code <ENTITY>} element is a self-contained entry with nested child
      * elements for all data fields.
      *
      * @param xmlContent the raw XML bytes
@@ -250,12 +252,10 @@ public final class UnConsolidatedProvider implements ListProvider {
                 if (event == XMLStreamConstants.START_ELEMENT) {
                     String localName = reader.getLocalName();
                     if ("INDIVIDUAL".equals(localName)) {
-                        SanctionedEntity entity =
-                                parseIndividual(reader);
+                        SanctionedEntity entity = parseIndividual(reader);
                         if (entity != null) entities.add(entity);
                     } else if ("ENTITY".equals(localName)) {
-                        SanctionedEntity entity =
-                                parseEntity(reader);
+                        SanctionedEntity entity = parseEntity(reader);
                         if (entity != null) entities.add(entity);
                     }
                 }
@@ -326,13 +326,13 @@ public final class UnConsolidatedProvider implements ListProvider {
                     }
                     case "INDIVIDUAL_ADDRESS" ->
                             parseAddress(reader, "INDIVIDUAL_ADDRESS", addresses);
-                    case "INDIVIDUAL_DATE_OF_BIRTH" ->
-                            parseDateOfBirth(reader, datesOfBirth);
+                    case "INDIVIDUAL_DATE_OF_BIRTH" -> parseDateOfBirth(reader, datesOfBirth);
                     case "INDIVIDUAL_PLACE_OF_BIRTH" ->
                             parsePlaceOfBirth(reader, "INDIVIDUAL_PLACE_OF_BIRTH", placesOfBirth);
-                    case "INDIVIDUAL_DOCUMENT" ->
-                            parseDocument(reader, identifiers);
-                    default -> { /* skip */ }
+                    case "INDIVIDUAL_DOCUMENT" -> parseDocument(reader, identifiers);
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "INDIVIDUAL".equals(reader.getLocalName())) {
@@ -347,21 +347,39 @@ public final class UnConsolidatedProvider implements ListProvider {
         }
 
         String title = titles.isEmpty() ? null : String.join(", ", titles);
-        NameInfo primaryName = new NameInfo(
-                fullName, strip(firstName), strip(secondName),
-                joinNonBlank(" ", thirdName, fourthName),
-                title, NameType.PRIMARY, NameStrength.STRONG, ScriptType.LATIN);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName,
+                        strip(firstName),
+                        strip(secondName),
+                        joinNonBlank(" ", thirdName, fourthName),
+                        title,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
+                        ScriptType.LATIN);
 
-        List<NameInfo> aliasNames = aliases.stream()
-                .map(a -> new NameInfo(
-                        a.name, null, null, null, null,
-                        a.nameType, a.strength, ScriptType.LATIN))
-                .toList();
+        List<NameInfo> aliasNames =
+                aliases.stream()
+                        .map(
+                                a ->
+                                        new NameInfo(
+                                                a.name,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                a.nameType,
+                                                a.strength,
+                                                ScriptType.LATIN))
+                        .toList();
 
         String entityId = referenceNumber != null ? referenceNumber : "UN-" + dataId;
-        List<SanctionsProgram> programs = unListType != null
-                ? List.of(new SanctionsProgram(unListType, unListType, ListSource.UN_CONSOLIDATED))
-                : List.of();
+        List<SanctionsProgram> programs =
+                unListType != null
+                        ? List.of(
+                                new SanctionsProgram(
+                                        unListType, unListType, ListSource.UN_CONSOLIDATED))
+                        : List.of();
 
         Instant listed = parseIsoDate(listedOn);
         Instant updated = parseIsoDate(lastUpdated);
@@ -414,9 +432,10 @@ public final class UnConsolidatedProvider implements ListProvider {
                         AliasEntry alias = parseAlias(reader, "ENTITY_ALIAS");
                         if (alias != null) aliases.add(alias);
                     }
-                    case "ENTITY_ADDRESS" ->
-                            parseAddress(reader, "ENTITY_ADDRESS", addresses);
-                    default -> { /* skip */ }
+                    case "ENTITY_ADDRESS" -> parseAddress(reader, "ENTITY_ADDRESS", addresses);
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "ENTITY".equals(reader.getLocalName())) {
@@ -430,20 +449,39 @@ public final class UnConsolidatedProvider implements ListProvider {
             return null;
         }
 
-        NameInfo primaryName = new NameInfo(
-                fullName, null, null, null, null,
-                NameType.PRIMARY, NameStrength.STRONG, ScriptType.LATIN);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
+                        ScriptType.LATIN);
 
-        List<NameInfo> aliasNames = aliases.stream()
-                .map(a -> new NameInfo(
-                        a.name, null, null, null, null,
-                        a.nameType, a.strength, ScriptType.LATIN))
-                .toList();
+        List<NameInfo> aliasNames =
+                aliases.stream()
+                        .map(
+                                a ->
+                                        new NameInfo(
+                                                a.name,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                a.nameType,
+                                                a.strength,
+                                                ScriptType.LATIN))
+                        .toList();
 
         String entityId = referenceNumber != null ? referenceNumber : "UN-" + dataId;
-        List<SanctionsProgram> programs = unListType != null
-                ? List.of(new SanctionsProgram(unListType, unListType, ListSource.UN_CONSOLIDATED))
-                : List.of();
+        List<SanctionsProgram> programs =
+                unListType != null
+                        ? List.of(
+                                new SanctionsProgram(
+                                        unListType, unListType, ListSource.UN_CONSOLIDATED))
+                        : List.of();
 
         Instant listed = parseIsoDate(listedOn);
         Instant updated = parseIsoDate(lastUpdated);
@@ -468,9 +506,7 @@ public final class UnConsolidatedProvider implements ListProvider {
 
     // ---- Child element parsers ---------------------------------------------
 
-    /**
-     * Intermediate holder for an alias entry.
-     */
+    /** Intermediate holder for an alias entry. */
     static final class AliasEntry {
         final String name;
         final NameType nameType;
@@ -483,8 +519,7 @@ public final class UnConsolidatedProvider implements ListProvider {
         }
     }
 
-    private AliasEntry parseAlias(XMLStreamReader reader, String endTag)
-            throws XMLStreamException {
+    private AliasEntry parseAlias(XMLStreamReader reader, String endTag) throws XMLStreamException {
         String quality = null;
         String aliasName = null;
 
@@ -495,7 +530,9 @@ public final class UnConsolidatedProvider implements ListProvider {
                 switch (el) {
                     case "QUALITY" -> quality = readText(reader);
                     case "ALIAS_NAME" -> aliasName = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && endTag.equals(reader.getLocalName())) {
@@ -506,8 +543,8 @@ public final class UnConsolidatedProvider implements ListProvider {
         if (aliasName == null || aliasName.isBlank()) return null;
 
         NameType nameType = mapAliasQuality(quality);
-        NameStrength strength = "Low".equalsIgnoreCase(quality)
-                ? NameStrength.WEAK : NameStrength.STRONG;
+        NameStrength strength =
+                "Low".equalsIgnoreCase(quality) ? NameStrength.WEAK : NameStrength.STRONG;
 
         return new AliasEntry(aliasName.strip(), nameType, strength);
     }
@@ -532,7 +569,9 @@ public final class UnConsolidatedProvider implements ListProvider {
                     case "COUNTRY" -> country = readText(reader);
                     case "ZIP_CODE" -> zipCode = readText(reader);
                     case "NOTE" -> note = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && endTag.equals(reader.getLocalName())) {
@@ -542,9 +581,14 @@ public final class UnConsolidatedProvider implements ListProvider {
 
         String fullAddress = joinNonBlank(", ", street, city, stateProvince, zipCode, country);
         if (fullAddress != null) {
-            addresses.add(new Address(
-                    strip(street), strip(city), strip(stateProvince),
-                    strip(zipCode), strip(country), fullAddress));
+            addresses.add(
+                    new Address(
+                            strip(street),
+                            strip(city),
+                            strip(stateProvince),
+                            strip(zipCode),
+                            strip(country),
+                            fullAddress));
         }
     }
 
@@ -560,7 +604,9 @@ public final class UnConsolidatedProvider implements ListProvider {
                 switch (el) {
                     case "DATE" -> dateStr = readText(reader);
                     case "YEAR" -> yearStr = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "INDIVIDUAL_DATE_OF_BIRTH".equals(reader.getLocalName())) {
@@ -574,8 +620,7 @@ public final class UnConsolidatedProvider implements ListProvider {
         }
     }
 
-    private void parsePlaceOfBirth(
-            XMLStreamReader reader, String endTag, Set<String> placesOfBirth)
+    private void parsePlaceOfBirth(XMLStreamReader reader, String endTag, Set<String> placesOfBirth)
             throws XMLStreamException {
         String city = null;
         String stateProvince = null;
@@ -589,7 +634,9 @@ public final class UnConsolidatedProvider implements ListProvider {
                     case "CITY" -> city = readText(reader);
                     case "STATE_PROVINCE" -> stateProvince = readText(reader);
                     case "COUNTRY" -> country = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && endTag.equals(reader.getLocalName())) {
@@ -619,7 +666,9 @@ public final class UnConsolidatedProvider implements ListProvider {
                     case "NUMBER" -> number = readText(reader);
                     case "ISSUING_COUNTRY" -> issuingCountry = readText(reader);
                     case "NOTE" -> note = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "INDIVIDUAL_DOCUMENT".equals(reader.getLocalName())) {
@@ -636,8 +685,8 @@ public final class UnConsolidatedProvider implements ListProvider {
     // ---- Container element parsers -----------------------------------------
 
     /**
-     * Collects {@code <VALUE>} text from a container element (e.g., {@code <TITLE>},
-     * {@code <DESIGNATION>}, {@code <NATIONALITY>}).
+     * Collects {@code <VALUE>} text from a container element (e.g., {@code <TITLE>}, {@code
+     * <DESIGNATION>}, {@code <NATIONALITY>}).
      */
     private void collectValues(
             XMLStreamReader reader, String endTag, java.util.Collection<String> target)
@@ -658,8 +707,8 @@ public final class UnConsolidatedProvider implements ListProvider {
     }
 
     /**
-     * Reads the last {@code <VALUE>} from a container element like {@code <LAST_DAY_UPDATED>}
-     * which may contain multiple dated values.
+     * Reads the last {@code <VALUE>} from a container element like {@code <LAST_DAY_UPDATED>} which
+     * may contain multiple dated values.
      */
     private String readLastValue(XMLStreamReader reader) throws XMLStreamException {
         String last = null;
@@ -693,7 +742,9 @@ public final class UnConsolidatedProvider implements ListProvider {
     private static IdentifierType mapDocumentType(String type) {
         if (type == null) return IdentifierType.OTHER;
         String lower = type.strip().toLowerCase();
-        if (lower.contains("passport") || lower.contains("pasaporte") || lower.contains("passeport")) {
+        if (lower.contains("passport")
+                || lower.contains("pasaporte")
+                || lower.contains("passeport")) {
             return IdentifierType.PASSPORT;
         }
         if (lower.contains("national identification")) {
@@ -770,9 +821,7 @@ public final class UnConsolidatedProvider implements ListProvider {
     private static Instant parseIsoDate(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         try {
-            return LocalDate.parse(dateStr.strip())
-                    .atStartOfDay()
-                    .toInstant(ZoneOffset.UTC);
+            return LocalDate.parse(dateStr.strip()).atStartOfDay().toInstant(ZoneOffset.UTC);
         } catch (DateTimeParseException e) {
             log.debug("Unable to parse UN date [value={}]", dateStr);
             return null;

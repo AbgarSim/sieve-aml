@@ -21,7 +21,6 @@ import dev.sieve.ingest.ProviderResult;
 import dev.sieve.server.mapper.ScreeningMapper;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -42,14 +41,10 @@ class ListControllerTest {
 
     @Test
     void shouldReturnListStatuses() throws Exception {
-        when(entityIndex.findBySource(ListSource.OFAC_SDN))
-                .thenReturn(List.of(createEntity("1")));
-        when(entityIndex.findBySource(ListSource.EU_CONSOLIDATED))
-                .thenReturn(List.of());
-        when(entityIndex.findBySource(ListSource.UN_CONSOLIDATED))
-                .thenReturn(List.of());
-        when(entityIndex.findBySource(ListSource.UK_HMT))
-                .thenReturn(List.of());
+        when(entityIndex.findBySource(ListSource.OFAC_SDN)).thenReturn(List.of(createEntity("1")));
+        when(entityIndex.findBySource(ListSource.EU_CONSOLIDATED)).thenReturn(List.of());
+        when(entityIndex.findBySource(ListSource.UN_CONSOLIDATED)).thenReturn(List.of());
+        when(entityIndex.findBySource(ListSource.UK_HMT)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/lists"))
                 .andExpect(status().isOk())
@@ -63,8 +58,7 @@ class ListControllerTest {
         List<SanctionedEntity> entities =
                 List.of(createEntity("1"), createEntity("2"), createEntity("3"));
 
-        when(entityIndex.findBySource(ListSource.OFAC_SDN))
-                .thenReturn(entities);
+        when(entityIndex.findBySource(ListSource.OFAC_SDN)).thenReturn(entities);
 
         mockMvc.perform(get("/api/v1/lists/OFAC_SDN/entities?page=0&size=2"))
                 .andExpect(status().isOk())
@@ -104,10 +98,29 @@ class ListControllerTest {
     private static SanctionedEntity createEntity(String id) {
         NameInfo name =
                 new NameInfo(
-                        "Test " + id, null, null, null, null, NameType.PRIMARY,
-                        NameStrength.STRONG, ScriptType.LATIN);
+                        "Test " + id,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
+                        ScriptType.LATIN);
         return new SanctionedEntity(
-                id, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, name, null, null, null, null, null,
-                null, null, null, null, null, Instant.now());
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                name,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
     }
 }

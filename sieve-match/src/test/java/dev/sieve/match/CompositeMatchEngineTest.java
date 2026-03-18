@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.InMemoryEntityIndex;
-import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.EntityType;
@@ -47,8 +46,7 @@ class CompositeMatchEngineTest {
         ScreeningRequest request = ScreeningRequest.of("DOE, John", 0.50);
         List<MatchResult> results = composite.screen(request, index);
 
-        long uniqueEntityIds =
-                results.stream().map(r -> r.entity().id()).distinct().count();
+        long uniqueEntityIds = results.stream().map(r -> r.entity().id()).distinct().count();
         assertThat(uniqueEntityIds).isEqualTo(results.size());
     }
 
@@ -66,8 +64,7 @@ class CompositeMatchEngineTest {
         List<MatchResult> results = composite.screen(request, index);
 
         for (int i = 1; i < results.size(); i++) {
-            assertThat(results.get(i - 1).score())
-                    .isGreaterThanOrEqualTo(results.get(i).score());
+            assertThat(results.get(i - 1).score()).isGreaterThanOrEqualTo(results.get(i).score());
         }
     }
 
@@ -87,10 +84,29 @@ class CompositeMatchEngineTest {
     private static SanctionedEntity createEntity(String id, String name) {
         NameInfo primaryName =
                 new NameInfo(
-                        name, null, null, null, null, NameType.PRIMARY, NameStrength.STRONG,
+                        name,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
                         ScriptType.LATIN);
         return new SanctionedEntity(
-                id, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, primaryName, null, null, null, null,
-                null, null, null, null, null, null, Instant.now());
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                primaryName,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
     }
 }

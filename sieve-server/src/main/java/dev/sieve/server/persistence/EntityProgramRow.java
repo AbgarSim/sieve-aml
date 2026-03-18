@@ -10,9 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/**
- * JPA entity for a sanctions program associated with a sanctioned entity.
- */
+/** JPA entity for a sanctions program associated with a sanctioned entity. */
 @Entity
 @Table(name = "entity_program")
 public class EntityProgramRow {
@@ -39,8 +37,19 @@ public class EntityProgramRow {
         this.name = name;
     }
 
-    public Long getId() { return id; }
-    public SanctionedEntityRow getEntity() { return entity; }
-    public String getCode() { return code; }
-    public String getName() { return name; }
+    public Long getId() {
+        return id;
+    }
+
+    public SanctionedEntityRow getEntity() {
+        return entity;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getName() {
+        return name;
+    }
 }

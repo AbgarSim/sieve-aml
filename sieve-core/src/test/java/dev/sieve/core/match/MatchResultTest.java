@@ -65,10 +65,29 @@ class MatchResultTest {
     private static SanctionedEntity createEntity(String id) {
         NameInfo name =
                 new NameInfo(
-                        "Test", null, null, null, null, NameType.PRIMARY, NameStrength.STRONG,
+                        "Test",
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
                         ScriptType.LATIN);
         return new SanctionedEntity(
-                id, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, name, null, null, null, null, null,
-                null, null, null, null, null, Instant.now());
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                name,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
     }
 }

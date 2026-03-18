@@ -10,9 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/**
- * JPA entity for an alias name associated with a sanctioned entity.
- */
+/** JPA entity for an alias name associated with a sanctioned entity. */
 @Entity
 @Table(name = "entity_alias")
 public class EntityAliasRow {
@@ -72,14 +70,43 @@ public class EntityAliasRow {
         this.script = script;
     }
 
-    public Long getId() { return id; }
-    public SanctionedEntityRow getEntity() { return entity; }
-    public String getFullName() { return fullName; }
-    public String getGivenName() { return givenName; }
-    public String getFamilyName() { return familyName; }
-    public String getMiddleName() { return middleName; }
-    public String getTitle() { return title; }
-    public String getNameType() { return nameType; }
-    public String getNameStrength() { return nameStrength; }
-    public String getScript() { return script; }
+    public Long getId() {
+        return id;
+    }
+
+    public SanctionedEntityRow getEntity() {
+        return entity;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public String getGivenName() {
+        return givenName;
+    }
+
+    public String getFamilyName() {
+        return familyName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getNameType() {
+        return nameType;
+    }
+
+    public String getNameStrength() {
+        return nameStrength;
+    }
+
+    public String getScript() {
+        return script;
+    }
 }

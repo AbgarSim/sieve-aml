@@ -10,9 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/**
- * JPA entity for an identity document or reference number associated with a sanctioned entity.
- */
+/** JPA entity for an identity document or reference number associated with a sanctioned entity. */
 @Entity
 @Table(name = "entity_identifier")
 public class EntityIdentifierRow {
@@ -52,10 +50,27 @@ public class EntityIdentifierRow {
         this.remarks = remarks;
     }
 
-    public Long getId() { return id; }
-    public SanctionedEntityRow getEntity() { return entity; }
-    public String getType() { return type; }
-    public String getValue() { return value; }
-    public String getIssuingCountry() { return issuingCountry; }
-    public String getRemarks() { return remarks; }
+    public Long getId() {
+        return id;
+    }
+
+    public SanctionedEntityRow getEntity() {
+        return entity;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public String getIssuingCountry() {
+        return issuingCountry;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
 }

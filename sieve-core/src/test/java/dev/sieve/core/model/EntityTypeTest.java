@@ -12,12 +12,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class EntityTypeTest {
 
     @ParameterizedTest
-    @CsvSource({
-        "INDIVIDUAL, Individual",
-        "ENTITY, Entity",
-        "VESSEL, Vessel",
-        "AIRCRAFT, Aircraft"
-    })
+    @CsvSource({"INDIVIDUAL, Individual", "ENTITY, Entity", "VESSEL, Vessel", "AIRCRAFT, Aircraft"})
     void shouldReturnCorrectDisplayName(String enumName, String expectedDisplay) {
         EntityType type = EntityType.valueOf(enumName);
         assertThat(type.displayName()).isEqualTo(expectedDisplay);

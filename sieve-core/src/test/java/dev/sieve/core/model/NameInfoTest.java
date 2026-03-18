@@ -31,40 +31,21 @@ class NameInfoTest {
         assertThatThrownBy(
                         () ->
                                 new NameInfo(
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        NameType.PRIMARY,
-                                        null,
-                                        null))
+                                        null, null, null, null, null, NameType.PRIMARY, null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("fullName");
     }
 
     @Test
     void shouldThrowWhenNameTypeIsNull() {
-        assertThatThrownBy(
-                        () ->
-                                new NameInfo(
-                                        "John Doe",
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        null))
+        assertThatThrownBy(() -> new NameInfo("John Doe", null, null, null, null, null, null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("nameType");
     }
 
     @Test
     void shouldAllowNullOptionalFields() {
-        NameInfo name =
-                new NameInfo(
-                        "John Doe", null, null, null, null, NameType.AKA, null, null);
+        NameInfo name = new NameInfo("John Doe", null, null, null, null, NameType.AKA, null, null);
 
         assertThat(name.givenName()).isNull();
         assertThat(name.familyName()).isNull();

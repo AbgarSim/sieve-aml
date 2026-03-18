@@ -51,8 +51,7 @@ class IngestionOrchestratorTest {
                 new IngestionOrchestrator(List.of(provider1, provider2));
         EntityIndex index = new InMemoryEntityIndex();
 
-        IngestionReport report =
-                orchestrator.ingest(index, Set.of(ListSource.OFAC_SDN));
+        IngestionReport report = orchestrator.ingest(index, Set.of(ListSource.OFAC_SDN));
 
         assertThat(report.totalEntitiesLoaded()).isEqualTo(3);
         assertThat(report.results().get(ListSource.OFAC_SDN).status())
@@ -66,12 +65,9 @@ class IngestionOrchestratorTest {
         ListProvider failingProvider = mock(ListProvider.class);
         when(failingProvider.source()).thenReturn(ListSource.OFAC_SDN);
         when(failingProvider.fetch())
-                .thenThrow(
-                        new ListIngestionException(
-                                "Network error", ListSource.OFAC_SDN));
+                .thenThrow(new ListIngestionException("Network error", ListSource.OFAC_SDN));
 
-        IngestionOrchestrator orchestrator =
-                new IngestionOrchestrator(List.of(failingProvider));
+        IngestionOrchestrator orchestrator = new IngestionOrchestrator(List.of(failingProvider));
         EntityIndex index = new InMemoryEntityIndex();
 
         IngestionReport report = orchestrator.ingest(index);

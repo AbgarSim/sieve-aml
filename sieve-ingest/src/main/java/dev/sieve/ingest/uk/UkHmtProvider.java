@@ -56,9 +56,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing.
  *
- * @see <a
- *     href="https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml">UK HMT
- *     Consolidated XML</a>
+ * @see <a href="https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml">UK
+ *     HMT Consolidated XML</a>
  */
 public final class UkHmtProvider implements ListProvider {
 
@@ -76,9 +75,7 @@ public final class UkHmtProvider implements ListProvider {
     private final HttpClient httpClient;
     private volatile ListMetadata currentMetadata;
 
-    /**
-     * Creates a provider with the default UK HMT URL.
-     */
+    /** Creates a provider with the default UK HMT URL. */
     public UkHmtProvider() {
         this(URI.create(DEFAULT_URL));
     }
@@ -95,8 +92,7 @@ public final class UkHmtProvider implements ListProvider {
                         .connectTimeout(CONNECT_TIMEOUT)
                         .followRedirects(HttpClient.Redirect.NORMAL)
                         .build();
-        this.currentMetadata =
-                new ListMetadata(ListSource.UK_HMT, null, null, null, sourceUri, 0);
+        this.currentMetadata = new ListMetadata(ListSource.UK_HMT, null, null, null, sourceUri, 0);
     }
 
     /**
@@ -108,8 +104,7 @@ public final class UkHmtProvider implements ListProvider {
     public UkHmtProvider(URI sourceUri, HttpClient httpClient) {
         this.sourceUri = Objects.requireNonNull(sourceUri, "sourceUri must not be null");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient must not be null");
-        this.currentMetadata =
-                new ListMetadata(ListSource.UK_HMT, null, null, null, sourceUri, 0);
+        this.currentMetadata = new ListMetadata(ListSource.UK_HMT, null, null, null, sourceUri, 0);
     }
 
     @Override
@@ -176,13 +171,10 @@ public final class UkHmtProvider implements ListProvider {
             throw e;
         } catch (IOException e) {
             throw new ListIngestionException(
-                    "Network error fetching UK HMT list: " + e.getMessage(),
-                    ListSource.UK_HMT,
-                    e);
+                    "Network error fetching UK HMT list: " + e.getMessage(), ListSource.UK_HMT, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new ListIngestionException(
-                    "UK HMT fetch interrupted", ListSource.UK_HMT, e);
+            throw new ListIngestionException("UK HMT fetch interrupted", ListSource.UK_HMT, e);
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Unexpected error during UK HMT ingestion: " + e.getMessage(),
@@ -280,9 +272,7 @@ public final class UkHmtProvider implements ListProvider {
         return entities;
     }
 
-    /**
-     * Merges all rows sharing a GroupID into a single {@link SanctionedEntity}.
-     */
+    /** Merges all rows sharing a GroupID into a single {@link SanctionedEntity}. */
     private SanctionedEntity mergeGroup(String groupId, List<HmtRow> rows) {
         HmtRow primary = null;
         for (HmtRow row : rows) {
@@ -380,13 +370,10 @@ public final class UkHmtProvider implements ListProvider {
         EntityType entityType = mapGroupType(primary.groupTypeDescription);
 
         List<SanctionsProgram> programs =
-                regimes.stream()
-                        .map(r -> new SanctionsProgram(r, r, ListSource.UK_HMT))
-                        .toList();
+                regimes.stream().map(r -> new SanctionsProgram(r, r, ListSource.UK_HMT)).toList();
 
-        String entityId = primary.ukSanctionsListRef != null
-                ? primary.ukSanctionsListRef
-                : "UK-" + groupId;
+        String entityId =
+                primary.ukSanctionsListRef != null ? primary.ukSanctionsListRef : "UK-" + groupId;
 
         return new SanctionedEntity(
                 entityId,
@@ -408,16 +395,14 @@ public final class UkHmtProvider implements ListProvider {
 
     // ---- Row parsing -------------------------------------------------------
 
-    /**
-     * Intermediate holder for a single {@code <FinancialSanctionsTarget>} row before grouping.
-     */
+    /** Intermediate holder for a single {@code <FinancialSanctionsTarget>} row before grouping. */
     static final class HmtRow {
-        String name1;         // given name
-        String name2;         // middle name parts
+        String name1; // given name
+        String name2; // middle name parts
         String name3;
         String name4;
         String name5;
-        String name6;         // surname / entity name
+        String name6; // surname / entity name
         String title;
         String nameNonLatinScript;
         String nonLatinScriptType;
@@ -513,7 +498,9 @@ public final class UkHmtProvider implements ListProvider {
                     case "LastUpdated" -> row.lastUpdated = readText(reader);
                     case "GroupID" -> row.groupId = readText(reader);
                     case "GrpStatus" -> row.grpStatus = readText(reader);
-                    default -> { /* skip unknown elements */ }
+                    default -> {
+                        /* skip unknown elements */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "FinancialSanctionsTarget".equals(reader.getLocalName())) {
@@ -589,10 +576,7 @@ public final class UkHmtProvider implements ListProvider {
         if (row.shipImoNumber != null && !row.shipImoNumber.isBlank()) {
             identifiers.add(
                     new Identifier(
-                            IdentifierType.IMO_NUMBER,
-                            row.shipImoNumber.strip(),
-                            null,
-                            null));
+                            IdentifierType.IMO_NUMBER, row.shipImoNumber.strip(), null, null));
         }
     }
 

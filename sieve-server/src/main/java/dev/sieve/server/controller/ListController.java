@@ -28,9 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * REST controller for managing sanctions lists and triggering ingestion.
- */
+/** REST controller for managing sanctions lists and triggering ingestion. */
 @RestController
 @RequestMapping("/api/v1/lists")
 @Tag(name = "Lists", description = "Sanctions list management and ingestion")
@@ -50,9 +48,7 @@ public class ListController {
      * @param mapper the DTO mapper
      */
     public ListController(
-            EntityIndex entityIndex,
-            IngestionOrchestrator orchestrator,
-            ScreeningMapper mapper) {
+            EntityIndex entityIndex, IngestionOrchestrator orchestrator, ScreeningMapper mapper) {
         this.entityIndex = entityIndex;
         this.orchestrator = orchestrator;
         this.mapper = mapper;
@@ -66,8 +62,9 @@ public class ListController {
     @GetMapping
     @Operation(
             summary = "Get status of all sanctions lists",
-            description = "Returns the current status, entity count, and last fetch time for each"
-                    + " known sanctions list source.")
+            description =
+                    "Returns the current status, entity count, and last fetch time for each"
+                            + " known sanctions list source.")
     @ApiResponse(responseCode = "200", description = "List statuses retrieved")
     public ResponseEntity<ListsResponseDto> getLists() {
         List<ListStatusDto> statuses = new ArrayList<>();
@@ -100,16 +97,15 @@ public class ListController {
     @GetMapping("/{source}/entities")
     @Operation(
             summary = "Get entities from a specific list",
-            description = "Returns a paginated list of sanctioned entities from the specified list"
-                    + " source.")
+            description =
+                    "Returns a paginated list of sanctioned entities from the specified list"
+                            + " source.")
     @ApiResponse(responseCode = "200", description = "Entities retrieved")
     @ApiResponse(responseCode = "400", description = "Invalid source identifier")
     public ResponseEntity<EntityPageDto> getEntities(
-            @PathVariable
-                    @Parameter(description = "List source identifier", example = "OFAC_SDN")
+            @PathVariable @Parameter(description = "List source identifier", example = "OFAC_SDN")
                     String source,
-            @RequestParam(defaultValue = "0")
-                    @Parameter(description = "Page number (zero-based)")
+            @RequestParam(defaultValue = "0") @Parameter(description = "Page number (zero-based)")
                     int page,
             @RequestParam(defaultValue = "20") @Parameter(description = "Page size") int size) {
         ListSource listSource = ListSource.fromString(source);
@@ -126,8 +122,9 @@ public class ListController {
     @PostMapping("/refresh")
     @Operation(
             summary = "Refresh sanctions lists",
-            description = "Triggers an immediate re-ingestion of all enabled sanctions list"
-                    + " sources.")
+            description =
+                    "Triggers an immediate re-ingestion of all enabled sanctions list"
+                            + " sources.")
     @ApiResponse(responseCode = "200", description = "Refresh completed")
     public ResponseEntity<RefreshResponseDto> refresh() {
         log.info("Manual list refresh triggered");

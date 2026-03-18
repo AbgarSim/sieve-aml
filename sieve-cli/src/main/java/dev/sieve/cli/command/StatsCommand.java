@@ -5,13 +5,8 @@ import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.IndexStats;
 import picocli.CommandLine.Command;
 
-/**
- * CLI command to display index statistics.
- */
-@Command(
-        name = "stats",
-        mixinStandardHelpOptions = true,
-        description = "Show index statistics")
+/** CLI command to display index statistics. */
+@Command(name = "stats", mixinStandardHelpOptions = true, description = "Show index statistics")
 public class StatsCommand implements Runnable {
 
     @Override
@@ -41,8 +36,7 @@ public class StatsCommand implements Runnable {
             stats.countByType()
                     .forEach(
                             (type, count) ->
-                                    System.out.printf(
-                                            "  %-20s %,d%n", type.displayName(), count));
+                                    System.out.printf("  %-20s %,d%n", type.displayName(), count));
         }
 
         if (stats.totalEntities() == 0) {

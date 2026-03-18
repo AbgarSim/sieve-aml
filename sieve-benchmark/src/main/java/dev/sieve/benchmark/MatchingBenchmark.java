@@ -13,7 +13,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.LongSummaryStatistics;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,28 +28,28 @@ public final class MatchingBenchmark {
 
     /** Sample names to screen — a mix of real-ish sanctions names and innocent names. */
     private static final String[] SCREEN_NAMES = {
-            // Likely matches (variants of common sanctions list names)
-            "Saddam Hussein",
-            "Osama Bin Laden",
-            "Abu Ali",
-            "Vladimir Putin",
-            "Sergei Ivanov",
-            "Kim Jong Un",
-            "ACME Holdings",
-            "Al-Qaeda",
-            "Hezbollah",
-            "Islamic State",
-            // Unlikely matches (innocent names)
-            "John Smith",
-            "Jane Doe",
-            "Microsoft Corporation",
-            "Alice Johnson",
-            "Bob Williams",
-            "Tokyo Motors Ltd",
-            "Sarah Connor",
-            "David Brown",
-            "Emily Davis",
-            "Global Trading Co",
+        // Likely matches (variants of common sanctions list names)
+        "Saddam Hussein",
+        "Osama Bin Laden",
+        "Abu Ali",
+        "Vladimir Putin",
+        "Sergei Ivanov",
+        "Kim Jong Un",
+        "ACME Holdings",
+        "Al-Qaeda",
+        "Hezbollah",
+        "Islamic State",
+        // Unlikely matches (innocent names)
+        "John Smith",
+        "Jane Doe",
+        "Microsoft Corporation",
+        "Alice Johnson",
+        "Bob Williams",
+        "Tokyo Motors Ltd",
+        "Sarah Connor",
+        "David Brown",
+        "Emily Davis",
+        "Global Trading Co",
     };
 
     private static final double[] THRESHOLDS = {0.70, 0.80, 0.85, 0.90, 0.95};
@@ -86,7 +85,8 @@ public final class MatchingBenchmark {
 
         // --- Single-threaded latency by engine type ---
         System.out.println("--- Single-Threaded Latency (per screening call) ---");
-        System.out.printf("%-20s %10s %10s %10s %10s %10s%n",
+        System.out.printf(
+                "%-20s %10s %10s %10s %10s %10s%n",
                 "Engine", "Queries", "Mean (µs)", "P50 (µs)", "P99 (µs)", "Max (µs)");
         System.out.println("-".repeat(74));
 
@@ -98,8 +98,8 @@ public final class MatchingBenchmark {
         // --- Throughput at varying thresholds ---
         System.out.println();
         System.out.println("--- Fuzzy Match Throughput vs Threshold ---");
-        System.out.printf("%-12s %12s %12s %12s%n",
-                "Threshold", "Queries/sec", "Avg matches", "Avg (µs)");
+        System.out.printf(
+                "%-12s %12s %12s %12s%n", "Threshold", "Queries/sec", "Avg matches", "Avg (µs)");
         System.out.println("-".repeat(52));
 
         for (double threshold : THRESHOLDS) {
@@ -113,7 +113,8 @@ public final class MatchingBenchmark {
         int[] concurrencyLevels = {1, 4, 16, 64, 256};
         int requestsPerLevel = 1000;
 
-        System.out.printf("%-12s %12s %12s %12s %12s%n",
+        System.out.printf(
+                "%-12s %12s %12s %12s %12s%n",
                 "Threads", "Total reqs", "Throughput", "Avg (µs)", "P99 (µs)");
         System.out.println("-".repeat(64));
 
@@ -153,14 +154,12 @@ public final class MatchingBenchmark {
         long p99 = latencies.get((int) (n * 0.99));
         long max = latencies.getLast();
 
-        System.out.printf("%-20s %10d %10d %10d %10d %10d%n",
-                label, n, mean, p50, p99, max);
+        System.out.printf("%-20s %10d %10d %10d %10d %10d%n", label, n, mean, p50, p99, max);
     }
 
     // ---- Throughput vs threshold ----
 
-    private void throughputAtThreshold(
-            MatchEngine engine, EntityIndex index, double threshold) {
+    private void throughputAtThreshold(MatchEngine engine, EntityIndex index, double threshold) {
         int iterations = 100;
         int totalMatches = 0;
 
@@ -198,26 +197,29 @@ public final class MatchingBenchmark {
 
         for (int t = 0; t < concurrency; t++) {
             final int threadId = t;
-            Thread.ofVirtual().start(() -> {
-                ready.countDown();
-                try {
-                    go.await();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+            Thread.ofVirtual()
+                    .start(
+                            () -> {
+                                ready.countDown();
+                                try {
+                                    go.await();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    return;
+                                }
 
-                for (int i = 0; i < requestsPerThread; i++) {
-                    String name = SCREEN_NAMES[(threadId + i) % SCREEN_NAMES.length];
-                    long s = System.nanoTime();
-                    engine.screen(ScreeningRequest.of(name, 0.80), index);
-                    long elapsed = (System.nanoTime() - s) / 1_000;
-                    latencies.add(elapsed);
-                    completed.incrementAndGet();
-                }
+                                for (int i = 0; i < requestsPerThread; i++) {
+                                    String name =
+                                            SCREEN_NAMES[(threadId + i) % SCREEN_NAMES.length];
+                                    long s = System.nanoTime();
+                                    engine.screen(ScreeningRequest.of(name, 0.80), index);
+                                    long elapsed = (System.nanoTime() - s) / 1_000;
+                                    latencies.add(elapsed);
+                                    completed.incrementAndGet();
+                                }
 
-                done.countDown();
-            });
+                                done.countDown();
+                            });
         }
 
         try {
@@ -240,7 +242,7 @@ public final class MatchingBenchmark {
         long avg = sorted.stream().mapToLong(Long::longValue).sum() / sorted.size();
         long p99 = sorted.get((int) (sorted.size() * 0.99));
 
-        System.out.printf("%-12d %12d %12.0f %12d %12d%n",
-                concurrency, total, throughput, avg, p99);
+        System.out.printf(
+                "%-12d %12d %12.0f %12d %12d%n", concurrency, total, throughput, avg, p99);
     }
 }

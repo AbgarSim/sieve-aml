@@ -7,13 +7,8 @@ import java.util.Collection;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/**
- * CLI command to export loaded entities in JSON format.
- */
-@Command(
-        name = "export",
-        mixinStandardHelpOptions = true,
-        description = "Export loaded entities")
+/** CLI command to export loaded entities in JSON format. */
+@Command(name = "export", mixinStandardHelpOptions = true, description = "Export loaded entities")
 public class ExportCommand implements Runnable {
 
     @Option(
@@ -33,7 +28,8 @@ public class ExportCommand implements Runnable {
         }
 
         if (!"json".equalsIgnoreCase(format)) {
-            System.err.printf("Unsupported format: %s. Only 'json' is currently supported.%n", format);
+            System.err.printf(
+                    "Unsupported format: %s. Only 'json' is currently supported.%n", format);
             return;
         }
 
@@ -47,8 +43,7 @@ public class ExportCommand implements Runnable {
             System.out.printf("    \"entityType\": \"%s\",%n", entity.entityType().name());
             System.out.printf("    \"listSource\": \"%s\",%n", entity.listSource().name());
             System.out.printf(
-                    "    \"primaryName\": \"%s\",%n",
-                    escapeJson(entity.primaryName().fullName()));
+                    "    \"primaryName\": \"%s\",%n", escapeJson(entity.primaryName().fullName()));
             System.out.printf("    \"aliases\": [");
             for (int i = 0; i < entity.aliases().size(); i++) {
                 if (i > 0) {
@@ -75,8 +70,7 @@ public class ExportCommand implements Runnable {
         if (value == null) {
             return "";
         }
-        return value
-                .replace("\\", "\\\\")
+        return value.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")

@@ -64,8 +64,7 @@ public record ProviderResult(
      * @return a failure result
      */
     public static ProviderResult failed(ListSource source, Duration duration, String errorMessage) {
-        return new ProviderResult(
-                source, Status.FAILED, 0, duration, Optional.of(errorMessage));
+        return new ProviderResult(source, Status.FAILED, 0, duration, Optional.of(errorMessage));
     }
 
     /**
@@ -75,7 +74,6 @@ public record ProviderResult(
      * @return a skipped result with zero duration
      */
     public static ProviderResult skipped(ListSource source) {
-        return new ProviderResult(
-                source, Status.SKIPPED, 0, Duration.ZERO, Optional.empty());
+        return new ProviderResult(source, Status.SKIPPED, 0, Duration.ZERO, Optional.empty());
     }
 }

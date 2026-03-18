@@ -9,7 +9,6 @@ import dev.sieve.core.model.ListSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Option;
@@ -62,18 +61,16 @@ public class ScreenCommand implements Runnable {
         }
 
         Optional<Set<ListSource>> sources =
-                list != null
-                        ? Optional.of(Set.of(ListSource.fromString(list)))
-                        : Optional.empty();
+                list != null ? Optional.of(Set.of(ListSource.fromString(list))) : Optional.empty();
 
-        ScreeningRequest request =
-                new ScreeningRequest(name, Optional.empty(), sources, threshold);
+        ScreeningRequest request = new ScreeningRequest(name, Optional.empty(), sources, threshold);
 
         MatchEngine engine = ctx.matchEngine();
         List<MatchResult> results = engine.screen(request, index);
 
         if (results.isEmpty()) {
-            System.out.printf("@|green No matches found|@ for \"%s\" (threshold=%.2f)%n", name, threshold);
+            System.out.printf(
+                    "@|green No matches found|@ for \"%s\" (threshold=%.2f)%n", name, threshold);
             exitCode = ExitCode.OK;
             return;
         }

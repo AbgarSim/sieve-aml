@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 /**
  * Scheduled task that periodically refreshes sanctions lists.
  *
- * <p>The cron expression is configurable via {@code sieve.lists.ofac-sdn.refresh-cron} in
- * {@code application.yml}. Defaults to daily at 2:00 AM.
+ * <p>The cron expression is configurable via {@code sieve.lists.ofac-sdn.refresh-cron} in {@code
+ * application.yml}. Defaults to daily at 2:00 AM.
  */
 @Component
 public class ListRefreshScheduler {
@@ -33,9 +33,7 @@ public class ListRefreshScheduler {
         this.entityIndex = entityIndex;
     }
 
-    /**
-     * Executes the scheduled list refresh.
-     */
+    /** Executes the scheduled list refresh. */
     @Scheduled(cron = "${sieve.lists.ofac-sdn.refresh-cron:0 0 2 * * *}")
     public void refreshLists() {
         log.info("Scheduled list refresh starting");

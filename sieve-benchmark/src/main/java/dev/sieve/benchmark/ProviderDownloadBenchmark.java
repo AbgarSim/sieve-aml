@@ -53,8 +53,7 @@ public final class ProviderDownloadBenchmark {
         providers.put(
                 "UN Consolidated",
                 new UnConsolidatedProvider(
-                        URI.create(
-                                "https://scsanctions.un.org/resources/xml/en/consolidated.xml"),
+                        URI.create("https://scsanctions.un.org/resources/xml/en/consolidated.xml"),
                         httpClient));
     }
 
@@ -72,7 +71,8 @@ public final class ProviderDownloadBenchmark {
 
         // --- Sequential downloads ---
         System.out.println("--- Sequential Downloads ---");
-        System.out.printf("%-22s %10s %10s %12s%n", "Provider", "Entities", "Time (ms)", "Rate (e/s)");
+        System.out.printf(
+                "%-22s %10s %10s %12s%n", "Provider", "Entities", "Time (ms)", "Rate (e/s)");
         System.out.println("-".repeat(58));
 
         Map<String, List<SanctionedEntity>> results = new LinkedHashMap<>();
@@ -106,26 +106,47 @@ public final class ProviderDownloadBenchmark {
         Instant parStart = Instant.now();
         Map<String, ProviderResult> parallelResults = new LinkedHashMap<>();
 
-        List<Thread> threads = providers.entrySet().stream()
-                .map(entry -> Thread.ofVirtual().start(() -> {
-                    String name = entry.getKey();
-                    ListProvider provider = entry.getValue();
-                    try {
-                        Instant start = Instant.now();
-                        List<SanctionedEntity> entities = provider.fetch();
-                        long ms = Duration.between(start, Instant.now()).toMillis();
-                        synchronized (parallelResults) {
-                            parallelResults.put(name,
-                                    new ProviderResult(entities.size(), ms, null));
-                        }
-                    } catch (ListIngestionException e) {
-                        synchronized (parallelResults) {
-                            parallelResults.put(name,
-                                    new ProviderResult(0, 0, e.getMessage()));
-                        }
-                    }
-                }))
-                .toList();
+        List<Thread> threads =
+                providers.entrySet().stream()
+                        .map(
+                                entry ->
+                                        Thread.ofVirtual()
+                                                .start(
+                                                        () -> {
+                                                            String name = entry.getKey();
+                                                            ListProvider provider =
+                                                                    entry.getValue();
+                                                            try {
+                                                                Instant start = Instant.now();
+                                                                List<SanctionedEntity> entities =
+                                                                        provider.fetch();
+                                                                long ms =
+                                                                        Duration.between(
+                                                                                        start,
+                                                                                        Instant
+                                                                                                .now())
+                                                                                .toMillis();
+                                                                synchronized (parallelResults) {
+                                                                    parallelResults.put(
+                                                                            name,
+                                                                            new ProviderResult(
+                                                                                    entities.size(),
+                                                                                    ms,
+                                                                                    null));
+                                                                }
+                                                            } catch (ListIngestionException e) {
+                                                                synchronized (parallelResults) {
+                                                                    parallelResults.put(
+                                                                            name,
+                                                                            new ProviderResult(
+                                                                                    0,
+                                                                                    0,
+                                                                                    e
+                                                                                            .getMessage()));
+                                                                }
+                                                            }
+                                                        }))
+                        .toList();
 
         for (Thread t : threads) {
             try {
@@ -137,7 +158,8 @@ public final class ProviderDownloadBenchmark {
 
         long parTotalMs = Duration.between(parStart, Instant.now()).toMillis();
 
-        System.out.printf("%-22s %10s %10s %12s%n", "Provider", "Entities", "Time (ms)", "Rate (e/s)");
+        System.out.printf(
+                "%-22s %10s %10s %12s%n", "Provider", "Entities", "Time (ms)", "Rate (e/s)");
         System.out.println("-".repeat(58));
         int parTotalEntities = 0;
         for (var entry : parallelResults.entrySet()) {

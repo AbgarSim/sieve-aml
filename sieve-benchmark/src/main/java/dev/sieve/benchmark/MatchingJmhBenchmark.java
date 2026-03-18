@@ -5,7 +5,6 @@ import dev.sieve.core.index.InMemoryEntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
-import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
@@ -40,6 +39,7 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p>Uses synthetic entities to provide a reproducible benchmark independent of network
  * availability. Run via:
+ *
  * <pre>
  *   java -jar sieve-benchmark.jar jmh
  * </pre>
@@ -71,11 +71,19 @@ public class MatchingJmhBenchmark {
         fuzzyEngine = new FuzzyMatchEngine();
         compositeEngine = new CompositeMatchEngine(List.of(exactEngine, fuzzyEngine));
 
-        queryNames = new String[]{
-                "John Smith", "Acme Corp", "Vladimir Petrov", "Ali Hassan",
-                "Samsung Electronics", "Mohammed Ahmed", "Jane Williams",
-                "Al-Rashid Trading", "Kim Yong", "Deutsche Bank"
-        };
+        queryNames =
+                new String[] {
+                    "John Smith",
+                    "Acme Corp",
+                    "Vladimir Petrov",
+                    "Ali Hassan",
+                    "Samsung Electronics",
+                    "Mohammed Ahmed",
+                    "Jane Williams",
+                    "Al-Rashid Trading",
+                    "Kim Yong",
+                    "Deutsche Bank"
+                };
     }
 
     @Benchmark
@@ -119,19 +127,26 @@ public class MatchingJmhBenchmark {
 
     private static List<SanctionedEntity> generateEntities(int count) {
         String[] firstNames = {
-                "Mohammed", "Ali", "Hassan", "Omar", "Ahmed", "Yusuf", "Ibrahim",
-                "Vladimir", "Sergei", "Dmitry", "Kim", "Park", "John", "James",
-                "Abdul", "Khalid", "Tariq", "Chen", "Wang", "Li"
+            "Mohammed", "Ali", "Hassan", "Omar", "Ahmed", "Yusuf", "Ibrahim",
+            "Vladimir", "Sergei", "Dmitry", "Kim", "Park", "John", "James",
+            "Abdul", "Khalid", "Tariq", "Chen", "Wang", "Li"
         };
         String[] lastNames = {
-                "Al-Rashid", "Hussein", "Bin Laden", "Petrov", "Ivanov", "Kuznetsov",
-                "Jong-un", "Yong-chol", "Smith", "Johnson", "Williams", "Brown",
-                "Al-Hassan", "Al-Tikriti", "Zhang", "Liu", "Kumar", "Singh"
+            "Al-Rashid", "Hussein", "Bin Laden", "Petrov", "Ivanov", "Kuznetsov",
+            "Jong-un", "Yong-chol", "Smith", "Johnson", "Williams", "Brown",
+            "Al-Hassan", "Al-Tikriti", "Zhang", "Liu", "Kumar", "Singh"
         };
         String[] entityNames = {
-                "Acme Trading", "Global Holdings", "Eastern Corp", "Northern Bank",
-                "Pacific Shipping", "Continental Mining", "Desert Industries",
-                "Al-Quds Foundation", "Red Star LLC", "Dragon Enterprises"
+            "Acme Trading",
+            "Global Holdings",
+            "Eastern Corp",
+            "Northern Bank",
+            "Pacific Shipping",
+            "Continental Mining",
+            "Desert Industries",
+            "Al-Quds Foundation",
+            "Red Star LLC",
+            "Dragon Enterprises"
         };
         ListSource[] sources = ListSource.values();
 
@@ -151,26 +166,51 @@ public class MatchingJmhBenchmark {
                 type = EntityType.ENTITY;
             }
 
-            NameInfo primaryName = new NameInfo(
-                    fullName,
-                    isIndividual ? fullName.split(" ")[0] : null,
-                    isIndividual && fullName.contains(" ") ? fullName.substring(fullName.indexOf(' ') + 1) : null,
-                    null, null, NameType.PRIMARY, NameStrength.STRONG, ScriptType.LATIN);
+            NameInfo primaryName =
+                    new NameInfo(
+                            fullName,
+                            isIndividual ? fullName.split(" ")[0] : null,
+                            isIndividual && fullName.contains(" ")
+                                    ? fullName.substring(fullName.indexOf(' ') + 1)
+                                    : null,
+                            null,
+                            null,
+                            NameType.PRIMARY,
+                            NameStrength.STRONG,
+                            ScriptType.LATIN);
 
             List<NameInfo> aliases = new ArrayList<>();
             if (i % 5 == 0) {
-                aliases.add(new NameInfo(
-                        "Alias of " + fullName, null, null, null, null,
-                        NameType.AKA, NameStrength.STRONG, ScriptType.LATIN));
+                aliases.add(
+                        new NameInfo(
+                                "Alias of " + fullName,
+                                null,
+                                null,
+                                null,
+                                null,
+                                NameType.AKA,
+                                NameStrength.STRONG,
+                                ScriptType.LATIN));
             }
 
             ListSource source = sources[i % sources.length];
-            entities.add(new SanctionedEntity(
-                    "BENCH-" + i, type, source, primaryName, aliases,
-                    List.of(), List.of(), List.of(), List.of(),
-                    List.of(), List.of(), null,
-                    List.of(new SanctionsProgram("TEST", "Test Program", source)),
-                    Instant.now(), Instant.now()));
+            entities.add(
+                    new SanctionedEntity(
+                            "BENCH-" + i,
+                            type,
+                            source,
+                            primaryName,
+                            aliases,
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            null,
+                            List.of(new SanctionsProgram("TEST", "Test Program", source)),
+                            Instant.now(),
+                            Instant.now()));
         }
         return entities;
     }

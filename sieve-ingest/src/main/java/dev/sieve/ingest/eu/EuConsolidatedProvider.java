@@ -45,10 +45,10 @@ import org.slf4j.LoggerFactory;
  * Fetches and parses the EU Consolidated List of sanctions targets.
  *
  * <p>The XML is hierarchical: each {@code <sanctionEntity>} element contains nested child elements
- * for names ({@code <nameAlias>}), addresses ({@code <address>}), identifications
- * ({@code <identification>}), birthdates ({@code <birthdate>}), citizenships
- * ({@code <citizenship>}), regulations ({@code <regulation>}), and subject type
- * ({@code <subjectType>}). Most data is stored in XML attributes rather than text content.
+ * for names ({@code <nameAlias>}), addresses ({@code <address>}), identifications ({@code
+ * <identification>}), birthdates ({@code <birthdate>}), citizenships ({@code <citizenship>}),
+ * regulations ({@code <regulation>}), and subject type ({@code <subjectType>}). Most data is stored
+ * in XML attributes rather than text content.
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing.
  *
@@ -69,9 +69,7 @@ public final class EuConsolidatedProvider implements ListProvider {
     private final HttpClient httpClient;
     private volatile ListMetadata currentMetadata;
 
-    /**
-     * Creates a provider with the default EU consolidated list URL.
-     */
+    /** Creates a provider with the default EU consolidated list URL. */
     public EuConsolidatedProvider() {
         this(URI.create(DEFAULT_URL));
     }
@@ -156,7 +154,11 @@ public final class EuConsolidatedProvider implements ListProvider {
             Duration duration = Duration.between(start, now);
             currentMetadata =
                     new ListMetadata(
-                            ListSource.EU_CONSOLIDATED, now, etag, contentHash, sourceUri,
+                            ListSource.EU_CONSOLIDATED,
+                            now,
+                            etag,
+                            contentHash,
+                            sourceUri,
                             entities.size());
 
             log.info(
@@ -274,13 +276,11 @@ public final class EuConsolidatedProvider implements ListProvider {
 
     // ---- Entity parsing ----------------------------------------------------
 
-    private SanctionedEntity parseSanctionEntity(XMLStreamReader reader)
-            throws XMLStreamException {
+    private SanctionedEntity parseSanctionEntity(XMLStreamReader reader) throws XMLStreamException {
         String euRefNumber = attr(reader, "euReferenceNumber");
         String logicalId = attr(reader, "logicalId");
-        String entityId = (euRefNumber != null && !euRefNumber.isBlank())
-                ? euRefNumber
-                : "EU-" + logicalId;
+        String entityId =
+                (euRefNumber != null && !euRefNumber.isBlank()) ? euRefNumber : "EU-" + logicalId;
 
         EntityType entityType = EntityType.ENTITY;
         List<NameAlias> nameAliases = new ArrayList<>();
@@ -321,7 +321,8 @@ public final class EuConsolidatedProvider implements ListProvider {
                     case "citizenship" -> {
                         String country = attr(reader, "countryDescription");
                         String code = attr(reader, "countryIso2Code");
-                        if (country != null && !country.isBlank()
+                        if (country != null
+                                && !country.isBlank()
                                 && !"UNKNOWN".equalsIgnoreCase(country)) {
                             citizenships.add(country);
                         } else if (code != null && !code.isBlank() && !"00".equals(code)) {
@@ -349,7 +350,9 @@ public final class EuConsolidatedProvider implements ListProvider {
                             remarks.append(text);
                         }
                     }
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "sanctionEntity".equals(reader.getLocalName())) {
@@ -360,8 +363,7 @@ public final class EuConsolidatedProvider implements ListProvider {
         // Select primary name: first English-language alias, or first alias overall
         NameAlias primaryAlias = selectPrimary(nameAliases);
         if (primaryAlias == null) {
-            log.debug(
-                    "Skipping EU entity with no usable name [id={}]", entityId);
+            log.debug("Skipping EU entity with no usable name [id={}]", entityId);
             return null;
         }
 
@@ -399,9 +401,7 @@ public final class EuConsolidatedProvider implements ListProvider {
 
     // ---- Child element parsers ---------------------------------------------
 
-    /**
-     * Intermediate holder for a {@code <nameAlias>} element's attributes.
-     */
+    /** Intermediate holder for a {@code <nameAlias>} element's attributes. */
     static final class NameAlias {
         String firstName;
         String middleName;
@@ -460,9 +460,10 @@ public final class EuConsolidatedProvider implements ListProvider {
         // Build street from parts
         String streetFull = joinNonBlank(", ", street, poBox != null ? "P.O. Box " + poBox : null);
         String cityFull = joinNonBlank(", ", city, region, place);
-        String country = (countryDesc != null && !"UNKNOWN".equalsIgnoreCase(countryDesc))
-                ? countryDesc
-                : (countryCode != null && !"00".equals(countryCode) ? countryCode : null);
+        String country =
+                (countryDesc != null && !"UNKNOWN".equalsIgnoreCase(countryDesc))
+                        ? countryDesc
+                        : (countryCode != null && !"00".equals(countryCode) ? countryCode : null);
 
         String fullAddress = joinNonBlank(", ", streetFull, cityFull, zipCode, country);
         if (fullAddress == null) {
@@ -486,9 +487,7 @@ public final class EuConsolidatedProvider implements ListProvider {
     }
 
     private static void parseBirthdate(
-            XMLStreamReader reader,
-            List<LocalDate> datesOfBirth,
-            Set<String> placesOfBirth) {
+            XMLStreamReader reader, List<LocalDate> datesOfBirth, Set<String> placesOfBirth) {
         String dateStr = attr(reader, "birthdate");
         String yearStr = attr(reader, "year");
         String monthStr = attr(reader, "monthOfYear");
@@ -512,8 +511,8 @@ public final class EuConsolidatedProvider implements ListProvider {
     // ---- Name selection ----------------------------------------------------
 
     /**
-     * Selects the primary name from a list of aliases: prefers the first alias with
-     * {@code regulationLanguage="en"} and empty or English {@code nameLanguage}.
+     * Selects the primary name from a list of aliases: prefers the first alias with {@code
+     * regulationLanguage="en"} and empty or English {@code nameLanguage}.
      */
     private static NameAlias selectPrimary(List<NameAlias> aliases) {
         // First pass: English regulation language + no specific nameLanguage (default/English)
@@ -539,8 +538,15 @@ public final class EuConsolidatedProvider implements ListProvider {
             fullName = buildFullName(strip(na.firstName), strip(na.lastName), strip(na.middleName));
         }
         if (fullName == null) {
-            return new NameInfo("UNKNOWN", null, null, null, null, nameType,
-                    NameStrength.WEAK, ScriptType.LATIN);
+            return new NameInfo(
+                    "UNKNOWN",
+                    null,
+                    null,
+                    null,
+                    null,
+                    nameType,
+                    NameStrength.WEAK,
+                    ScriptType.LATIN);
         }
 
         NameStrength strength = na.strong ? NameStrength.STRONG : NameStrength.WEAK;
@@ -649,10 +655,14 @@ public final class EuConsolidatedProvider implements ListProvider {
         try {
             if (yearStr != null && !yearStr.isBlank()) {
                 int year = Integer.parseInt(yearStr.strip());
-                int month = (monthStr != null && !monthStr.isBlank())
-                        ? Integer.parseInt(monthStr.strip()) : 1;
-                int day = (dayStr != null && !dayStr.isBlank())
-                        ? Integer.parseInt(dayStr.strip()) : 1;
+                int month =
+                        (monthStr != null && !monthStr.isBlank())
+                                ? Integer.parseInt(monthStr.strip())
+                                : 1;
+                int day =
+                        (dayStr != null && !dayStr.isBlank())
+                                ? Integer.parseInt(dayStr.strip())
+                                : 1;
                 if (year > 0) {
                     return LocalDate.of(year, month, day);
                 }

@@ -88,8 +88,7 @@ public final class IngestionOrchestrator {
                 Duration providerDuration = Duration.between(providerStart, Instant.now());
 
                 results.put(
-                        source,
-                        ProviderResult.success(source, entities.size(), providerDuration));
+                        source, ProviderResult.success(source, entities.size(), providerDuration));
                 metadataCache.put(source, provider.metadata());
                 totalEntities += entities.size();
 
@@ -102,8 +101,7 @@ public final class IngestionOrchestrator {
             } catch (Exception e) {
                 Duration providerDuration = Duration.between(providerStart, Instant.now());
                 results.put(
-                        source,
-                        ProviderResult.failed(source, providerDuration, e.getMessage()));
+                        source, ProviderResult.failed(source, providerDuration, e.getMessage()));
                 log.error(
                         "Provider failed [source={}, duration={}ms]",
                         source,

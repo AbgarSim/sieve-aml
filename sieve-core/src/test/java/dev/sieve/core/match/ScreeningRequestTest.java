@@ -57,20 +57,14 @@ class ScreeningRequestTest {
 
     @Test
     void shouldThrowWhenEntityTypeOptionalIsNull() {
-        assertThatThrownBy(
-                        () ->
-                                new ScreeningRequest(
-                                        "John Doe", null, Optional.empty(), 0.80))
+        assertThatThrownBy(() -> new ScreeningRequest("John Doe", null, Optional.empty(), 0.80))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("entityType");
     }
 
     @Test
     void shouldThrowWhenSourcesOptionalIsNull() {
-        assertThatThrownBy(
-                        () ->
-                                new ScreeningRequest(
-                                        "John Doe", Optional.empty(), null, 0.80))
+        assertThatThrownBy(() -> new ScreeningRequest("John Doe", Optional.empty(), null, 0.80))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("sources");
     }

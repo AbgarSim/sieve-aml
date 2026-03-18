@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
  * Main entry point for running Sieve benchmarks.
  *
  * <p>Usage:
+ *
  * <pre>
  *   # Run all benchmarks (download + matching stress test)
  *   java -jar sieve-benchmark.jar
@@ -106,28 +107,32 @@ public final class BenchmarkRunner {
         System.out.println("╚══════════════════════════════════════════════════════════════════╝");
         System.out.println();
 
-        Options opts = new OptionsBuilder()
-                .include(MatchingJmhBenchmark.class.getSimpleName())
-                .build();
+        Options opts =
+                new OptionsBuilder().include(MatchingJmhBenchmark.class.getSimpleName()).build();
         new Runner(opts).run();
     }
 
     private static List<SanctionedEntity> fetchAllProviders() {
         HttpClient httpClient = TrustAllHttpClient.create();
         List<SanctionedEntity> all = new ArrayList<>();
-        List<ListProvider> providers = List.of(
-                new OfacSdnProvider(URI.create(
-                        "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML"),
-                        httpClient),
-                new UkHmtProvider(URI.create(
-                        "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml"),
-                        httpClient),
-                new EuConsolidatedProvider(URI.create(
-                        "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"),
-                        httpClient),
-                new UnConsolidatedProvider(URI.create(
-                        "https://scsanctions.un.org/resources/xml/en/consolidated.xml"),
-                        httpClient));
+        List<ListProvider> providers =
+                List.of(
+                        new OfacSdnProvider(
+                                URI.create(
+                                        "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML"),
+                                httpClient),
+                        new UkHmtProvider(
+                                URI.create(
+                                        "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml"),
+                                httpClient),
+                        new EuConsolidatedProvider(
+                                URI.create(
+                                        "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"),
+                                httpClient),
+                        new UnConsolidatedProvider(
+                                URI.create(
+                                        "https://scsanctions.un.org/resources/xml/en/consolidated.xml"),
+                                httpClient));
 
         for (ListProvider provider : providers) {
             try {
@@ -160,7 +165,8 @@ public final class BenchmarkRunner {
         System.out.println("Usage: java -jar sieve-benchmark.jar [COMMAND] [OPTIONS]");
         System.out.println();
         System.out.println("Commands:");
-        System.out.println("  jmh           Run JMH microbenchmarks (synthetic data, reproducible)");
+        System.out.println(
+                "  jmh           Run JMH microbenchmarks (synthetic data, reproducible)");
         System.out.println("  stress        HTTP stress test against a running Sieve server");
         System.out.println("                Usage: stress [baseUrl] [totalRequests] [concurrency]");
         System.out.println("                Defaults: http://localhost:8080  200000  1000");

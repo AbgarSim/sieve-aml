@@ -44,8 +44,7 @@ class ScreeningControllerTest {
         MatchResult matchResult = new MatchResult(entity, 0.95, "primaryName", "JARO_WINKLER");
 
         when(matchEngine.screen(any(), any())).thenReturn(List.of(matchResult));
-        when(properties.screening())
-                .thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
+        when(properties.screening()).thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
 
         mockMvc.perform(
                         post("/api/v1/screen")
@@ -64,8 +63,7 @@ class ScreeningControllerTest {
     @Test
     void shouldReturnEmptyResultsWhenNoMatches() throws Exception {
         when(matchEngine.screen(any(), any())).thenReturn(List.of());
-        when(properties.screening())
-                .thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
+        when(properties.screening()).thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
 
         mockMvc.perform(
                         post("/api/v1/screen")
@@ -118,10 +116,29 @@ class ScreeningControllerTest {
     private static SanctionedEntity createEntity(String id, String name) {
         NameInfo primaryName =
                 new NameInfo(
-                        name, null, null, null, null, NameType.PRIMARY, NameStrength.STRONG,
+                        name,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
                         ScriptType.LATIN);
         return new SanctionedEntity(
-                id, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, primaryName, null, null, null, null,
-                null, null, null, null, null, null, Instant.now());
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                primaryName,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
     }
 }

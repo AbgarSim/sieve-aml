@@ -64,7 +64,9 @@ class FuzzyMatchEngineTest {
 
     @Test
     void shouldMatchOnBestAlias() {
-        index.add(createEntity("1", "AL-RASHID, Ahmed", List.of("AL RASHID, Ahmad", "RASHID, Ahmed")));
+        index.add(
+                createEntity(
+                        "1", "AL-RASHID, Ahmed", List.of("AL RASHID, Ahmad", "RASHID, Ahmed")));
         ScreeningRequest request = ScreeningRequest.of("AL RASHID, Ahmad", 0.80);
 
         List<MatchResult> results = engine.screen(request, index);
@@ -84,8 +86,7 @@ class FuzzyMatchEngineTest {
 
         assertThat(results).isNotEmpty();
         for (int i = 1; i < results.size(); i++) {
-            assertThat(results.get(i - 1).score())
-                    .isGreaterThanOrEqualTo(results.get(i).score());
+            assertThat(results.get(i - 1).score()).isGreaterThanOrEqualTo(results.get(i).score());
         }
     }
 
@@ -106,11 +107,16 @@ class FuzzyMatchEngineTest {
         assertThat(results).hasSize(1);
     }
 
-    private static SanctionedEntity createEntity(
-            String id, String name, List<String> aliases) {
+    private static SanctionedEntity createEntity(String id, String name, List<String> aliases) {
         NameInfo primaryName =
                 new NameInfo(
-                        name, null, null, null, null, NameType.PRIMARY, NameStrength.STRONG,
+                        name,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
                         ScriptType.LATIN);
 
         List<NameInfo> aliasNames =
@@ -118,12 +124,31 @@ class FuzzyMatchEngineTest {
                         .map(
                                 a ->
                                         new NameInfo(
-                                                a, null, null, null, null, NameType.AKA,
-                                                NameStrength.STRONG, ScriptType.LATIN))
+                                                a,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                NameType.AKA,
+                                                NameStrength.STRONG,
+                                                ScriptType.LATIN))
                         .toList();
 
         return new SanctionedEntity(
-                id, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, primaryName, aliasNames, null, null,
-                null, null, null, null, null, null, null, Instant.now());
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                primaryName,
+                aliasNames,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
     }
 }

@@ -9,9 +9,7 @@ import java.util.Set;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/**
- * CLI command to fetch sanctions lists and load them into the in-memory index.
- */
+/** CLI command to fetch sanctions lists and load them into the in-memory index. */
 @Command(
         name = "fetch",
         mixinStandardHelpOptions = true,

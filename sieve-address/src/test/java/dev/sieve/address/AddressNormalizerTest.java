@@ -58,8 +58,14 @@ class AddressNormalizerTest {
 
     @Test
     void normalize_fallback_stripsWhitespace() {
-        Address input = new Address("  123 Main St  ", "  New York  ", "  NY  ", "  10001  ",
-                "  US  ", "  123 Main St, New York, NY 10001, US  ");
+        Address input =
+                new Address(
+                        "  123 Main St  ",
+                        "  New York  ",
+                        "  NY  ",
+                        "  10001  ",
+                        "  US  ",
+                        "  123 Main St, New York, NY 10001, US  ");
         Address result = normalizer.normalize(input);
 
         assertThat(result.street()).isEqualTo("123 Main St");

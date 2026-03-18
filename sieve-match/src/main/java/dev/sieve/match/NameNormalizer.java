@@ -5,8 +5,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Utility for normalizing name strings before comparison.
  *
- * <p>Applied consistently across all match engines to ensure comparable inputs.
- * Results are cached to avoid repeated regex and string operations for the same input.
+ * <p>Applied consistently across all match engines to ensure comparable inputs. Results are cached
+ * to avoid repeated regex and string operations for the same input.
  */
 final class NameNormalizer {
 
@@ -14,7 +14,8 @@ final class NameNormalizer {
     private static final ConcurrentHashMap<String, String> CACHE = new ConcurrentHashMap<>();
 
     /** Pre-compiled pattern for collapsing whitespace — avoids regex recompilation. */
-    private static final java.util.regex.Pattern WHITESPACE = java.util.regex.Pattern.compile("\\s+");
+    private static final java.util.regex.Pattern WHITESPACE =
+            java.util.regex.Pattern.compile("\\s+");
 
     private NameNormalizer() {
         throw new AssertionError("Utility class — do not instantiate");

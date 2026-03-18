@@ -32,7 +32,7 @@ final class TrustAllHttpClient {
     static HttpClient create() {
         try {
             SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[]{TRUST_ALL_MANAGER}, null);
+            sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
 
             return HttpClient.newBuilder()
                     .connectTimeout(CONNECT_TIMEOUT)

@@ -10,8 +10,8 @@ package dev.sieve.match.algorithm;
  * <p>This implementation follows the original Winkler (1990) formulation with a default prefix
  * scaling factor of 0.1 and a maximum prefix length of 4 characters.
  *
- * @see <a href="https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance">Jaro–Winkler
- *     distance (Wikipedia)</a>
+ * @see <a href="https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance">Jaro–Winkler distance
+ *     (Wikipedia)</a>
  */
 public final class JaroWinkler {
 
@@ -27,6 +27,7 @@ public final class JaroWinkler {
     /** Thread-local reusable boolean arrays to avoid allocation per call. */
     private static final ThreadLocal<boolean[]> TL_MATCHED_1 =
             ThreadLocal.withInitial(() -> new boolean[INITIAL_ARRAY_SIZE]);
+
     private static final ThreadLocal<boolean[]> TL_MATCHED_2 =
             ThreadLocal.withInitial(() -> new boolean[INITIAL_ARRAY_SIZE]);
 
@@ -88,8 +89,9 @@ public final class JaroWinkler {
         int longer = Math.max(len1, len2);
         double maxPossibleJaro = (2.0 + (double) shorter / longer) / 3.0;
         // With maximum Winkler boost (prefix=4)
-        double maxPossible = maxPossibleJaro
-                + (MAX_PREFIX_LENGTH * DEFAULT_PREFIX_SCALE * (1.0 - maxPossibleJaro));
+        double maxPossible =
+                maxPossibleJaro
+                        + (MAX_PREFIX_LENGTH * DEFAULT_PREFIX_SCALE * (1.0 - maxPossibleJaro));
         if (maxPossible < threshold) {
             return 0.0;
         }
@@ -170,8 +172,8 @@ public final class JaroWinkler {
     }
 
     /**
-     * Borrows a boolean array from a ThreadLocal, growing it if needed.
-     * The returned array is guaranteed to have at least {@code size} elements, all false.
+     * Borrows a boolean array from a ThreadLocal, growing it if needed. The returned array is
+     * guaranteed to have at least {@code size} elements, all false.
      */
     private static boolean[] borrowArray(ThreadLocal<boolean[]> tl, int size) {
         boolean[] arr = tl.get();

@@ -13,9 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * Global exception handler mapping domain exceptions to RFC 7807 Problem Detail responses.
- */
+/** Global exception handler mapping domain exceptions to RFC 7807 Problem Detail responses. */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

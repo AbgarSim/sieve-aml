@@ -57,9 +57,7 @@ public final class NormalizedNameCache {
         return cache.computeIfAbsent(entity.id(), id -> computeEntry(entity));
     }
 
-    /**
-     * Clears the cache, forcing a full rebuild on the next {@link #ensureBuilt} call.
-     */
+    /** Clears the cache, forcing a full rebuild on the next {@link #ensureBuilt} call. */
     public void invalidate() {
         cache.clear();
         lastKnownSize = -1;

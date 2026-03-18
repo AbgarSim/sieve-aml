@@ -85,10 +85,8 @@ public class ScreeningMapper {
      * @return the entity DTO
      */
     public EntityDto toEntityDto(SanctionedEntity entity) {
-        List<String> aliases =
-                entity.aliases().stream().map(NameInfo::fullName).toList();
-        List<String> programs =
-                entity.programs().stream().map(SanctionsProgram::code).toList();
+        List<String> aliases = entity.aliases().stream().map(NameInfo::fullName).toList();
+        List<String> programs = entity.programs().stream().map(SanctionsProgram::code).toList();
 
         return new EntityDto(
                 entity.id(),
@@ -112,7 +110,9 @@ public class ScreeningMapper {
      */
     public EntityPageDto toEntityPage(Collection<SanctionedEntity> entities, int page, int size) {
         List<SanctionedEntity> entityList =
-                entities instanceof List<?> ? (List<SanctionedEntity>) entities : List.copyOf(entities);
+                entities instanceof List<?>
+                        ? (List<SanctionedEntity>) entities
+                        : List.copyOf(entities);
 
         int totalElements = entityList.size();
         int totalPages = (int) Math.ceil((double) totalElements / size);
@@ -120,9 +120,7 @@ public class ScreeningMapper {
         int toIndex = Math.min(fromIndex + size, totalElements);
 
         List<EntityDto> pageDtos =
-                entityList.subList(fromIndex, toIndex).stream()
-                        .map(this::toEntityDto)
-                        .toList();
+                entityList.subList(fromIndex, toIndex).stream().map(this::toEntityDto).toList();
 
         return new EntityPageDto(pageDtos, page, size, totalElements, totalPages);
     }

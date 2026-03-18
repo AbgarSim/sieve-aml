@@ -206,8 +206,7 @@ class UkHmtProviderTest {
         assertThat(ivanov.primaryName().fullName()).isEqualTo("IVANOV, Sergei Petrovich");
 
         assertThat(ivanov.aliases()).hasSize(1);
-        assertThat(ivanov.aliases().get(0).fullName())
-                .isEqualTo("Сергей Петрович ИВАНОВ");
+        assertThat(ivanov.aliases().get(0).fullName()).isEqualTo("Сергей Петрович ИВАНОВ");
         assertThat(ivanov.aliases().get(0).script()).isEqualTo(ScriptType.CYRILLIC);
         assertThat(ivanov.aliases().get(0).nameType()).isEqualTo(NameType.AKA);
     }

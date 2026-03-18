@@ -46,7 +46,8 @@ import org.slf4j.LoggerFactory;
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing of the potentially large SDN
  * XML file. Supports HTTP ETag-based delta detection to avoid unnecessary re-downloads.
  *
- * @see <a href="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML">OFAC
+ * @see <a
+ *     href="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML">OFAC
  *     SDN XML</a>
  */
 public final class OfacSdnProvider implements ListProvider {
@@ -65,9 +66,7 @@ public final class OfacSdnProvider implements ListProvider {
     private final HttpClient httpClient;
     private volatile ListMetadata currentMetadata;
 
-    /**
-     * Creates a provider with the default OFAC SDN URL.
-     */
+    /** Creates a provider with the default OFAC SDN URL. */
     public OfacSdnProvider() {
         this(URI.create(DEFAULT_SDN_URL));
     }
@@ -152,7 +151,12 @@ public final class OfacSdnProvider implements ListProvider {
             Duration duration = Duration.between(start, now);
             currentMetadata =
                     new ListMetadata(
-                            ListSource.OFAC_SDN, now, etag, contentHash, sourceUri, entities.size());
+                            ListSource.OFAC_SDN,
+                            now,
+                            etag,
+                            contentHash,
+                            sourceUri,
+                            entities.size());
 
             log.info(
                     "OFAC SDN ingestion complete [entities={}, duration={}ms]",
@@ -170,8 +174,7 @@ public final class OfacSdnProvider implements ListProvider {
                     e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new ListIngestionException(
-                    "OFAC SDN fetch interrupted", ListSource.OFAC_SDN, e);
+            throw new ListIngestionException("OFAC SDN fetch interrupted", ListSource.OFAC_SDN, e);
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Unexpected error during OFAC SDN ingestion: " + e.getMessage(),
@@ -290,7 +293,9 @@ public final class OfacSdnProvider implements ListProvider {
                     case "citizenshipList" -> citizenships = parseCitizenshipList(reader);
                     case "dateOfBirthList" -> datesOfBirth = parseDateOfBirthList(reader);
                     case "placeOfBirthList" -> placesOfBirth = parsePlaceOfBirthList(reader);
-                    default -> { /* skip unknown elements */ }
+                    default -> {
+                        /* skip unknown elements */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "sdnEntry".equals(reader.getLocalName())) {
@@ -358,8 +363,7 @@ public final class OfacSdnProvider implements ListProvider {
         List<NameInfo> aliases = new ArrayList<>();
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == XMLStreamConstants.START_ELEMENT
-                    && "aka".equals(reader.getLocalName())) {
+            if (event == XMLStreamConstants.START_ELEMENT && "aka".equals(reader.getLocalName())) {
                 NameInfo alias = parseAka(reader);
                 if (alias != null) {
                     aliases.add(alias);
@@ -387,7 +391,9 @@ public final class OfacSdnProvider implements ListProvider {
                     case "category" -> category = readText(reader);
                     case "firstName" -> firstName = readText(reader);
                     case "lastName" -> lastName = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "aka".equals(reader.getLocalName())) {
@@ -442,7 +448,9 @@ public final class OfacSdnProvider implements ListProvider {
                     case "stateOrProvince" -> stateOrProvince = readText(reader);
                     case "postalCode" -> postalCode = readText(reader);
                     case "country" -> country = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "address".equals(reader.getLocalName())) {
@@ -458,8 +466,7 @@ public final class OfacSdnProvider implements ListProvider {
         List<Identifier> identifiers = new ArrayList<>();
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == XMLStreamConstants.START_ELEMENT
-                    && "id".equals(reader.getLocalName())) {
+            if (event == XMLStreamConstants.START_ELEMENT && "id".equals(reader.getLocalName())) {
                 Identifier identifier = parseId(reader);
                 if (identifier != null) {
                     identifiers.add(identifier);
@@ -485,7 +492,9 @@ public final class OfacSdnProvider implements ListProvider {
                     case "idType" -> idType = readText(reader);
                     case "idNumber" -> idNumber = readText(reader);
                     case "idCountry" -> idCountry = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "id".equals(reader.getLocalName())) {
@@ -533,8 +542,7 @@ public final class OfacSdnProvider implements ListProvider {
         return values;
     }
 
-    private String parseSimpleItem(
-            XMLStreamReader reader, String itemElement, String valueElement)
+    private String parseSimpleItem(XMLStreamReader reader, String itemElement, String valueElement)
             throws XMLStreamException {
         String value = null;
         while (reader.hasNext()) {
@@ -550,8 +558,7 @@ public final class OfacSdnProvider implements ListProvider {
         return value;
     }
 
-    private List<LocalDate> parseDateOfBirthList(XMLStreamReader reader)
-            throws XMLStreamException {
+    private List<LocalDate> parseDateOfBirthList(XMLStreamReader reader) throws XMLStreamException {
         List<LocalDate> dates = new ArrayList<>();
         while (reader.hasNext()) {
             int event = reader.next();

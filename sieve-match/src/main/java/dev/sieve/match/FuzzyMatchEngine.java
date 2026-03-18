@@ -47,7 +47,8 @@ public final class FuzzyMatchEngine implements MatchEngine {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
         String normalizedQuery = NameNormalizer.normalize(request.name());
-        Collection<SanctionedEntity> candidates = resolveCandidates(request, index, normalizedQuery);
+        Collection<SanctionedEntity> candidates =
+                resolveCandidates(request, index, normalizedQuery);
         List<MatchResult> results = new ArrayList<>();
 
         for (SanctionedEntity entity : candidates) {
@@ -62,8 +63,9 @@ public final class FuzzyMatchEngine implements MatchEngine {
             double bestScore = 0.0;
             String bestField = "primaryName";
 
-            double primaryScore = JaroWinkler.similarityWithThreshold(
-                    normalizedQuery, cached.primaryName(), threshold);
+            double primaryScore =
+                    JaroWinkler.similarityWithThreshold(
+                            normalizedQuery, cached.primaryName(), threshold);
             if (primaryScore > bestScore) {
                 bestScore = primaryScore;
                 bestField = "primaryName";
@@ -72,8 +74,9 @@ public final class FuzzyMatchEngine implements MatchEngine {
             if (bestScore < 1.0) {
                 List<String> aliases = cached.aliases();
                 for (int i = 0; i < aliases.size(); i++) {
-                    double aliasScore = JaroWinkler.similarityWithThreshold(
-                            normalizedQuery, aliases.get(i), threshold);
+                    double aliasScore =
+                            JaroWinkler.similarityWithThreshold(
+                                    normalizedQuery, aliases.get(i), threshold);
                     if (aliasScore > bestScore) {
                         bestScore = aliasScore;
                         bestField = "alias[" + i + "]";
@@ -83,8 +86,7 @@ public final class FuzzyMatchEngine implements MatchEngine {
             }
 
             if (bestScore >= request.threshold()) {
-                results.add(
-                        new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME));
+                results.add(new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME));
             }
         }
 

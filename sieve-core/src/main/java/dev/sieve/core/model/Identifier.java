@@ -10,7 +10,8 @@ import java.util.Objects;
  *
  * @param type the category of this identifier
  * @param value the identifier value (e.g., passport number)
- * @param issuingCountry ISO 3166-1 alpha-2 country code of the issuing authority, may be {@code null}
+ * @param issuingCountry ISO 3166-1 alpha-2 country code of the issuing authority, may be {@code
+ *     null}
  * @param remarks additional context or notes, may be {@code null}
  */
 public record Identifier(IdentifierType type, String value, String issuingCountry, String remarks) {

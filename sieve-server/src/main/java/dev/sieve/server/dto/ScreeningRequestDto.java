@@ -19,10 +19,7 @@ public record ScreeningRequestDto(
         @NotBlank(message = "Name must not be blank")
                 @Schema(description = "Name to screen", example = "John Doe")
                 String name,
-        @Schema(
-                        description = "Entity type filter",
-                        example = "INDIVIDUAL",
-                        nullable = true)
+        @Schema(description = "Entity type filter", example = "INDIVIDUAL", nullable = true)
                 String entityType,
         @Schema(
                         description = "List sources to screen against",

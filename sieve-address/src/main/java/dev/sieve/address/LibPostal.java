@@ -115,7 +115,8 @@ public final class LibPostal {
     public static synchronized boolean setupParser(String dataDir) {
         if (!nativeLoaded) return false;
         if (parserSetupDone) return true;
-        parserSetupDone = (dataDir == null) ? nativeSetupParser() : nativeSetupParserDataDir(dataDir);
+        parserSetupDone =
+                (dataDir == null) ? nativeSetupParser() : nativeSetupParserDataDir(dataDir);
         return parserSetupDone;
     }
 

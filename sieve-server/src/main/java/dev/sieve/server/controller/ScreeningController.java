@@ -21,9 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * REST controller for sanctions name screening.
- */
+/** REST controller for sanctions name screening. */
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "Screening", description = "Name screening against sanctions lists")
@@ -71,7 +69,10 @@ public class ScreeningController {
     @ApiResponse(responseCode = "400", description = "Invalid request parameters")
     public ResponseEntity<ScreeningResponseDto> screen(
             @Valid @RequestBody ScreeningRequestDto requestDto) {
-        log.debug("Screening request [name={}, threshold={}]", requestDto.name(), requestDto.threshold());
+        log.debug(
+                "Screening request [name={}, threshold={}]",
+                requestDto.name(),
+                requestDto.threshold());
 
         ScreeningRequest domainRequest =
                 mapper.toDomain(requestDto, properties.screening().defaultThreshold());

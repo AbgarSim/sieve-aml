@@ -47,7 +47,10 @@ public class SieveConfiguration {
      * @return the in-memory entity index
      */
     @Bean
-    @ConditionalOnProperty(name = "sieve.index.type", havingValue = "in-memory", matchIfMissing = true)
+    @ConditionalOnProperty(
+            name = "sieve.index.type",
+            havingValue = "in-memory",
+            matchIfMissing = true)
     public EntityIndex entityIndex() {
         log.info("Initializing in-memory entity index");
         return new InMemoryEntityIndex();
@@ -142,7 +145,8 @@ public class SieveConfiguration {
         NormalizedNameCache nameCache = new NormalizedNameCache();
         NgramIndex ngramIndex = new NgramIndex();
         return new CompositeMatchEngine(
-                List.of(new ExactMatchEngine(nameCache, ngramIndex),
+                List.of(
+                        new ExactMatchEngine(nameCache, ngramIndex),
                         new FuzzyMatchEngine(nameCache, ngramIndex)));
     }
 

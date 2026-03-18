@@ -17,7 +17,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
- * Configuration that activates PostgreSQL-backed persistence when {@code sieve.index.type=postgres}.
+ * Configuration that activates PostgreSQL-backed persistence when {@code
+ * sieve.index.type=postgres}.
  *
  * <p>Re-imports the Spring Boot auto-configuration classes that are excluded by default in {@link
  * dev.sieve.server.SieveApplication}, and wires up the {@link JpaEntityIndex} as the {@link
@@ -27,8 +28,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * override auto-configuration classes that were globally excluded via
  * {@code @SpringBootApplication(exclude = ...)}. {@code JpaRepositoriesAutoConfiguration} is
  * intentionally omitted — it requires {@code AutoConfigurationPackages} which is unavailable
- * outside the auto-config pipeline. The explicit {@code @EnableJpaRepositories} handles
- * repository scanning instead.
+ * outside the auto-config pipeline. The explicit {@code @EnableJpaRepositories} handles repository
+ * scanning instead.
  */
 @Configuration
 @ConditionalOnProperty(name = "sieve.index.type", havingValue = "postgres")

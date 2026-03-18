@@ -220,9 +220,7 @@ class OfacSdnProviderTest {
 
     private static byte[] loadTestResource(String filename) throws IOException {
         try (InputStream is =
-                OfacSdnProviderTest.class
-                        .getClassLoader()
-                        .getResourceAsStream(filename)) {
+                OfacSdnProviderTest.class.getClassLoader().getResourceAsStream(filename)) {
             if (is == null) {
                 throw new IOException("Test resource not found: " + filename);
             }

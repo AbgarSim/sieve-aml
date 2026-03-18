@@ -10,9 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/**
- * JPA entity for an address associated with a sanctioned entity.
- */
+/** JPA entity for an address associated with a sanctioned entity. */
 @Entity
 @Table(name = "entity_address")
 public class EntityAddressRow {
@@ -62,12 +60,35 @@ public class EntityAddressRow {
         this.fullAddress = fullAddress;
     }
 
-    public Long getId() { return id; }
-    public SanctionedEntityRow getEntity() { return entity; }
-    public String getStreet() { return street; }
-    public String getCity() { return city; }
-    public String getStateOrProvince() { return stateOrProvince; }
-    public String getPostalCode() { return postalCode; }
-    public String getCountry() { return country; }
-    public String getFullAddress() { return fullAddress; }
+    public Long getId() {
+        return id;
+    }
+
+    public SanctionedEntityRow getEntity() {
+        return entity;
+    }
+
+    public String getStreet() {
+        return street;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public String getStateOrProvince() {
+        return stateOrProvince;
+    }
+
+    public String getPostalCode() {
+        return postalCode;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public String getFullAddress() {
+        return fullAddress;
+    }
 }

@@ -11,7 +11,6 @@ import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.ScriptType;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -182,8 +181,7 @@ class InMemoryEntityIndexTest {
         assertThat(index.findById("1").get().entityType()).isEqualTo(EntityType.ENTITY);
     }
 
-    private static SanctionedEntity createEntity(
-            String id, EntityType type, ListSource source) {
+    private static SanctionedEntity createEntity(String id, EntityType type, ListSource source) {
         NameInfo name =
                 new NameInfo(
                         "Test Entity " + id,
@@ -195,7 +193,20 @@ class InMemoryEntityIndexTest {
                         NameStrength.STRONG,
                         ScriptType.LATIN);
         return new SanctionedEntity(
-                id, type, source, name, null, null, null, null, null, null, null, null, null, null,
+                id,
+                type,
+                source,
+                name,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 Instant.now());
     }
 }

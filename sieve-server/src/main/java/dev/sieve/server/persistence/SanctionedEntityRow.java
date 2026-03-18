@@ -144,32 +144,83 @@ public class SanctionedEntityRow {
         return data;
     }
 
-    public String getGivenName() { return givenName; }
-    public void setGivenName(String givenName) { this.givenName = givenName; }
+    public String getGivenName() {
+        return givenName;
+    }
 
-    public String getFamilyName() { return familyName; }
-    public void setFamilyName(String familyName) { this.familyName = familyName; }
+    public void setGivenName(String givenName) {
+        this.givenName = givenName;
+    }
 
-    public String getMiddleName() { return middleName; }
-    public void setMiddleName(String middleName) { this.middleName = middleName; }
+    public String getFamilyName() {
+        return familyName;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setFamilyName(String familyName) {
+        this.familyName = familyName;
+    }
 
-    public LocalDate getDateOfBirth() { return dateOfBirth; }
-    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getMiddleName() {
+        return middleName;
+    }
 
-    public String getPlaceOfBirth() { return placeOfBirth; }
-    public void setPlaceOfBirth(String placeOfBirth) { this.placeOfBirth = placeOfBirth; }
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
 
-    public String getNationality() { return nationality; }
-    public void setNationality(String nationality) { this.nationality = nationality; }
+    public String getTitle() {
+        return title;
+    }
 
-    public String getCitizenship() { return citizenship; }
-    public void setCitizenship(String citizenship) { this.citizenship = citizenship; }
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
-    public List<EntityAliasRow> getAliases() { return aliases; }
-    public List<EntityAddressRow> getAddresses() { return addresses; }
-    public List<EntityIdentifierRow> getIdentifiers() { return identifiers; }
-    public List<EntityProgramRow> getPrograms() { return programs; }
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getPlaceOfBirth() {
+        return placeOfBirth;
+    }
+
+    public void setPlaceOfBirth(String placeOfBirth) {
+        this.placeOfBirth = placeOfBirth;
+    }
+
+    public String getNationality() {
+        return nationality;
+    }
+
+    public void setNationality(String nationality) {
+        this.nationality = nationality;
+    }
+
+    public String getCitizenship() {
+        return citizenship;
+    }
+
+    public void setCitizenship(String citizenship) {
+        this.citizenship = citizenship;
+    }
+
+    public List<EntityAliasRow> getAliases() {
+        return aliases;
+    }
+
+    public List<EntityAddressRow> getAddresses() {
+        return addresses;
+    }
+
+    public List<EntityIdentifierRow> getIdentifiers() {
+        return identifiers;
+    }
+
+    public List<EntityProgramRow> getPrograms() {
+        return programs;
+    }
 }

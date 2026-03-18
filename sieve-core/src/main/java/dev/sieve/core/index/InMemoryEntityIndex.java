@@ -80,10 +80,7 @@ public final class InMemoryEntityIndex implements EntityIndex {
     public Collection<SanctionedEntity> findBySource(ListSource source) {
         Objects.requireNonNull(source, "source must not be null");
         Set<String> ids = idsBySource.getOrDefault(source, Set.of());
-        return ids.stream()
-                .map(entitiesById::get)
-                .filter(Objects::nonNull)
-                .toList();
+        return ids.stream().map(entitiesById::get).filter(Objects::nonNull).toList();
     }
 
     @Override

@@ -27,9 +27,7 @@ import picocli.CommandLine.Command;
         })
 public class SieveCli implements Runnable {
 
-    /**
-     * When invoked without a subcommand, prints usage help.
-     */
+    /** When invoked without a subcommand, prints usage help. */
     @Override
     public void run() {
         new CommandLine(this).usage(System.out);

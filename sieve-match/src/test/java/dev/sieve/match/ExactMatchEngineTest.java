@@ -87,15 +87,15 @@ class ExactMatchEngineTest {
 
     @Test
     void shouldFilterByEntityType() {
-        index.add(createEntity("1", "DOE, John", EntityType.INDIVIDUAL, ListSource.OFAC_SDN, List.of()));
-        index.add(createEntity("2", "DOE, John", EntityType.ENTITY, ListSource.OFAC_SDN, List.of()));
+        index.add(
+                createEntity(
+                        "1", "DOE, John", EntityType.INDIVIDUAL, ListSource.OFAC_SDN, List.of()));
+        index.add(
+                createEntity("2", "DOE, John", EntityType.ENTITY, ListSource.OFAC_SDN, List.of()));
 
         ScreeningRequest request =
                 new ScreeningRequest(
-                        "DOE, John",
-                        Optional.of(EntityType.INDIVIDUAL),
-                        Optional.empty(),
-                        0.5);
+                        "DOE, John", Optional.of(EntityType.INDIVIDUAL), Optional.empty(), 0.5);
 
         List<MatchResult> results = engine.screen(request, index);
 
@@ -105,8 +105,16 @@ class ExactMatchEngineTest {
 
     @Test
     void shouldFilterBySource() {
-        index.add(createEntity("1", "DOE, John", EntityType.INDIVIDUAL, ListSource.OFAC_SDN, List.of()));
-        index.add(createEntity("2", "DOE, John", EntityType.INDIVIDUAL, ListSource.EU_CONSOLIDATED, List.of()));
+        index.add(
+                createEntity(
+                        "1", "DOE, John", EntityType.INDIVIDUAL, ListSource.OFAC_SDN, List.of()));
+        index.add(
+                createEntity(
+                        "2",
+                        "DOE, John",
+                        EntityType.INDIVIDUAL,
+                        ListSource.EU_CONSOLIDATED,
+                        List.of()));
 
         ScreeningRequest request =
                 new ScreeningRequest(
@@ -128,8 +136,7 @@ class ExactMatchEngineTest {
         assertThat(results).isEmpty();
     }
 
-    private static SanctionedEntity createEntity(
-            String id, String name, List<String> aliases) {
+    private static SanctionedEntity createEntity(String id, String name, List<String> aliases) {
         return createEntity(id, name, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, aliases);
     }
 
@@ -141,7 +148,13 @@ class ExactMatchEngineTest {
             List<String> aliases) {
         NameInfo primaryName =
                 new NameInfo(
-                        name, null, null, null, null, NameType.PRIMARY, NameStrength.STRONG,
+                        name,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
                         ScriptType.LATIN);
 
         List<NameInfo> aliasNames =
@@ -149,12 +162,31 @@ class ExactMatchEngineTest {
                         .map(
                                 a ->
                                         new NameInfo(
-                                                a, null, null, null, null, NameType.AKA,
-                                                NameStrength.STRONG, ScriptType.LATIN))
+                                                a,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                NameType.AKA,
+                                                NameStrength.STRONG,
+                                                ScriptType.LATIN))
                         .toList();
 
         return new SanctionedEntity(
-                id, entityType, source, primaryName, aliasNames, null, null, null, null, null, null,
-                null, null, null, Instant.now());
+                id,
+                entityType,
+                source,
+                primaryName,
+                aliasNames,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
     }
 }

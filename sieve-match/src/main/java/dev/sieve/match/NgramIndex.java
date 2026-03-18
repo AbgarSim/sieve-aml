@@ -33,14 +33,14 @@ public final class NgramIndex {
     private static final int N = 3;
 
     /**
-     * Minimum fraction of query trigrams that a candidate must share to be returned.
-     * Lower values cast a wider net (more candidates, fewer misses).
+     * Minimum fraction of query trigrams that a candidate must share to be returned. Lower values
+     * cast a wider net (more candidates, fewer misses).
      */
     private static final double MIN_OVERLAP_RATIO = 0.3;
 
     /**
-     * Maximum allowed ratio between query length and candidate name length.
-     * Names differing by more than this factor cannot produce high Jaro-Winkler scores.
+     * Maximum allowed ratio between query length and candidate name length. Names differing by more
+     * than this factor cannot produce high Jaro-Winkler scores.
      */
     private static final double MAX_LENGTH_RATIO = 3.0;
 
@@ -112,8 +112,8 @@ public final class NgramIndex {
                     int shortest = lengths[0];
                     int longest = lengths[1];
                     if (queryLen > 0 && shortest > 0) {
-                        double ratio = (double) Math.max(queryLen, longest)
-                                / Math.min(queryLen, shortest);
+                        double ratio =
+                                (double) Math.max(queryLen, longest) / Math.min(queryLen, shortest);
                         if (ratio > MAX_LENGTH_RATIO) {
                             continue;
                         }
@@ -129,9 +129,7 @@ public final class NgramIndex {
         return result;
     }
 
-    /**
-     * Returns the total number of indexed entities.
-     */
+    /** Returns the total number of indexed entities. */
     public int size() {
         return entityById.size();
     }
@@ -184,7 +182,7 @@ public final class NgramIndex {
                 if (len < shortest) shortest = len;
                 if (len > longest) longest = len;
             }
-            newLengths.put(entity.id(), new int[]{shortest, longest});
+            newLengths.put(entity.id(), new int[] {shortest, longest});
         }
 
         trigramToEntityIds = newTrigramMap;
@@ -192,8 +190,10 @@ public final class NgramIndex {
         entityNameLengths = newLengths;
         lastKnownSize = currentSize;
 
-        log.info("N-gram index rebuilt [entities={}, uniqueTrigrams={}]",
-                newEntityById.size(), newTrigramMap.size());
+        log.info(
+                "N-gram index rebuilt [entities={}, uniqueTrigrams={}]",
+                newEntityById.size(),
+                newTrigramMap.size());
     }
 
     /**

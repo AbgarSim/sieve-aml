@@ -85,8 +85,7 @@ class UnConsolidatedProviderTest {
         assertThat(eric.addresses().get(0).street()).isEqualTo("123 Main Road");
         assertThat(eric.addresses().get(0).city()).isEqualTo("Kinshasa");
         assertThat(eric.addresses().get(0).stateOrProvince()).isEqualTo("Kinshasa Province");
-        assertThat(eric.addresses().get(0).country())
-                .isEqualTo("Democratic Republic of the Congo");
+        assertThat(eric.addresses().get(0).country()).isEqualTo("Democratic Republic of the Congo");
     }
 
     @Test
@@ -196,8 +195,7 @@ class UnConsolidatedProviderTest {
     void shouldParseFourNameComponents() throws IOException {
         SanctionedEntity qusay = findById(loadEntities(), "IQi.002");
 
-        assertThat(qusay.primaryName().fullName())
-                .isEqualTo("SADDAM, QUSAY HUSSEIN AL-TIKRITI");
+        assertThat(qusay.primaryName().fullName()).isEqualTo("SADDAM, QUSAY HUSSEIN AL-TIKRITI");
         assertThat(qusay.primaryName().givenName()).isEqualTo("QUSAY");
         assertThat(qusay.primaryName().familyName()).isEqualTo("SADDAM");
         assertThat(qusay.primaryName().middleName()).isEqualTo("HUSSEIN AL-TIKRITI");
@@ -242,8 +240,7 @@ class UnConsolidatedProviderTest {
 
         assertThat(adf.addresses()).hasSize(1);
         assertThat(adf.addresses().get(0).stateOrProvince()).isEqualTo("North Kivu");
-        assertThat(adf.addresses().get(0).country())
-                .isEqualTo("Democratic Republic of the Congo");
+        assertThat(adf.addresses().get(0).country()).isEqualTo("Democratic Republic of the Congo");
     }
 
     @Test

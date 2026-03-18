@@ -16,10 +16,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This class is thread-safe after {@link #init()} completes.
  *
- * <p><b>Data model:</b> For best accuracy, use the
- * <a href="https://github.com/Senzing/libpostal-data">Senzing libpostal data model v1.2.0</a>
- * which improves parsing accuracy by ~4% on average across 89 countries compared to the original
- * 2016 model.
+ * <p><b>Data model:</b> For best accuracy, use the <a
+ * href="https://github.com/Senzing/libpostal-data">Senzing libpostal data model v1.2.0</a> which
+ * improves parsing accuracy by ~4% on average across 89 countries compared to the original 2016
+ * model.
  */
 public final class AddressNormalizer {
 
@@ -28,9 +28,7 @@ public final class AddressNormalizer {
     private final String dataDir;
     private volatile boolean initialized = false;
 
-    /**
-     * Creates a normalizer that uses the system-default libpostal data directory.
-     */
+    /** Creates a normalizer that uses the system-default libpostal data directory. */
     public AddressNormalizer() {
         this(null);
     }
@@ -38,8 +36,8 @@ public final class AddressNormalizer {
     /**
      * Creates a normalizer that uses the specified libpostal data directory.
      *
-     * @param dataDir path to the libpostal data directory (containing the Senzing model), or
-     *     {@code null} to use the default
+     * @param dataDir path to the libpostal data directory (containing the Senzing model), or {@code
+     *     null} to use the default
      */
     public AddressNormalizer(String dataDir) {
         this.dataDir = dataDir;
@@ -83,7 +81,8 @@ public final class AddressNormalizer {
     /**
      * Expands an address string into normalized forms suitable for comparison and indexing.
      *
-     * <p>If libpostal is not available, returns a single-element list containing the stripped input.
+     * <p>If libpostal is not available, returns a single-element list containing the stripped
+     * input.
      *
      * @param address the raw address string, must not be {@code null}
      * @return normalized expansions, never {@code null} or empty
@@ -151,9 +150,7 @@ public final class AddressNormalizer {
                 raw);
     }
 
-    /**
-     * Shuts down the underlying libpostal library and releases native resources.
-     */
+    /** Shuts down the underlying libpostal library and releases native resources. */
     public synchronized void shutdown() {
         if (initialized) {
             LibPostal.teardownParser();

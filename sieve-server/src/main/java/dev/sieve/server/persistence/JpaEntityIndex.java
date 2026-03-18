@@ -117,15 +117,16 @@ public class JpaEntityIndex implements EntityIndex {
     private SanctionedEntityRow toRow(SanctionedEntity entity) {
         try {
             String json = objectMapper.writeValueAsString(entity);
-            SanctionedEntityRow row = new SanctionedEntityRow(
-                    entity.id(),
-                    entity.entityType().name(),
-                    entity.listSource().name(),
-                    entity.primaryName().fullName(),
-                    entity.remarks(),
-                    entity.listedDate(),
-                    entity.lastUpdated(),
-                    json);
+            SanctionedEntityRow row =
+                    new SanctionedEntityRow(
+                            entity.id(),
+                            entity.entityType().name(),
+                            entity.listSource().name(),
+                            entity.primaryName().fullName(),
+                            entity.remarks(),
+                            entity.listedDate(),
+                            entity.lastUpdated(),
+                            json);
 
             // Searchable name columns from primaryName
             NameInfo name = entity.primaryName();
@@ -150,46 +151,51 @@ public class JpaEntityIndex implements EntityIndex {
 
             // Child collections — aliases
             for (NameInfo alias : entity.aliases()) {
-                row.getAliases().add(new EntityAliasRow(
-                        row,
-                        alias.fullName(),
-                        alias.givenName(),
-                        alias.familyName(),
-                        alias.middleName(),
-                        alias.title(),
-                        alias.nameType() != null ? alias.nameType().name() : "ALIAS",
-                        alias.strength() != null ? alias.strength().name() : null,
-                        alias.script() != null ? alias.script().name() : null));
+                row.getAliases()
+                        .add(
+                                new EntityAliasRow(
+                                        row,
+                                        alias.fullName(),
+                                        alias.givenName(),
+                                        alias.familyName(),
+                                        alias.middleName(),
+                                        alias.title(),
+                                        alias.nameType() != null
+                                                ? alias.nameType().name()
+                                                : "ALIAS",
+                                        alias.strength() != null ? alias.strength().name() : null,
+                                        alias.script() != null ? alias.script().name() : null));
             }
 
             // Child collections — addresses
             for (Address addr : entity.addresses()) {
-                row.getAddresses().add(new EntityAddressRow(
-                        row,
-                        addr.street(),
-                        addr.city(),
-                        addr.stateOrProvince(),
-                        addr.postalCode(),
-                        addr.country(),
-                        addr.fullAddress()));
+                row.getAddresses()
+                        .add(
+                                new EntityAddressRow(
+                                        row,
+                                        addr.street(),
+                                        addr.city(),
+                                        addr.stateOrProvince(),
+                                        addr.postalCode(),
+                                        addr.country(),
+                                        addr.fullAddress()));
             }
 
             // Child collections — identifiers
             for (Identifier ident : entity.identifiers()) {
-                row.getIdentifiers().add(new EntityIdentifierRow(
-                        row,
-                        ident.type() != null ? ident.type().name() : "OTHER",
-                        ident.value(),
-                        ident.issuingCountry(),
-                        ident.remarks()));
+                row.getIdentifiers()
+                        .add(
+                                new EntityIdentifierRow(
+                                        row,
+                                        ident.type() != null ? ident.type().name() : "OTHER",
+                                        ident.value(),
+                                        ident.issuingCountry(),
+                                        ident.remarks()));
             }
 
             // Child collections — programs
             for (SanctionsProgram prog : entity.programs()) {
-                row.getPrograms().add(new EntityProgramRow(
-                        row,
-                        prog.code(),
-                        prog.name()));
+                row.getPrograms().add(new EntityProgramRow(row, prog.code(), prog.name()));
             }
 
             return row;

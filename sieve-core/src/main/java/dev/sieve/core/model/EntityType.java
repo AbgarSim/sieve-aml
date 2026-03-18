@@ -53,7 +53,8 @@ public enum EntityType {
         Objects.requireNonNull(value, "EntityType value must not be null");
         String normalized = value.strip().toUpperCase();
         for (EntityType type : values()) {
-            if (type.name().equals(normalized) || type.displayName.equalsIgnoreCase(value.strip())) {
+            if (type.name().equals(normalized)
+                    || type.displayName.equalsIgnoreCase(value.strip())) {
                 return type;
             }
         }
