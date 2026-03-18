@@ -24,10 +24,12 @@
 
     <modules>
         <module>sieve-core</module>
+        <module>sieve-address</module>
         <module>sieve-ingest</module>
         <module>sieve-match</module>
         <module>sieve-server</module>
         <module>sieve-cli</module>
+        <module>sieve-benchmark</module>
     </modules>
 
     <properties>
@@ -83,6 +85,11 @@
             <dependency>
                 <groupId>dev.sieve</groupId>
                 <artifactId>sieve-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.sieve</groupId>
+                <artifactId>sieve-address</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

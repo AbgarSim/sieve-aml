@@ -21,6 +21,9 @@ sieve:
     max-results: 50
   index:
     type: in-memory
+  address:
+    libpostal-enabled: false
+    libpostal-data-dir: /opt/libpostal-data
 
 spring:
   application:

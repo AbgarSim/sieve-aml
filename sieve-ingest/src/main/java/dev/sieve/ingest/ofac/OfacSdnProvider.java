@@ -94,7 +94,7 @@ public final class OfacSdnProvider implements ListProvider {
      * @param sourceUri the URI to fetch the SDN XML from
      * @param httpClient the HTTP client to use for requests
      */
-    OfacSdnProvider(URI sourceUri, HttpClient httpClient) {
+    public OfacSdnProvider(URI sourceUri, HttpClient httpClient) {
         this.sourceUri = Objects.requireNonNull(sourceUri, "sourceUri must not be null");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient must not be null");
         this.currentMetadata =

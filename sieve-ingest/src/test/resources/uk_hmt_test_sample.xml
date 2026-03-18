@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfFinancialSanctionsTarget xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.hmtreasury.gov.uk/ofsi/consolidatedlist">
+  <!-- Group 100: Individual with primary name + 2 aliases -->
+  <FinancialSanctionsTarget>
+    <Name6>SMITH</Name6>
+    <name1>John</name1>
+    <name2>Edward</name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title>Mr</Title>
+    <NameNonLatinScript></NameNonLatinScript>
+    <NonLatinScriptType></NonLatinScriptType>
+    <NonLatinScriptLanguage></NonLatinScriptLanguage>
+    <Address1>10 Downing Street</Address1>
+    <Address2></Address2>
+    <Address3></Address3>
+    <Address4>London</Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode>SW1A 2AA</PostCode>
+    <Country>United Kingdom</Country>
+    <OtherInformation i:nil="true" />
+    <GroupTypeDescription>Individual</GroupTypeDescription>
+    <AliasType>Primary name</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Global Human Rights</RegimeName>
+    <DateListed>2023-06-15T00:00:00</DateListed>
+    <DateDesignated>2023-06-15T00:00:00</DateDesignated>
+    <UKSanctionsListRef>GHR0100</UKSanctionsListRef>
+    <UKStatementOfReasons>Test individual for unit testing purposes.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth>01/03/1985</Individual_DateOfBirth>
+    <Individual_TownOfBirth>Manchester</Individual_TownOfBirth>
+    <Individual_CountryOfBirth>United Kingdom</Individual_CountryOfBirth>
+    <Individual_Nationality>British</Individual_Nationality>
+    <Individual_PassportNumber>GB123456</Individual_PassportNumber>
+    <Individual_PassportDetails>Issued 2020</Individual_PassportDetails>
+    <Individual_NINumber>AB123456C</Individual_NINumber>
+    <Individual_NIDetails>UK NI</Individual_NIDetails>
+    <Individual_Position>Director</Individual_Position>
+    <Individual_Gender>Male</Individual_Gender>
+    <Entity_Type i:nil="true" />
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber i:nil="true" />
+    <Ship_IMONumber i:nil="true" />
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag i:nil="true" />
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type i:nil="true" />
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2024-01-10T00:00:00</LastUpdated>
+    <GroupID>100</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+
+  <!-- Group 100: AKA alias -->
+  <FinancialSanctionsTarget>
+    <Name6>SMYTH</Name6>
+    <name1>Johnny</name1>
+    <name2></name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title></Title>
+    <NameNonLatinScript></NameNonLatinScript>
+    <NonLatinScriptType></NonLatinScriptType>
+    <NonLatinScriptLanguage></NonLatinScriptLanguage>
+    <Address1>10 Downing Street</Address1>
+    <Address2></Address2>
+    <Address3></Address3>
+    <Address4>London</Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode>SW1A 2AA</PostCode>
+    <Country>United Kingdom</Country>
+    <OtherInformation i:nil="true" />
+    <GroupTypeDescription>Individual</GroupTypeDescription>
+    <AliasType>AKA</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Global Human Rights</RegimeName>
+    <DateListed>2023-06-15T00:00:00</DateListed>
+    <DateDesignated>2023-06-15T00:00:00</DateDesignated>
+    <UKSanctionsListRef>GHR0100</UKSanctionsListRef>
+    <UKStatementOfReasons>Test individual for unit testing purposes.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth>01/03/1985</Individual_DateOfBirth>
+    <Individual_TownOfBirth>Manchester</Individual_TownOfBirth>
+    <Individual_CountryOfBirth>United Kingdom</Individual_CountryOfBirth>
+    <Individual_Nationality>British</Individual_Nationality>
+    <Individual_PassportNumber i:nil="true" />
+    <Individual_PassportDetails i:nil="true" />
+    <Individual_NINumber i:nil="true" />
+    <Individual_NIDetails i:nil="true" />
+    <Individual_Position i:nil="true" />
+    <Individual_Gender>Male</Individual_Gender>
+    <Entity_Type i:nil="true" />
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber i:nil="true" />
+    <Ship_IMONumber i:nil="true" />
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag i:nil="true" />
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type i:nil="true" />
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2024-01-10T00:00:00</LastUpdated>
+    <GroupID>100</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+
+  <!-- Group 100: FKA alias -->
+  <FinancialSanctionsTarget>
+    <Name6>JONES</Name6>
+    <name1>John</name1>
+    <name2></name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title></Title>
+    <NameNonLatinScript></NameNonLatinScript>
+    <NonLatinScriptType></NonLatinScriptType>
+    <NonLatinScriptLanguage></NonLatinScriptLanguage>
+    <Address1></Address1>
+    <Address2></Address2>
+    <Address3></Address3>
+    <Address4></Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode></PostCode>
+    <Country></Country>
+    <OtherInformation i:nil="true" />
+    <GroupTypeDescription>Individual</GroupTypeDescription>
+    <AliasType>FKA</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Global Human Rights</RegimeName>
+    <DateListed>2023-06-15T00:00:00</DateListed>
+    <DateDesignated>2023-06-15T00:00:00</DateDesignated>
+    <UKSanctionsListRef>GHR0100</UKSanctionsListRef>
+    <UKStatementOfReasons>Test individual for unit testing purposes.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth></Individual_DateOfBirth>
+    <Individual_TownOfBirth i:nil="true" />
+    <Individual_CountryOfBirth i:nil="true" />
+    <Individual_Nationality i:nil="true" />
+    <Individual_PassportNumber i:nil="true" />
+    <Individual_PassportDetails i:nil="true" />
+    <Individual_NINumber i:nil="true" />
+    <Individual_NIDetails i:nil="true" />
+    <Individual_Position i:nil="true" />
+    <Individual_Gender i:nil="true" />
+    <Entity_Type i:nil="true" />
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber i:nil="true" />
+    <Ship_IMONumber i:nil="true" />
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag i:nil="true" />
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type i:nil="true" />
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2024-01-10T00:00:00</LastUpdated>
+    <GroupID>100</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+
+  <!-- Group 200: Entity (company) -->
+  <FinancialSanctionsTarget>
+    <Name6>ACME HOLDINGS LTD</Name6>
+    <name1></name1>
+    <name2></name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title></Title>
+    <NameNonLatinScript></NameNonLatinScript>
+    <NonLatinScriptType></NonLatinScriptType>
+    <NonLatinScriptLanguage></NonLatinScriptLanguage>
+    <Address1>1 Corporate Plaza</Address1>
+    <Address2>Suite 500</Address2>
+    <Address3></Address3>
+    <Address4>Dubai</Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode></PostCode>
+    <Country>United Arab Emirates</Country>
+    <OtherInformation>Formerly known as Acme Corp.</OtherInformation>
+    <GroupTypeDescription>Entity</GroupTypeDescription>
+    <AliasType>Primary name</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Russia</RegimeName>
+    <DateListed>2022-03-01T00:00:00</DateListed>
+    <DateDesignated>2022-03-01T00:00:00</DateDesignated>
+    <UKSanctionsListRef>RUS0200</UKSanctionsListRef>
+    <UKStatementOfReasons>Test entity for unit testing.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth i:nil="true" />
+    <Individual_TownOfBirth i:nil="true" />
+    <Individual_CountryOfBirth i:nil="true" />
+    <Individual_Nationality i:nil="true" />
+    <Individual_PassportNumber i:nil="true" />
+    <Individual_PassportDetails i:nil="true" />
+    <Individual_NINumber i:nil="true" />
+    <Individual_NIDetails i:nil="true" />
+    <Individual_Position i:nil="true" />
+    <Individual_Gender i:nil="true" />
+    <Entity_Type>Company</Entity_Type>
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber>REG-98765</Entity_BusinessRegNumber>
+    <Ship_IMONumber i:nil="true" />
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag i:nil="true" />
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type i:nil="true" />
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2023-09-20T00:00:00</LastUpdated>
+    <GroupID>200</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+
+  <!-- Group 300: Ship -->
+  <FinancialSanctionsTarget>
+    <Name6>MV OCEAN STAR</Name6>
+    <name1></name1>
+    <name2></name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title></Title>
+    <NameNonLatinScript></NameNonLatinScript>
+    <NonLatinScriptType></NonLatinScriptType>
+    <NonLatinScriptLanguage></NonLatinScriptLanguage>
+    <Address1></Address1>
+    <Address2></Address2>
+    <Address3></Address3>
+    <Address4></Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode></PostCode>
+    <Country></Country>
+    <OtherInformation i:nil="true" />
+    <GroupTypeDescription>Ship</GroupTypeDescription>
+    <AliasType>Primary name</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Russia</RegimeName>
+    <DateListed>2022-12-01T00:00:00</DateListed>
+    <DateDesignated>2022-12-01T00:00:00</DateDesignated>
+    <UKSanctionsListRef>RUS0300</UKSanctionsListRef>
+    <UKStatementOfReasons>Test vessel entry.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth i:nil="true" />
+    <Individual_TownOfBirth i:nil="true" />
+    <Individual_CountryOfBirth i:nil="true" />
+    <Individual_Nationality i:nil="true" />
+    <Individual_PassportNumber i:nil="true" />
+    <Individual_PassportDetails i:nil="true" />
+    <Individual_NINumber i:nil="true" />
+    <Individual_NIDetails i:nil="true" />
+    <Individual_Position i:nil="true" />
+    <Individual_Gender i:nil="true" />
+    <Entity_Type i:nil="true" />
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber i:nil="true" />
+    <Ship_IMONumber>1234567</Ship_IMONumber>
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag>Panama</Ship_Flag>
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type>Cargo</Ship_Type>
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2023-05-15T00:00:00</LastUpdated>
+    <GroupID>300</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+
+  <!-- Group 400: Individual with non-Latin script name -->
+  <FinancialSanctionsTarget>
+    <Name6>IVANOV</Name6>
+    <name1>Sergei</name1>
+    <name2>Petrovich</name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title></Title>
+    <NameNonLatinScript>Сергей Петрович ИВАНОВ</NameNonLatinScript>
+    <NonLatinScriptType>Cyrillic</NonLatinScriptType>
+    <NonLatinScriptLanguage>Russian</NonLatinScriptLanguage>
+    <Address1>Ulitsa Lenina 5</Address1>
+    <Address2>Apt 12</Address2>
+    <Address3></Address3>
+    <Address4>Moscow</Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode>101000</PostCode>
+    <Country>Russia</Country>
+    <OtherInformation i:nil="true" />
+    <GroupTypeDescription>Individual</GroupTypeDescription>
+    <AliasType>Primary name</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Russia</RegimeName>
+    <DateListed>2022-04-01T00:00:00</DateListed>
+    <DateDesignated>2022-04-01T00:00:00</DateDesignated>
+    <UKSanctionsListRef>RUS0400</UKSanctionsListRef>
+    <UKStatementOfReasons>Test individual with Cyrillic name.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth>1970-05-20T00:00:00</Individual_DateOfBirth>
+    <Individual_TownOfBirth>Moscow</Individual_TownOfBirth>
+    <Individual_CountryOfBirth>Russia</Individual_CountryOfBirth>
+    <Individual_Nationality>Russian</Individual_Nationality>
+    <Individual_PassportNumber>RU9876543</Individual_PassportNumber>
+    <Individual_PassportDetails></Individual_PassportDetails>
+    <Individual_NINumber i:nil="true" />
+    <Individual_NIDetails i:nil="true" />
+    <Individual_Position>Oligarch</Individual_Position>
+    <Individual_Gender>Male</Individual_Gender>
+    <Entity_Type i:nil="true" />
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber i:nil="true" />
+    <Ship_IMONumber i:nil="true" />
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag i:nil="true" />
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type i:nil="true" />
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2024-02-28T00:00:00</LastUpdated>
+    <GroupID>400</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+
+  <!-- Group 500: Individual with no primary name (only name variations) -->
+  <FinancialSanctionsTarget>
+    <Name6>AL-HASSAN</Name6>
+    <name1>Ahmed</name1>
+    <name2></name2>
+    <name3></name3>
+    <name4></name4>
+    <name5></name5>
+    <Title></Title>
+    <NameNonLatinScript></NameNonLatinScript>
+    <NonLatinScriptType></NonLatinScriptType>
+    <NonLatinScriptLanguage></NonLatinScriptLanguage>
+    <Address1></Address1>
+    <Address2></Address2>
+    <Address3></Address3>
+    <Address4></Address4>
+    <Address5></Address5>
+    <Address6></Address6>
+    <PostCode></PostCode>
+    <Country>Syria</Country>
+    <OtherInformation i:nil="true" />
+    <GroupTypeDescription>Individual</GroupTypeDescription>
+    <AliasType>Primary name variation</AliasType>
+    <AliasQuality></AliasQuality>
+    <RegimeName>Syria</RegimeName>
+    <DateListed>2021-01-15T00:00:00</DateListed>
+    <DateDesignated>2021-01-15T00:00:00</DateDesignated>
+    <UKSanctionsListRef>SYR0500</UKSanctionsListRef>
+    <UKStatementOfReasons>Test entry with no primary name row.</UKStatementOfReasons>
+    <PhoneNumber i:nil="true" />
+    <Website i:nil="true" />
+    <EmailAddress i:nil="true" />
+    <Individual_DateOfBirth></Individual_DateOfBirth>
+    <Individual_TownOfBirth i:nil="true" />
+    <Individual_CountryOfBirth>Syria</Individual_CountryOfBirth>
+    <Individual_Nationality>Syrian</Individual_Nationality>
+    <Individual_PassportNumber i:nil="true" />
+    <Individual_PassportDetails i:nil="true" />
+    <Individual_NINumber i:nil="true" />
+    <Individual_NIDetails i:nil="true" />
+    <Individual_Position i:nil="true" />
+    <Individual_Gender>Male</Individual_Gender>
+    <Entity_Type i:nil="true" />
+    <Entity_Subsidiaries i:nil="true" />
+    <Entity_ParentCompany i:nil="true" />
+    <Entity_BusinessRegNumber i:nil="true" />
+    <Ship_IMONumber i:nil="true" />
+    <Ship_CurrentOwners i:nil="true" />
+    <Ship_PreviousOwners i:nil="true" />
+    <Ship_Flag i:nil="true" />
+    <Ship_PreviousFlags i:nil="true" />
+    <Ship_Type i:nil="true" />
+    <Ship_Tonnage i:nil="true" />
+    <Ship_Length i:nil="true" />
+    <Ship_YearBuilt i:nil="true" />
+    <Ship_HullIdentificationNumber i:nil="true" />
+    <UNRef i:nil="true" />
+    <LastUpdated>2021-01-15T00:00:00</LastUpdated>
+    <GroupID>500</GroupID>
+    <GrpStatus>A</GrpStatus>
+    <GroupStatus>Asset Freeze Targets</GroupStatus>
+    <ListingType>UK</ListingType>
+    <DateAdditionalSanctions i:nil="true" />
+    <GroupSanctions i:nil="true" />
+  </FinancialSanctionsTarget>
+</ArrayOfFinancialSanctionsTarget>

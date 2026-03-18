@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<export xmlns="http://eu.europa.ec/fpi/fsd/export" generationDate="2024-01-15T10:00:00.000+01:00" globalFileId="999999">
+    <!-- Entity 1: Individual with aliases, address, identification, citizenship, birthdate -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.10.42" logicalId="100">
+        <remark>Test individual entry for unit testing.</remark>
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2022-03-01" entryIntoForceDate="2022-03-01" numberTitle="2022/328 (OJ L49)" programme="RUS" logicalId="500">
+            <publicationUrl>http://example.com/regulation</publicationUrl>
+        </regulation>
+        <subjectType code="person" classificationCode="P"/>
+        <nameAlias firstName="Sergei" middleName="Petrovich" lastName="Ivanov" wholeName="Sergei Petrovich Ivanov" function="Government Official" gender="M" title="Mr" nameLanguage="" strong="true" regulationLanguage="en" logicalId="1001">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </nameAlias>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Сергей Петрович Иванов" function="" title="" nameLanguage="RU" strong="true" regulationLanguage="en" logicalId="1002">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </nameAlias>
+        <nameAlias firstName="Serguei" middleName="" lastName="Ivanov" wholeName="Serguei Ivanov" function="" title="" nameLanguage="FR" strong="false" regulationLanguage="en" logicalId="1003">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </nameAlias>
+        <citizenship region="" countryIso2Code="RU" countryDescription="RUSSIA" regulationLanguage="en" logicalId="10">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </citizenship>
+        <birthdate circa="false" calendarType="GREGORIAN" city="Moscow" zipCode="" birthdate="1970-05-20" dayOfMonth="20" monthOfYear="5" year="1970" region="" place="" countryIso2Code="RU" countryDescription="RUSSIA" regulationLanguage="en" logicalId="20">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </birthdate>
+        <address city="Moscow" street="Ulitsa Lenina 5" poBox="" zipCode="101000" region="" place="" asAtListingTime="false" countryIso2Code="RU" countryDescription="RUSSIA" regulationLanguage="en" logicalId="30">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </address>
+        <identification diplomatic="false" knownExpired="false" knownFalse="false" reportedLost="false" revokedByIssuer="false" issuedBy="" latinNumber="" nameOnDocument="" number="RU9876543" region="" identificationTypeCode="passport" identificationTypeDescription="National passport" countryIso2Code="RU" countryDescription="RUSSIA" regulationLanguage="en" logicalId="40">
+            <regulationSummary regulationType="regulation" publicationDate="2022-03-01" numberTitle="2022/328 (OJ L49)" publicationUrl="http://example.com/regulation"/>
+        </identification>
+    </sanctionEntity>
+
+    <!-- Entity 2: Enterprise with business registration -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.20.15" logicalId="200">
+        <remark>Shell company used for sanctions evasion.</remark>
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2023-06-15" entryIntoForceDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" programme="RUS" logicalId="501">
+            <publicationUrl>http://example.com/regulation2</publicationUrl>
+        </regulation>
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2023-06-15" entryIntoForceDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" programme="CRIMEA" logicalId="502">
+            <publicationUrl>http://example.com/regulation3</publicationUrl>
+        </regulation>
+        <subjectType code="enterprise" classificationCode="E"/>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Acme Trading GmbH" function="" title="" nameLanguage="" strong="true" regulationLanguage="en" logicalId="2001">
+            <regulationSummary regulationType="regulation" publicationDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" publicationUrl="http://example.com/regulation2"/>
+        </nameAlias>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Acme Handel GmbH" function="" title="" nameLanguage="DE" strong="true" regulationLanguage="en" logicalId="2002">
+            <regulationSummary regulationType="regulation" publicationDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" publicationUrl="http://example.com/regulation2"/>
+        </nameAlias>
+        <address city="Vienna" street="Opernring 12" poBox="" zipCode="1010" region="" place="" asAtListingTime="false" countryIso2Code="AT" countryDescription="AUSTRIA" regulationLanguage="en" logicalId="50">
+            <regulationSummary regulationType="regulation" publicationDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" publicationUrl="http://example.com/regulation2"/>
+        </address>
+        <identification diplomatic="false" knownExpired="false" knownFalse="false" reportedLost="false" revokedByIssuer="false" issuedBy="" latinNumber="" nameOnDocument="" number="FN-123456a" region="" identificationTypeCode="regnumber" identificationTypeDescription="Registration number" countryIso2Code="AT" countryDescription="AUSTRIA" regulationLanguage="en" logicalId="60">
+            <regulationSummary regulationType="regulation" publicationDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" publicationUrl="http://example.com/regulation2"/>
+        </identification>
+    </sanctionEntity>
+
+    <!-- Entity 3: Individual with year-only birthdate and multiple citizenships -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.30.77" logicalId="300">
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2003-07-08" entryIntoForceDate="2003-07-07" numberTitle="1210/2003 (OJ L169)" programme="IRQ" logicalId="503">
+            <publicationUrl>http://example.com/regulation4</publicationUrl>
+        </regulation>
+        <subjectType code="person" classificationCode="P"/>
+        <nameAlias firstName="Ahmed" middleName="" lastName="Al-Hassan" wholeName="Ahmed Al-Hassan" function="" gender="M" title="" nameLanguage="" strong="true" regulationLanguage="en" logicalId="3001">
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+        </nameAlias>
+        <citizenship region="" countryIso2Code="IQ" countryDescription="IRAQ" regulationLanguage="en" logicalId="70">
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+        </citizenship>
+        <citizenship region="" countryIso2Code="JO" countryDescription="JORDAN" regulationLanguage="en" logicalId="71">
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+        </citizenship>
+        <birthdate circa="false" calendarType="GREGORIAN" city="Baghdad" zipCode="" year="1965" region="" place="" countryIso2Code="IQ" countryDescription="IRAQ" regulationLanguage="en" logicalId="80">
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+        </birthdate>
+        <birthdate circa="false" calendarType="GREGORIAN" city="Baghdad" zipCode="" year="1966" region="" place="" countryIso2Code="IQ" countryDescription="IRAQ" regulationLanguage="en" logicalId="81">
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+        </birthdate>
+    </sanctionEntity>
+
+    <!-- Entity 4: Individual with only wholeName (no structured name parts), with national ID -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.40.10" logicalId="400">
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2021-10-20" entryIntoForceDate="2021-10-20" numberTitle="2021/1901 (OJ L387)" programme="SYR" logicalId="504">
+            <publicationUrl>http://example.com/regulation5</publicationUrl>
+        </regulation>
+        <subjectType code="person" classificationCode="P"/>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Abdel Hamid Mahmoud" function="Government Advisor" gender="M" title="Col" nameLanguage="" strong="true" regulationLanguage="en" logicalId="4001">
+            <regulationSummary regulationType="regulation" publicationDate="2021-10-20" numberTitle="2021/1901 (OJ L387)" publicationUrl="http://example.com/regulation5"/>
+        </nameAlias>
+        <identification diplomatic="false" knownExpired="false" knownFalse="false" reportedLost="false" revokedByIssuer="false" issuedBy="" latinNumber="" nameOnDocument="" number="SY-444555" region="" identificationTypeCode="id" identificationTypeDescription="National identity card" countryIso2Code="SY" countryDescription="SYRIA" regulationLanguage="en" logicalId="90">
+            <regulationSummary regulationType="regulation" publicationDate="2021-10-20" numberTitle="2021/1901 (OJ L387)" publicationUrl="http://example.com/regulation5"/>
+        </identification>
+    </sanctionEntity>
+
+    <!-- Entity 5: Entity with address having PO Box and country-only address -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="" logicalId="500">
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2022-06-01" entryIntoForceDate="2022-06-01" numberTitle="2022/876 (OJ L153)" programme="DPRK" logicalId="505">
+            <publicationUrl>http://example.com/regulation6</publicationUrl>
+        </regulation>
+        <subjectType code="enterprise" classificationCode="E"/>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Korea Mining Corp" function="" title="" nameLanguage="" strong="true" regulationLanguage="en" logicalId="5001">
+            <regulationSummary regulationType="regulation" publicationDate="2022-06-01" numberTitle="2022/876 (OJ L153)" publicationUrl="http://example.com/regulation6"/>
+        </nameAlias>
+        <address city="Pyongyang" street="" poBox="999" zipCode="" region="" place="" asAtListingTime="false" countryIso2Code="KP" countryDescription="NORTH KOREA" regulationLanguage="en" logicalId="100">
+            <regulationSummary regulationType="regulation" publicationDate="2022-06-01" numberTitle="2022/876 (OJ L153)" publicationUrl="http://example.com/regulation6"/>
+        </address>
+    </sanctionEntity>
+</export>
