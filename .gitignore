@@ -60,6 +60,9 @@ doxygen/
 docs/_build/
 docs/.venv/
 
+# JMeter results
+sieve-benchmark/results/
+
 # BlueJ files
 *.ctxt
 

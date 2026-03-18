@@ -8,7 +8,6 @@ import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -31,31 +30,27 @@ public final class ProviderDownloadBenchmark {
     private final Map<String, ListProvider> providers;
 
     public ProviderDownloadBenchmark() {
-        HttpClient httpClient = TrustAllHttpClient.create();
         this.providers = new LinkedHashMap<>();
         providers.put(
                 "OFAC SDN",
                 new OfacSdnProvider(
                         URI.create(
-                                "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML"),
-                        httpClient));
+                                "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML")));
         providers.put(
                 "UK HMT",
                 new UkHmtProvider(
                         URI.create(
-                                "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml"),
-                        httpClient));
+                                "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml")));
         providers.put(
                 "EU Consolidated",
                 new EuConsolidatedProvider(
                         URI.create(
-                                "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"),
-                        httpClient));
+                                "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw")));
         providers.put(
                 "UN Consolidated",
                 new UnConsolidatedProvider(
-                        URI.create("https://scsanctions.un.org/resources/xml/en/consolidated.xml"),
-                        httpClient));
+                        URI.create(
+                                "https://scsanctions.un.org/resources/xml/en/consolidated.xml")));
     }
 
     /**

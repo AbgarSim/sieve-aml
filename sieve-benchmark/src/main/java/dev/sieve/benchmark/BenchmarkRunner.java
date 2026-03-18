@@ -8,9 +8,7 @@ import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
@@ -36,6 +34,8 @@ import org.slf4j.LoggerFactory;
  *
  *   # JMH microbenchmarks (synthetic data, reproducible)
  *   java -jar sieve-benchmark.jar jmh
+ *
+ *   # HTTP load testing — use JMeter (see README)
  * </pre>
  */
 public final class BenchmarkRunner {
@@ -48,11 +48,6 @@ public final class BenchmarkRunner {
             runJmh();
             return;
         }
-        if (args.length > 0 && "stress".equals(args[0])) {
-            runStress(Arrays.copyOfRange(args, 1, args.length));
-            return;
-        }
-
         boolean runDownload = false;
         boolean runMatch = false;
 
@@ -114,26 +109,21 @@ public final class BenchmarkRunner {
     }
 
     private static List<SanctionedEntity> fetchAllProviders() {
-        HttpClient httpClient = TrustAllHttpClient.create();
         List<SanctionedEntity> all = new ArrayList<>();
         List<ListProvider> providers =
                 List.of(
                         new OfacSdnProvider(
                                 URI.create(
-                                        "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML"),
-                                httpClient),
+                                        "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML")),
                         new UkHmtProvider(
                                 URI.create(
-                                        "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml"),
-                                httpClient),
+                                        "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml")),
                         new EuConsolidatedProvider(
                                 URI.create(
-                                        "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"),
-                                httpClient),
+                                        "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw")),
                         new UnConsolidatedProvider(
                                 URI.create(
-                                        "https://scsanctions.un.org/resources/xml/en/consolidated.xml"),
-                                httpClient));
+                                        "https://scsanctions.un.org/resources/xml/en/consolidated.xml")));
 
         for (ListProvider provider : providers) {
             try {
@@ -147,19 +137,6 @@ public final class BenchmarkRunner {
         return all;
     }
 
-    private static void runStress(String[] args) {
-        String baseUrl = "http://localhost:8080";
-        int totalRequests = 200_000;
-        int concurrency = 1_000;
-
-        if (args.length >= 1) baseUrl = args[0];
-        if (args.length >= 2) totalRequests = Integer.parseInt(args[1]);
-        if (args.length >= 3) concurrency = Integer.parseInt(args[2]);
-
-        HttpStressTest stressTest = new HttpStressTest(baseUrl, totalRequests, concurrency);
-        stressTest.run();
-    }
-
     private static void printUsage() {
         System.out.println("Sieve AML Benchmark Suite");
         System.out.println();
@@ -168,9 +145,9 @@ public final class BenchmarkRunner {
         System.out.println("Commands:");
         System.out.println(
                 "  jmh           Run JMH microbenchmarks (synthetic data, reproducible)");
-        System.out.println("  stress        HTTP stress test against a running Sieve server");
-        System.out.println("                Usage: stress [baseUrl] [totalRequests] [concurrency]");
-        System.out.println("                Defaults: http://localhost:8080  200000  1000");
+        System.out.println();
+        System.out.println("HTTP load testing:");
+        System.out.println("  Use JMeter test plans in src/test/jmeter/ (see README.md)");
         System.out.println();
         System.out.println("Options (offline benchmark mode):");
         System.out.println("  --download    Run provider download speed benchmark");

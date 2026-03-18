@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/sieve-aml-logo.svg" alt="Sieve AML" width="280">
+  <img src="docs/sieve-aml-icon.svg" alt="Sieve AML" width="280">
 </p>
 
 <p align="center">

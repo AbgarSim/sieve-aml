@@ -16,6 +16,7 @@
 
     <properties>
         <jmh.version>1.37</jmh.version>
+        <jmeter-plugin.version>3.8.0</jmeter-plugin.version>
         <benchmark.mainClass>dev.sieve.benchmark.BenchmarkRunner</benchmark.mainClass>
     </properties>
 
@@ -98,4 +99,59 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Max throughput test:
+            mvn verify -pl sieve-benchmark -P jmeter
+            mvn verify -pl sieve-benchmark -P jmeter -Djmeter.host=10.0.0.5 -Djmeter.port=8081
+            mvn verify -pl sieve-benchmark -P jmeter -Djmeter.peakThreads=2000 -Djmeter.peakDuration=300
+        -->
+        <profile>
+            <id>jmeter</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.lazerycode.jmeter</groupId>
+                        <artifactId>jmeter-maven-plugin</artifactId>
+                        <version>${jmeter-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jmeter-max-throughput</id>
+                                <goals>
+                                    <goal>jmeter</goal>
+                                </goals>
+                                <configuration>
+                                    <testFilesIncluded>
+                                        <jMeterTestFile>max-throughput-test.jmx</jMeterTestFile>
+                                    </testFilesIncluded>
+                                </configuration>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <testFilesDirectory>${project.basedir}/src/test/jmeter</testFilesDirectory>
+                            <resultsDirectory>${project.build.directory}/jmeter/results</resultsDirectory>
+                            <generateReports>true</generateReports>
+                            <propertiesUser>
+                                <host>${jmeter.host}</host>
+                                <port>${jmeter.port}</port>
+                                <protocol>${jmeter.protocol}</protocol>
+                                <stepDuration>${jmeter.stepDuration}</stepDuration>
+                                <peakDuration>${jmeter.peakDuration}</peakDuration>
+                                <peakThreads>${jmeter.peakThreads}</peakThreads>
+                            </propertiesUser>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <jmeter.host>localhost</jmeter.host>
+                <jmeter.port>8080</jmeter.port>
+                <jmeter.protocol>http</jmeter.protocol>
+                <jmeter.stepDuration>30</jmeter.stepDuration>
+                <jmeter.peakDuration>120</jmeter.peakDuration>
+                <jmeter.peakThreads>1000</jmeter.peakThreads>
+            </properties>
+        </profile>
+    </profiles>
 </project>

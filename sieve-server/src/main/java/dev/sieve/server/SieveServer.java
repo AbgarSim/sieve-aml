@@ -89,7 +89,7 @@ public final class SieveServer {
 
         // Build router
         Router router = Router.router(vertx);
-        router.route().handler(BodyHandler.create().setBodyLimit(64 * 1024));
+        router.route().handler(BodyHandler.create().setBodyLimit(64 * (long) 1024));
 
         // Register handlers
         ScreeningHandler screeningHandler =
