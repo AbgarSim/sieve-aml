@@ -24,9 +24,9 @@ public record ServerConfig(
         double threshold = envDouble("SIEVE_THRESHOLD", DEFAULT_THRESHOLD);
         int maxResults = envInt("SIEVE_MAX_RESULTS", DEFAULT_MAX_RESULTS);
         boolean ofac = envBool("SIEVE_OFAC_ENABLED", true);
-        boolean eu = envBool("SIEVE_EU_ENABLED", false);
-        boolean un = envBool("SIEVE_UN_ENABLED", false);
-        boolean uk = envBool("SIEVE_UK_ENABLED", false);
+        boolean eu = envBool("SIEVE_EU_ENABLED", true);
+        boolean un = envBool("SIEVE_UN_ENABLED", true);
+        boolean uk = envBool("SIEVE_UK_ENABLED", true);
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {

@@ -65,10 +65,24 @@ public final class ExactMatchEngine implements MatchEngine {
             }
 
             List<String> aliases = cached.aliases();
+            boolean matched = false;
             for (int i = 0; i < aliases.size(); i++) {
                 if (normalizedQuery.equals(aliases.get(i))) {
                     results.add(new MatchResult(entity, 1.0, "alias[" + i + "]", ALGORITHM_NAME));
+                    matched = true;
                     break;
+                }
+            }
+
+            if (!matched) {
+                List<String> components = cached.nameComponents();
+                for (int i = 0; i < components.size(); i++) {
+                    if (normalizedQuery.equals(components.get(i))) {
+                        results.add(
+                                new MatchResult(
+                                        entity, 1.0, "nameComponent[" + i + "]", ALGORITHM_NAME));
+                        break;
+                    }
                 }
             }
         }

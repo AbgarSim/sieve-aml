@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,58 +67,90 @@ public final class IngestionOrchestrator {
     public IngestionReport ingest(EntityIndex index, Set<ListSource> sources) {
         Objects.requireNonNull(index, "index must not be null");
         Instant start = Instant.now();
-        Map<ListSource, ProviderResult> results = new EnumMap<>(ListSource.class);
-        int totalEntities = 0;
+
+        List<ListProvider> toFetch =
+                providers.stream()
+                        .filter(p -> sources == null || sources.contains(p.source()))
+                        .toList();
 
         log.info(
-                "Starting ingestion cycle [providers={}, filter={}]",
+                "Starting parallel ingestion cycle [providers={}, active={}, filter={}]",
                 providers.size(),
+                toFetch.size(),
                 sources == null ? "ALL" : sources);
 
+        Map<ListSource, ProviderResult> results = new ConcurrentHashMap<>();
+        AtomicInteger totalEntities = new AtomicInteger();
+        CountDownLatch latch = new CountDownLatch(toFetch.size());
+
+        // Mark skipped providers
         for (ListProvider provider : providers) {
-            ListSource source = provider.source();
-
-            if (sources != null && !sources.contains(source)) {
-                results.put(source, ProviderResult.skipped(source));
-                log.debug("Skipping provider [source={}]", source);
-                continue;
-            }
-
-            Instant providerStart = Instant.now();
-            try {
-                List<SanctionedEntity> entities = provider.fetch();
-                index.addAll(entities);
-                Duration providerDuration = Duration.between(providerStart, Instant.now());
-
-                results.put(
-                        source, ProviderResult.success(source, entities.size(), providerDuration));
-                metadataCache.put(source, provider.metadata());
-                totalEntities += entities.size();
-
-                log.info(
-                        "Provider complete [source={}, entities={}, duration={}ms]",
-                        source,
-                        entities.size(),
-                        providerDuration.toMillis());
-
-            } catch (Exception e) {
-                Duration providerDuration = Duration.between(providerStart, Instant.now());
-                results.put(
-                        source, ProviderResult.failed(source, providerDuration, e.getMessage()));
-                log.error(
-                        "Provider failed [source={}, duration={}ms]",
-                        source,
-                        providerDuration.toMillis(),
-                        e);
+            if (sources != null && !sources.contains(provider.source())) {
+                results.put(provider.source(), ProviderResult.skipped(provider.source()));
+                log.debug("Skipping provider [source={}]", provider.source());
             }
         }
 
+        // Fetch all active providers in parallel using virtual threads
+        for (ListProvider provider : toFetch) {
+            Thread.ofVirtual()
+                    .name("ingest-" + provider.source().name().toLowerCase())
+                    .start(
+                            () -> {
+                                ListSource source = provider.source();
+                                Instant providerStart = Instant.now();
+                                try {
+                                    List<SanctionedEntity> entities = provider.fetch();
+                                    index.addAll(entities);
+                                    Duration providerDuration =
+                                            Duration.between(providerStart, Instant.now());
+
+                                    results.put(
+                                            source,
+                                            ProviderResult.success(
+                                                    source, entities.size(), providerDuration));
+                                    metadataCache.put(source, provider.metadata());
+                                    totalEntities.addAndGet(entities.size());
+
+                                    log.info(
+                                            "Provider complete [source={}, entities={}, duration={}ms]",
+                                            source,
+                                            entities.size(),
+                                            providerDuration.toMillis());
+
+                                } catch (Exception e) {
+                                    Duration providerDuration =
+                                            Duration.between(providerStart, Instant.now());
+                                    results.put(
+                                            source,
+                                            ProviderResult.failed(
+                                                    source, providerDuration, e.getMessage()));
+                                    log.error(
+                                            "Provider failed [source={}, duration={}ms]",
+                                            source,
+                                            providerDuration.toMillis(),
+                                            e);
+                                } finally {
+                                    latch.countDown();
+                                }
+                            });
+        }
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Ingestion interrupted while waiting for providers");
+        }
+
         Duration totalDuration = Duration.between(start, Instant.now());
-        IngestionReport report = new IngestionReport(results, totalEntities, totalDuration);
+        IngestionReport report =
+                new IngestionReport(
+                        new EnumMap<>(results), totalEntities.get(), totalDuration);
 
         log.info(
                 "Ingestion cycle complete [totalEntities={}, duration={}ms, indexSize={}]",
-                totalEntities,
+                totalEntities.get(),
                 totalDuration.toMillis(),
                 index.size());
 

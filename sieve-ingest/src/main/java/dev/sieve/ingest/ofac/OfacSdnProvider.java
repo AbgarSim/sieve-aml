@@ -12,6 +12,7 @@ import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
 import java.io.ByteArrayInputStream;
@@ -78,11 +79,7 @@ public final class OfacSdnProvider implements ListProvider {
      */
     public OfacSdnProvider(URI sourceUri) {
         this.sourceUri = Objects.requireNonNull(sourceUri, "sourceUri must not be null");
-        this.httpClient =
-                HttpClient.newBuilder()
-                        .connectTimeout(CONNECT_TIMEOUT)
-                        .followRedirects(HttpClient.Redirect.NORMAL)
-                        .build();
+        this.httpClient = HttpClientFactory.createTrustAllClient(CONNECT_TIMEOUT);
         this.currentMetadata =
                 new ListMetadata(ListSource.OFAC_SDN, null, null, null, sourceUri, 0);
     }
@@ -121,6 +118,7 @@ public final class OfacSdnProvider implements ListProvider {
                             .uri(sourceUri)
                             .timeout(REQUEST_TIMEOUT)
                             .header("Accept", "application/xml")
+                            .header("User-Agent", "java-sanctions-screener/1.0")
                             .GET()
                             .build();
 
@@ -195,6 +193,7 @@ public final class OfacSdnProvider implements ListProvider {
                             .uri(sourceUri)
                             .timeout(CONNECT_TIMEOUT)
                             .header("If-None-Match", previousMetadata.etag())
+                            .header("User-Agent", "java-sanctions-screener/1.0")
                             .method("HEAD", HttpRequest.BodyPublishers.noBody())
                             .build();
 

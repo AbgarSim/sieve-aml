@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,25 +39,20 @@ public final class NgramIndex {
      */
     private static final double MIN_OVERLAP_RATIO = 0.3;
 
-    /**
-     * Maximum allowed ratio between query length and candidate name length. Names differing by more
-     * than this factor cannot produce high Jaro-Winkler scores.
-     */
-    private static final double MAX_LENGTH_RATIO = 3.0;
-
     /** trigram → set of entity IDs */
     private volatile Map<String, List<String>> trigramToEntityIds = Map.of();
 
     /** entity ID → entity (for fast lookup after candidate selection) */
     private volatile Map<String, SanctionedEntity> entityById = Map.of();
 
-    /** entity ID → shortest normalized name length (primary or alias) */
-    private volatile Map<String, int[]> entityNameLengths = Map.of();
-
     private volatile int lastKnownSize = -1;
+    private final AtomicBoolean rebuilding = new AtomicBoolean(false);
 
     /**
      * Ensures the index is built and up-to-date for the given entity index.
+     *
+     * <p>Only one thread performs the rebuild; concurrent callers continue using the previous
+     * (stale but valid) snapshot, avoiding any blocking on the screening hot path.
      *
      * @param index the entity index
      * @param nameCache the pre-normalized name cache (must already be built)
@@ -64,7 +60,14 @@ public final class NgramIndex {
     public void ensureBuilt(EntityIndex index, NormalizedNameCache nameCache) {
         int currentSize = index.size();
         if (currentSize != lastKnownSize) {
-            rebuild(index, nameCache);
+            if (rebuilding.compareAndSet(false, true)) {
+                try {
+                    rebuild(index, nameCache);
+                } finally {
+                    rebuilding.set(false);
+                }
+            }
+            // Other threads continue using the stale (but valid) snapshot
         }
     }
 
@@ -86,7 +89,7 @@ public final class NgramIndex {
 
         HashMap<String, int[]> hitCounts = countTrigramHits(queryTrigrams);
         int minHits = Math.max(1, (int) (queryTrigrams.size() * MIN_OVERLAP_RATIO));
-        return filterCandidates(hitCounts, minHits, normalizedQuery.length());
+        return filterCandidates(hitCounts, minHits);
     }
 
     private HashMap<String, int[]> countTrigramHits(Set<String> queryTrigrams) {
@@ -105,16 +108,12 @@ public final class NgramIndex {
     }
 
     private List<SanctionedEntity> filterCandidates(
-            HashMap<String, int[]> hitCounts, int minHits, int queryLen) {
+            HashMap<String, int[]> hitCounts, int minHits) {
         List<SanctionedEntity> result = new ArrayList<>();
         Map<String, SanctionedEntity> entitySnapshot = entityById;
-        Map<String, int[]> lengthSnapshot = entityNameLengths;
 
         for (Map.Entry<String, int[]> entry : hitCounts.entrySet()) {
             if (entry.getValue()[0] < minHits) {
-                continue;
-            }
-            if (exceedsLengthRatio(lengthSnapshot.get(entry.getKey()), queryLen)) {
                 continue;
             }
             SanctionedEntity entity = entitySnapshot.get(entry.getKey());
@@ -125,35 +124,26 @@ public final class NgramIndex {
         return result;
     }
 
-    private static boolean exceedsLengthRatio(int[] lengths, int queryLen) {
-        if (lengths == null || queryLen <= 0 || lengths[0] <= 0) {
-            return false;
-        }
-        double ratio = (double) Math.max(queryLen, lengths[1]) / Math.min(queryLen, lengths[0]);
-        return ratio > MAX_LENGTH_RATIO;
-    }
-
     /** Returns the total number of indexed entities. */
     public int size() {
         return entityById.size();
     }
 
-    private synchronized void rebuild(EntityIndex index, NormalizedNameCache nameCache) {
+    private void rebuild(EntityIndex index, NormalizedNameCache nameCache) {
         int currentSize = index.size();
         if (currentSize == lastKnownSize) {
-            return; // another thread already rebuilt
+            return;
         }
 
+        // Build entirely new structures — old volatile refs stay live for concurrent readers
         HashMap<String, List<String>> newTrigramMap = new HashMap<>();
         HashMap<String, SanctionedEntity> newEntityById = HashMap.newHashMap(currentSize);
         indexAllEntities(index, nameCache, newTrigramMap, newEntityById);
         deduplicateTrigramEntries(newTrigramMap);
 
-        HashMap<String, int[]> newLengths = buildNameLengths(index, nameCache);
-
+        // Atomic swap — both volatile refs update together
         trigramToEntityIds = newTrigramMap;
         entityById = newEntityById;
-        entityNameLengths = newLengths;
         lastKnownSize = currentSize;
 
         log.info(
@@ -187,6 +177,11 @@ public final class NgramIndex {
                 trigramMap.computeIfAbsent(trigram, k -> new ArrayList<>()).add(entityId);
             }
         }
+        for (String component : cached.nameComponents()) {
+            for (String trigram : trigrams(component)) {
+                trigramMap.computeIfAbsent(trigram, k -> new ArrayList<>()).add(entityId);
+            }
+        }
     }
 
     private static void deduplicateTrigramEntries(HashMap<String, List<String>> trigramMap) {
@@ -196,27 +191,6 @@ public final class NgramIndex {
                 entry.setValue(List.copyOf(new HashSet<>(ids)));
             }
         }
-    }
-
-    private HashMap<String, int[]> buildNameLengths(
-            EntityIndex index, NormalizedNameCache nameCache) {
-        HashMap<String, int[]> lengths = HashMap.newHashMap(index.size());
-        for (SanctionedEntity entity : index.all()) {
-            NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
-            lengths.put(entity.id(), computeLengthBounds(cached));
-        }
-        return lengths;
-    }
-
-    private static int[] computeLengthBounds(NormalizedNameCache.NormalizedEntry cached) {
-        int shortest = cached.primaryName().length();
-        int longest = shortest;
-        for (String alias : cached.aliases()) {
-            int len = alias.length();
-            if (len < shortest) shortest = len;
-            if (len > longest) longest = len;
-        }
-        return new int[] {shortest, longest};
     }
 
     /**

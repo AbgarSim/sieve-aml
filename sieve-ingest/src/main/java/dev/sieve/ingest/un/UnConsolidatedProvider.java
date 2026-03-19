@@ -12,6 +12,7 @@ import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
 import java.io.ByteArrayInputStream;
@@ -81,11 +82,7 @@ public final class UnConsolidatedProvider implements ListProvider {
      */
     public UnConsolidatedProvider(URI sourceUri) {
         this.sourceUri = Objects.requireNonNull(sourceUri, "sourceUri must not be null");
-        this.httpClient =
-                HttpClient.newBuilder()
-                        .connectTimeout(CONNECT_TIMEOUT)
-                        .followRedirects(HttpClient.Redirect.NORMAL)
-                        .build();
+        this.httpClient = HttpClientFactory.createTrustAllClient(CONNECT_TIMEOUT);
         this.currentMetadata =
                 new ListMetadata(ListSource.UN_CONSOLIDATED, null, null, null, sourceUri, 0);
     }

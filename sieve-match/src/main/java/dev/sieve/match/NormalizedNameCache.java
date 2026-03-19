@@ -3,8 +3,13 @@ package dev.sieve.match;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,16 +26,20 @@ public final class NormalizedNameCache {
 
     private static final Logger log = LoggerFactory.getLogger(NormalizedNameCache.class);
 
-    private final ConcurrentHashMap<String, NormalizedEntry> cache = new ConcurrentHashMap<>();
+    private volatile Map<String, NormalizedEntry> cache = Map.of();
     private volatile int lastKnownSize = -1;
+    private final AtomicBoolean rebuilding = new AtomicBoolean(false);
 
     /**
      * Pre-normalized names for a single entity.
      *
      * @param primaryName the normalized primary name
      * @param aliases the normalized alias names, in the same order as the entity's alias list
+     * @param nameComponents normalized individual name parts (familyName, givenName) from primary
+     *     and aliases, deduplicated, for component-level matching
      */
-    public record NormalizedEntry(String primaryName, List<String> aliases) {}
+    public record NormalizedEntry(
+            String primaryName, List<String> aliases, List<String> nameComponents) {}
 
     /**
      * Ensures the cache is built and up-to-date for the given index.
@@ -43,7 +52,14 @@ public final class NormalizedNameCache {
     public void ensureBuilt(EntityIndex index) {
         int currentSize = index.size();
         if (currentSize != lastKnownSize) {
-            rebuild(index);
+            if (rebuilding.compareAndSet(false, true)) {
+                try {
+                    rebuild(index);
+                } finally {
+                    rebuilding.set(false);
+                }
+            }
+            // Other threads continue using the stale (but valid) snapshot
         }
     }
 
@@ -54,27 +70,31 @@ public final class NormalizedNameCache {
      * @return the pre-normalized entry, never {@code null}
      */
     public NormalizedEntry get(SanctionedEntity entity) {
-        return cache.computeIfAbsent(entity.id(), id -> computeEntry(entity));
+        NormalizedEntry entry = cache.get(entity.id());
+        return entry != null ? entry : computeEntry(entity);
     }
 
     /** Clears the cache, forcing a full rebuild on the next {@link #ensureBuilt} call. */
     public void invalidate() {
-        cache.clear();
         lastKnownSize = -1;
     }
 
-    private synchronized void rebuild(EntityIndex index) {
+    private void rebuild(EntityIndex index) {
         int currentSize = index.size();
         if (currentSize == lastKnownSize) {
-            return; // another thread already rebuilt
+            return;
         }
 
-        cache.clear();
+        // Build a completely new map — old map stays live for concurrent readers
+        HashMap<String, NormalizedEntry> newCache = HashMap.newHashMap(currentSize);
         for (SanctionedEntity entity : index.all()) {
-            cache.put(entity.id(), computeEntry(entity));
+            newCache.put(entity.id(), computeEntry(entity));
         }
+
+        // Atomic swap — readers instantly see the new snapshot
+        cache = Map.copyOf(newCache);
         lastKnownSize = currentSize;
-        log.info("Normalized name cache rebuilt [entries={}]", cache.size());
+        log.info("Normalized name cache rebuilt [entries={}]", newCache.size());
     }
 
     private static NormalizedEntry computeEntry(SanctionedEntity entity) {
@@ -86,6 +106,33 @@ public final class NormalizedNameCache {
             normalized[i] = NameNormalizer.normalize(aliasList.get(i).fullName());
         }
 
-        return new NormalizedEntry(primary, List.of(normalized));
+        // Collect distinct normalized name components (familyName, givenName)
+        Set<String> components = new LinkedHashSet<>();
+        collectNameComponents(entity.primaryName(), components);
+        for (NameInfo alias : aliasList) {
+            collectNameComponents(alias, components);
+        }
+        // Remove components that are identical to the full primary name or an alias
+        // (they'd already be matched at full-name level)
+        components.remove(primary);
+        for (String alias : normalized) {
+            components.remove(alias);
+        }
+
+        return new NormalizedEntry(primary, List.of(normalized), List.copyOf(components));
+    }
+
+    private static void collectNameComponents(NameInfo name, Set<String> components) {
+        addIfPresent(name.familyName(), components);
+        addIfPresent(name.givenName(), components);
+    }
+
+    private static void addIfPresent(String value, Set<String> components) {
+        if (value != null && !value.isBlank()) {
+            String normalized = NameNormalizer.normalize(value);
+            if (!normalized.isEmpty()) {
+                components.add(normalized);
+            }
+        }
     }
 }

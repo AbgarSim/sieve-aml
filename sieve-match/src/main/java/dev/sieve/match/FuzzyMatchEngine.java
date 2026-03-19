@@ -98,6 +98,21 @@ public final class FuzzyMatchEngine implements MatchEngine {
             }
         }
 
+        // Also match against individual name components (familyName, givenName)
+        if (bestScore < 1.0) {
+            List<String> components = cached.nameComponents();
+            for (int i = 0; i < components.size(); i++) {
+                double componentScore =
+                        JaroWinkler.similarityWithThreshold(
+                                normalizedQuery, components.get(i), threshold);
+                if (componentScore > bestScore) {
+                    bestScore = componentScore;
+                    bestField = "nameComponent[" + i + "]";
+                    if (bestScore >= 1.0) break;
+                }
+            }
+        }
+
         if (bestScore >= threshold) {
             return new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME);
         }
