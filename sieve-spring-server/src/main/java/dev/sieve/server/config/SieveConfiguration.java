@@ -1,5 +1,6 @@
 package dev.sieve.server.config;
 
+import dev.sieve.address.AddressMatchService;
 import dev.sieve.address.AddressNormalizer;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.InMemoryEntityIndex;
@@ -15,6 +16,8 @@ import dev.sieve.match.ExactMatchEngine;
 import dev.sieve.match.FuzzyMatchEngine;
 import dev.sieve.match.NgramIndex;
 import dev.sieve.match.NormalizedNameCache;
+import dev.sieve.match.PhoneticMatchEngine;
+import dev.sieve.match.TokenMatchEngine;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -147,7 +150,20 @@ public class SieveConfiguration {
         return new CompositeMatchEngine(
                 List.of(
                         new ExactMatchEngine(nameCache, ngramIndex),
-                        new FuzzyMatchEngine(nameCache, ngramIndex)));
+                        new FuzzyMatchEngine(nameCache, ngramIndex),
+                        new PhoneticMatchEngine(nameCache, ngramIndex),
+                        new TokenMatchEngine(nameCache, ngramIndex)));
+    }
+
+    /**
+     * Creates the address match service for address-based screening.
+     *
+     * @param addressNormalizer the address normalizer (backed by libpostal)
+     * @return the address match service
+     */
+    @Bean
+    public AddressMatchService addressMatchService(AddressNormalizer addressNormalizer) {
+        return new AddressMatchService(addressNormalizer);
     }
 
     /**

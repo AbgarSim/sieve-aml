@@ -107,9 +107,37 @@ public final class AddressNormalizer {
     public ParsedAddress parse(String address) {
         Objects.requireNonNull(address, "address must not be null");
         if (!isAvailable()) {
-            return new ParsedAddress(List.of(new AddressComponent("road", address.strip())));
+            return fallbackParse(address);
         }
         List<AddressComponent> components = LibPostal.parseAddress(address);
+        return new ParsedAddress(components);
+    }
+
+    /**
+     * Fallback parser when libpostal is not available. Splits on commas and assigns labels
+     * heuristically: last segment → country, second-to-last → city, remaining → road.
+     */
+    private static ParsedAddress fallbackParse(String address) {
+        String[] parts = address.split(",");
+        List<AddressComponent> components = new java.util.ArrayList<>();
+
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i].strip();
+            if (part.isEmpty()) continue;
+
+            if (i == parts.length - 1 && parts.length >= 2) {
+                components.add(new AddressComponent("country", part));
+            } else if (i == parts.length - 2 && parts.length >= 3) {
+                components.add(new AddressComponent("city", part));
+            } else if (i == parts.length - 1 && parts.length == 1) {
+                components.add(new AddressComponent("road", part));
+            } else if (i == parts.length - 2 && parts.length == 2) {
+                components.add(new AddressComponent("city", part));
+            } else {
+                components.add(new AddressComponent("road", part));
+            }
+        }
+
         return new ParsedAddress(components);
     }
 

@@ -24,6 +24,7 @@ public record EntityDto(
         @Schema(description = "Originating sanctions list", example = "OFAC_SDN") String listSource,
         @Schema(description = "Primary name", example = "DOE, John") String primaryName,
         @Schema(description = "Alternative names / aliases") List<String> aliases,
+        @Schema(description = "Known addresses") List<AddressDto> addresses,
         @Schema(description = "Known nationalities") List<String> nationalities,
         @Schema(description = "Sanctions programs") List<String> programs,
         @Schema(description = "Remarks") String remarks,

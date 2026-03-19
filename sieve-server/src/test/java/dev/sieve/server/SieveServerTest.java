@@ -61,13 +61,18 @@ class SieveServerTest {
                                 new ExactMatchEngine(nameCache, ngramIndex),
                                 new FuzzyMatchEngine(nameCache, ngramIndex)));
 
-        ServerConfig config = new ServerConfig(0, 0.80, 50, false, false, false, false);
+        ServerConfig config = new ServerConfig(0, 0.80, 50, 1000, false, false, false, false);
 
         Router router = Router.router(vertx);
         router.route().handler(BodyHandler.create().setBodyLimit(64 * 1024));
 
         ScreeningHandler screeningHandler =
-                new ScreeningHandler(matchEngine, entityIndex, objectMapper, config);
+                new ScreeningHandler(
+                        matchEngine,
+                        entityIndex,
+                        objectMapper,
+                        config,
+                        dev.sieve.core.audit.ScreeningAuditEmitter.noop());
         HealthHandler healthHandler = new HealthHandler(entityIndex, objectMapper);
 
         router.post("/api/v1/screen").handler(screeningHandler::handle);

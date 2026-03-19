@@ -28,6 +28,10 @@
             <groupId>dev.sieve</groupId>
             <artifactId>sieve-match</artifactId>
         </dependency>
+        <dependency>
+            <groupId>dev.sieve</groupId>
+            <artifactId>sieve-address</artifactId>
+        </dependency>
 
         <!-- Vert.x -->
         <dependency>

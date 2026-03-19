@@ -10,6 +10,7 @@ public record ServerConfig(
         int port,
         double defaultThreshold,
         int maxResults,
+        int maxBatchSize,
         boolean ofacEnabled,
         boolean euEnabled,
         boolean unEnabled,
@@ -18,11 +19,13 @@ public record ServerConfig(
     private static final int DEFAULT_PORT = 8080;
     private static final double DEFAULT_THRESHOLD = 0.80;
     private static final int DEFAULT_MAX_RESULTS = 50;
+    private static final int DEFAULT_MAX_BATCH_SIZE = 1000;
 
     static ServerConfig fromArgs(String[] args) {
         int port = envInt("SIEVE_PORT", DEFAULT_PORT);
         double threshold = envDouble("SIEVE_THRESHOLD", DEFAULT_THRESHOLD);
         int maxResults = envInt("SIEVE_MAX_RESULTS", DEFAULT_MAX_RESULTS);
+        int maxBatchSize = envInt("SIEVE_MAX_BATCH_SIZE", DEFAULT_MAX_BATCH_SIZE);
         boolean ofac = envBool("SIEVE_OFAC_ENABLED", true);
         boolean eu = envBool("SIEVE_EU_ENABLED", true);
         boolean un = envBool("SIEVE_UN_ENABLED", true);
@@ -33,6 +36,7 @@ public record ServerConfig(
                 case "--port", "-p" -> port = Integer.parseInt(args[++i]);
                 case "--threshold", "-t" -> threshold = Double.parseDouble(args[++i]);
                 case "--max-results" -> maxResults = Integer.parseInt(args[++i]);
+                case "--max-batch-size" -> maxBatchSize = Integer.parseInt(args[++i]);
                 case "--ofac" -> ofac = Boolean.parseBoolean(args[++i]);
                 case "--eu" -> eu = Boolean.parseBoolean(args[++i]);
                 case "--un" -> un = Boolean.parseBoolean(args[++i]);
@@ -42,7 +46,7 @@ public record ServerConfig(
                 }
             }
         }
-        return new ServerConfig(port, threshold, maxResults, ofac, eu, un, uk);
+        return new ServerConfig(port, threshold, maxResults, maxBatchSize, ofac, eu, un, uk);
     }
 
     private static int envInt(String key, int fallback) {

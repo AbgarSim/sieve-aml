@@ -3,6 +3,9 @@ package dev.sieve.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import dev.sieve.address.AddressMatchService;
+import dev.sieve.address.AddressNormalizer;
+import dev.sieve.core.audit.ScreeningAuditEmitter;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.InMemoryEntityIndex;
 import dev.sieve.core.match.MatchEngine;
@@ -18,6 +21,9 @@ import dev.sieve.match.ExactMatchEngine;
 import dev.sieve.match.FuzzyMatchEngine;
 import dev.sieve.match.NgramIndex;
 import dev.sieve.match.NormalizedNameCache;
+import dev.sieve.match.PhoneticMatchEngine;
+import dev.sieve.match.TokenMatchEngine;
+import dev.sieve.server.handler.AddressScreeningHandler;
 import dev.sieve.server.handler.HealthHandler;
 import dev.sieve.server.handler.ListHandler;
 import dev.sieve.server.handler.ScreeningHandler;
@@ -89,15 +95,25 @@ public final class SieveServer {
 
         // Build router
         Router router = Router.router(vertx);
-        router.route().handler(BodyHandler.create().setBodyLimit(64 * (long) 1024));
+        router.route().handler(BodyHandler.create().setBodyLimit(1024 * (long) 1024));
+
+        // Address normalizer (gracefully degrades if libpostal unavailable)
+        AddressNormalizer addressNormalizer = new AddressNormalizer();
+        addressNormalizer.init();
+        AddressMatchService addressMatchService = new AddressMatchService(addressNormalizer);
 
         // Register handlers
+        ScreeningAuditEmitter auditEmitter = ScreeningAuditEmitter.logging();
         ScreeningHandler screeningHandler =
-                new ScreeningHandler(matchEngine, entityIndex, objectMapper, config);
+                new ScreeningHandler(matchEngine, entityIndex, objectMapper, config, auditEmitter);
+        AddressScreeningHandler addressScreeningHandler =
+                new AddressScreeningHandler(addressMatchService, entityIndex, objectMapper, config);
         HealthHandler healthHandler = new HealthHandler(entityIndex, objectMapper);
         ListHandler listHandler = new ListHandler(entityIndex, orchestrator, objectMapper);
 
         router.post("/api/v1/screen").handler(screeningHandler::handle);
+        router.post("/api/v1/screen/batch").handler(screeningHandler::handleBatch);
+        router.post("/api/v1/screen/address").handler(addressScreeningHandler::handle);
         router.get("/api/v1/health").handler(healthHandler::handle);
         router.get("/api/v1/lists").handler(listHandler::handleGetLists);
         router.get("/api/v1/lists/:source/entities").handler(listHandler::handleGetEntities);
@@ -140,7 +156,9 @@ public final class SieveServer {
         return new CompositeMatchEngine(
                 List.of(
                         new ExactMatchEngine(nameCache, ngramIndex),
-                        new FuzzyMatchEngine(nameCache, ngramIndex)));
+                        new FuzzyMatchEngine(nameCache, ngramIndex),
+                        new PhoneticMatchEngine(nameCache, ngramIndex),
+                        new TokenMatchEngine(nameCache, ngramIndex)));
     }
 
     private static List<ListProvider> createProviders(ServerConfig config) {

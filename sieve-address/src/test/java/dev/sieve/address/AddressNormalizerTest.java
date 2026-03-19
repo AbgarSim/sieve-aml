@@ -36,12 +36,27 @@ class AddressNormalizerTest {
     }
 
     @Test
-    void parse_fallback_returnsSingleRoadComponent() {
+    void parse_fallback_splitsOnCommas() {
         ParsedAddress result = normalizer.parse("  100 Leonard St, London  ");
+        assertThat(result.components()).hasSize(2);
+        assertThat(result.city()).isEqualTo("100 Leonard St");
+        assertThat(result.country()).isEqualTo("London");
+    }
+
+    @Test
+    void parse_fallback_threeSegments() {
+        ParsedAddress result = normalizer.parse("123 Main St, New York, US");
+        assertThat(result.components()).hasSize(3);
+        assertThat(result.road()).isEqualTo("123 Main St");
+        assertThat(result.city()).isEqualTo("New York");
+        assertThat(result.country()).isEqualTo("US");
+    }
+
+    @Test
+    void parse_fallback_singleSegment() {
+        ParsedAddress result = normalizer.parse("London");
         assertThat(result.components()).hasSize(1);
-        assertThat(result.components().get(0).label()).isEqualTo("road");
-        assertThat(result.components().get(0).value()).isEqualTo("100 Leonard St, London");
-        assertThat(result.road()).isEqualTo("100 Leonard St, London");
+        assertThat(result.road()).isEqualTo("London");
     }
 
     @Test

@@ -107,8 +107,7 @@ public final class NgramIndex {
         return hitCounts;
     }
 
-    private List<SanctionedEntity> filterCandidates(
-            HashMap<String, int[]> hitCounts, int minHits) {
+    private List<SanctionedEntity> filterCandidates(HashMap<String, int[]> hitCounts, int minHits) {
         List<SanctionedEntity> result = new ArrayList<>();
         Map<String, SanctionedEntity> entitySnapshot = entityById;
 

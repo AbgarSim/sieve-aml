@@ -3,6 +3,7 @@ package dev.sieve.server.mapper;
 import dev.sieve.core.index.IndexStats;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
+import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
@@ -10,6 +11,7 @@ import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.IngestionReport;
 import dev.sieve.ingest.ProviderResult;
+import dev.sieve.server.dto.AddressDto;
 import dev.sieve.server.dto.EntityDto;
 import dev.sieve.server.dto.EntityPageDto;
 import dev.sieve.server.dto.IndexStatsDto;
@@ -86,6 +88,7 @@ public class ScreeningMapper {
      */
     public EntityDto toEntityDto(SanctionedEntity entity) {
         List<String> aliases = entity.aliases().stream().map(NameInfo::fullName).toList();
+        List<AddressDto> addresses = entity.addresses().stream().map(this::toAddressDto).toList();
         List<String> programs = entity.programs().stream().map(SanctionsProgram::code).toList();
 
         return new EntityDto(
@@ -94,10 +97,21 @@ public class ScreeningMapper {
                 entity.listSource().name(),
                 entity.primaryName().fullName(),
                 aliases,
+                addresses,
                 entity.nationalities(),
                 programs,
                 entity.remarks(),
                 entity.lastUpdated());
+    }
+
+    private AddressDto toAddressDto(Address address) {
+        return new AddressDto(
+                address.street(),
+                address.city(),
+                address.stateOrProvince(),
+                address.postalCode(),
+                address.country(),
+                address.fullAddress());
     }
 
     /**

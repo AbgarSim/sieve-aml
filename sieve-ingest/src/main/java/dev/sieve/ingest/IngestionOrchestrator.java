@@ -145,8 +145,7 @@ public final class IngestionOrchestrator {
 
         Duration totalDuration = Duration.between(start, Instant.now());
         IngestionReport report =
-                new IngestionReport(
-                        new EnumMap<>(results), totalEntities.get(), totalDuration);
+                new IngestionReport(new EnumMap<>(results), totalEntities.get(), totalDuration);
 
         log.info(
                 "Ingestion cycle complete [totalEntities={}, duration={}ms, indexSize={}]",

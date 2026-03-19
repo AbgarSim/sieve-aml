@@ -3,7 +3,6 @@ package dev.sieve.match;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
