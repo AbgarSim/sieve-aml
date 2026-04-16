@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sieve
+      POSTGRES_USER: sieve
+      POSTGRES_PASSWORD: sieve
+    ports:
+      - "5432:5432"
+    volumes:
+      - sieve-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sieve -d sieve"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  sieve-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.vertx
+    ports:
+      - "8080:8080"
+    environment:
+      SIEVE_OFAC_ENABLED: "true"
+      SIEVE_EU_ENABLED: "false"
+      SIEVE_UN_ENABLED: "false"
+      SIEVE_UK_ENABLED: "false"
+
+volumes:
+  sieve-pgdata:
