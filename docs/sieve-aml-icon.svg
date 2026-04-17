@@ -1,0 +1,17 @@
+<svg width="500" height="360" viewBox="190 20 300 360" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Outer shield chevron - dark blue -->
+  <path d="M340 40 L465 95 L465 225 Q465 305 340 360 Q215 305 215 225 L215 95 Z"
+        fill="#042C53"/>
+
+  <!-- Middle shield chevron - medium blue -->
+  <path d="M340 80 L430 118 L430 220 Q430 280 340 320 Q250 280 250 220 L250 118 Z"
+        fill="#185FA5"/>
+
+  <!-- Inner shield chevron - teal (the sieve/filter core) -->
+  <path d="M340 120 L395 142 L395 215 Q395 255 340 280 Q285 255 285 215 L285 142 Z"
+        fill="#1D9E75"/>
+
+  <!-- Minimal sieve: single horizontal line through the center -->
+  <line x1="295" y1="195" x2="385" y2="195" stroke="#E1F5EE" stroke-width="1.5" opacity="0.7"/>
+</svg>
