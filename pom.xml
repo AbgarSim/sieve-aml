@@ -23,6 +23,7 @@
     </licenses>
 
     <modules>
+        <module>sieve-core</module>
     </modules>
 
     <properties>
