@@ -1,0 +1,45 @@
+# =============================================================================
+# Sieve AML — Vert.x high-performance server
+#
+# Build:
+#   docker build -f Dockerfile.vertx -t sieve-aml-vertx .
+#
+# Run:
+#   docker run -p 8080:8080 sieve-aml-vertx
+#   docker run -p 8080:8080 -e SIEVE_OFAC_ENABLED=true -e SIEVE_EU_ENABLED=true sieve-aml-vertx
+# =============================================================================
+
+# Stage 1: Build
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+
+COPY pom.xml .
+COPY sieve-core/pom.xml sieve-core/
+COPY sieve-address/pom.xml sieve-address/
+COPY sieve-ingest/pom.xml sieve-ingest/
+COPY sieve-match/pom.xml sieve-match/
+COPY sieve-spring-server/pom.xml sieve-spring-server/
+COPY sieve-server/pom.xml sieve-server/
+COPY sieve-cli/pom.xml sieve-cli/
+COPY sieve-benchmark/pom.xml sieve-benchmark/
+RUN mvn dependency:go-offline -B
+
+COPY . .
+RUN mvn -B -DskipTests clean package -pl sieve-server -am
+
+# Stage 2: Lean runtime
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+
+COPY --from=build /app/sieve-server/target/sieve-server-*.jar app.jar
+
+EXPOSE 8080
+
+# Optimized JVM flags for throughput
+ENTRYPOINT ["java", \
+    "-XX:+UseZGC", \
+    "-XX:+ZGenerational", \
+    "-XX:+AlwaysPreTouch", \
+    "-Dio.netty.tryReflectionSetAccessible=true", \
+    "--add-opens", "java.base/java.nio=ALL-UNNAMED", \
+    "-jar", "app.jar"]
