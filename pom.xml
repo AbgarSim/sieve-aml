@@ -29,6 +29,7 @@
         <module>sieve-match</module>
         <module>sieve-spring-server</module>
         <module>sieve-server</module>
+        <module>sieve-cli</module>
     </modules>
 
     <properties>
