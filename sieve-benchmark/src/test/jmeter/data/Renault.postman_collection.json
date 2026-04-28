@@ -1,0 +1,437 @@
+{
+	"info": {
+		"_postman_id": "74465458-f1e4-4136-9a90-5d007fe8343e",
+		"name": "Renault",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "4777776"
+	},
+	"item": [
+		{
+			"name": "looker-platform",
+			"item": [
+				{
+					"name": "Token fetch",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"//const AUD = \"https://sso-int.renault.com/oauth2/aussueo24EgapPQeX416/v1/token\";\r",
+									"const AUD = \"https://sso-dev.renault.com/oauth2/austmw35vFS9ZhxVY416/v1/token\";\r",
+									"//const AUD = \"https://sso-uat.renault.com/oauth2/austwoeshbCkPJyw1416/v1/token\";\r",
+									"//const AUD = \"https://sso.renault.com/oauth2/aus133y6mks4ptDss417/v1/token\";\r",
+									"\r",
+									"const CLIENT_ID = \"irn-72202_dev_pkjwt_avera7rtvv5p\";\r",
+									"\r",
+									"const KID = \"2025-02-16-2473955\";\r",
+									" \r",
+									"const PRIVATE_KEY = \"-----BEGIN PRIVATE KEY-----\\\r",
+									"MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDBhwRGOvt7et9V\\\r",
+									"0GlkhmT1+6ABHVA4UDK7Rr+IQgloUypp3DdPzb9U6FoyqUupChWtm8dKcfcgEaNr\\\r",
+									"9mvA0I5tFWd7woghD1TU8+wXA7C9dvszQ2ZuoMwbLOshK3KunzTf0tdPSgjkGJ+W\\\r",
+									"BnFQIwP2PxbWlD9BDlH0mPITanIOwmO52Ol1Jni1G2cV+04G1c0pzlZL7VHOmoaQ\\\r",
+									"hAbK8bZvVFekXFH4I7o/YSte12n5bwwkU2+lMUFr6kr4KsHV1zSGMaxmCKgrH+jK\\\r",
+									"hRYjYxF7lz5gT1SIP2nUMe+8Yn5iz37gxW0yHv0UEw+hV/It+K2TI+F8hcRoGbqs\\\r",
+									"zPirQmI1AgMBAAECggEBAIixJxG8A3kaNrlUNbztOE6OZlujKtA7xTmGJS7HBgIM\\\r",
+									"C/8trlvNxYDhhSQXc/t3xgwT5dXtXVHnY3iUW1Obe54M6kT+CEzhmVe42l7/Gk0Y\\\r",
+									"xyFUT/t/0+q19XY+TAiPJzeYor+8WT9TLRU4g7zInrnFogn6OBtpU/XiOcoA+4L0\\\r",
+									"DDFWHFSE8EHs0nnK7J89+6YiU4WiUoFbnmdYdRg9mJUNiWLpUQs9LJ1Bp2mvcPWZ\\\r",
+									"z2CKwmMrVJRTBmisDuGxn65g1XRFwDvoY9Tjl8u6y+unV/qYfcBXDG5vwf0x1ZKQ\\\r",
+									"upQz4RVTiOYSaYA+i4z67Mz8rLM2SIYCi7E8iV69KZkCgYEA3w7s7eyHljwGAGGj\\\r",
+									"4f051JfykgRlTZtFWsRqjwW7fu4ucGxEkbJoEFCYUGYJNMwCU6Z44oVQ1Jd//N3E\\\r",
+									"fOkZvFUdI76hwHLv44L9kF4hLvbEd8Ezw+4bCBHYQeY6xQNATv+n+qlbMe4gND8X\\\r",
+									"iV65iARxswp5AQd+VySA7UMwT6sCgYEA3hug8tYjWrsy0gi87H7h76HO4gWZbNj8\\\r",
+									"+W67N5egdh2UNYxtQCRiQszkotqBaOFmdHSNCF/Uyme8JnaWfxJ/oe9Pd1Z5pnaV\\\r",
+									"RZF2WkAa9tLk1DcoFWoZ3rQoi4gzRz8pLct3eXOaLpM4noNbJO7BiBCEtm0qqWe8\\\r",
+									"N/crFI7HtZ8CgYA3TeMOppuDc0Rlqc/RQ1CoVjgtXeukD0Bl3dcxuNEhCnr3ItDp\\\r",
+									"ctt8WA87t+DGd2KITPkh6L3+x8VS88U41y6rVEsSRryiE51IwnyN49jEZSiXLI7i\\\r",
+									"IFIRcSM2S5f8qu6x549FheH3gjv32EDErXjAsaFjK9COocYAYyuYKBV9WwKBgQDB\\\r",
+									"TDJKpOqn7/tOp6Qj/lkLgDrYoh7giAfB3Qi6XQ+dPCjcYZZDGGcb0823nYq6iE/u\\\r",
+									"UfDbtOswLA+nOdXISYUinW7/YRcGNHW80de6u8e7v9a+ijIsUOaq1wfiR2q5OtLP\\\r",
+									"tCAKZv1sQ1wnOBJ+lfuAO0AEtAVI4asA2e94OLq96QKBgQCi4HiRqdY5DWamvhUR\\\r",
+									"Hajy4/6aLMjqSjXi9fTtcRHwZv5kBTFd73sKW/LDN4yEbO1xAEeTT0Xxhwhic+DZ\\\r",
+									"A7C5P4qvtH3zU4KnLxI92aHl2K1T1If/JGckwPme9VxDfsR/BvE2zY0W0ZU0yL26\\\r",
+									"2W9AI4BKKAN4bfHEbhmipsxk4A==\\\r",
+									"-----END PRIVATE KEY-----\"\r",
+									" \r",
+									"  \r",
+									"//life time of the assertion in seconds\r",
+									"const LIFE_TIME = 300;\r",
+									"  \r",
+									"/********** END CONST ******************/\r",
+									"   \r",
+									"var navigator = {};\r",
+									"var window = {};\r",
+									"pm.sendRequest('https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js', (err, res) => {\r",
+									"eval(res.text());\r",
+									"   \r",
+									"// Set headers for JWT\r",
+									"var header = {\r",
+									"    \"kid\": KID,\r",
+									"    \"alg\": \"RS256\"\r",
+									"};\r",
+									"   \r",
+									"// Prepare timestamp in seconds\r",
+									"var currentTimestamp = Math.floor(Date.now() / 1000);\r",
+									"   \r",
+									"var data = {\r",
+									"  \"aud\": AUD,\r",
+									"  \"exp\": currentTimestamp + LIFE_TIME,\r",
+									"  \"iss\": CLIENT_ID,\r",
+									"  \"sub\": CLIENT_ID,\r",
+									"  \"iat\": currentTimestamp,\r",
+									"  \"jti\": generateUUID()\r",
+									" \r",
+									"};\r",
+									"   \r",
+									"var sHeader = JSON.stringify(header);\r",
+									"var sPayload = JSON.stringify(data);\r",
+									"   \r",
+									"var sJWT = KJUR.jws.JWS.sign(header.alg, sHeader, sPayload, PRIVATE_KEY);\r",
+									"   \r",
+									"pm.environment.set('client_assertion', sJWT)\r",
+									"});\r",
+									" \r",
+									"function generateUUID() { \r",
+									"    var d = new Date().getTime();\r",
+									"    var d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now()*1000)) || 0;\r",
+									"    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\r",
+									"        var r = Math.random() * 16;\r",
+									"        if(d > 0){\r",
+									"            r = (d + r)%16 | 0;\r",
+									"            d = Math.floor(d/16);\r",
+									"        } else {\r",
+									"            r = (d2 + r)%16 | 0;\r",
+									"            d2 = Math.floor(d2/16);\r",
+									"        }\r",
+									"        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);\r",
+									"    });\r",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"//const AUD = \"https://sso-int.renault.com/oauth2/aussueo24EgapPQeX416/v1/token\";",
+									"const AUD = \"https://sso-dev.renault.com/oauth2/austmw35vFS9ZhxVY416/v1/token\";",
+									"//const AUD = \"https://sso-uat.renault.com/oauth2/austwoeshbCkPJyw1416/v1/token\";",
+									"//const AUD = \"https://sso.renault.com/oauth2/aus133y6mks4ptDss417/v1/token\";",
+									"",
+									"const CLIENT_ID = \"irn-69659_dev_pkjwt_atvz4fmrnsmz\";",
+									"",
+									"const KID = \"2025-12-08-2870732\";",
+									" ",
+									"const PRIVATE_KEY = \"-----BEGIN PRIVATE KEY-----\\",
+									"MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDLUw9/hSWNywj2\\",
+									"H7DzbtbWWo3s9iQqZrgHqLmfz0kmAszVCu9ELyGG2fOnMMeZGlhkLR1TjcdimPeN\\",
+									"hUvxxGDw5OHM/6KHFtpqdgOtNta5cn+Zp1l7TarFT8QLCm6IzA7i+ZJdZxrIGt7a\\",
+									"7YDAToxVrElBURFI6fdRC63HH88Yyjd/A36sMl7DWoxRwbHqzLhTgd2BHgLp/Yr1\\",
+									"4Mp/o2MwZ17GFqflrmaZW0H7dxzNa4dqDi/E+xqUAzRRPfD9OcSq9WmfLDRxsHkx\\",
+									"Vy+DO7OKHRluqdiF3J7sreYM7T8fEZE21Zj27kxx+URidlux8OKmnw+WGDmLLIhn\\",
+									"5hhFo5RHAgMBAAECggEAfE/DSP8aD9BUIU8M/DkHRzVEUt3HDNmSqLQjEa9FlOTf\\",
+									"YV33HeQHBpDZJJ5xWo09/7mJlZ04i3Lk3/TgkuezMXVvDMw7DYcOcUrIQq4lqGp1\\",
+									"03b7AaVhxJNZVDrDjAXfECzwrQSt3ix3lrjhIDKmIHdern2nKMJLgJS4Yedz0j4w\\",
+									"U5RwMlVW5KnHurQ4POKm4+LvUbttbG0BzuOlRoydeUwUVhtRF4c0reMPZA3f28OO\\",
+									"QtbELyEnv0Xx4eI3axdU15zk7zhGWr/IppW+AIBWq+wJULbyOQqhcB7NEWxAdjY7\\",
+									"bHUID55iqnd8xMXf0uYkUyVww/vALwtaodd6mCeQSQKBgQD7gTerTPBCTtkr0jlv\\",
+									"5AolOyIkckZV+feG1kI93SzOCLAaDSd4seHa2CqxfRi52Vm9RNNQavs9Hx3zOA2f\\",
+									"vdsKg/acDkzX81zme4iiK+v5PN080eM5qbEOAK0lpTes8p8BoKGD4vlXp9FML5bu\\",
+									"bmZAW+6JYbLEnn9RFDBYKkkS5QKBgQDO9WPJ+bITmZbPOPQasFSlskxejcfEF5m4\\",
+									"ruBjALbROZHOSeiqlljb/kUfVNAmNZRV4fXR+udblCcCOBq4f3P9d4r5RAsvn55Y\\",
+									"3k96W5vqS0o3f0n/XZr+Q7Pyzmw+05DkRk5tW1GjqdIOMBvOJDDn3AivsslDqRCk\\",
+									"uwnIKMg7uwKBgQCS0aIf2/A9pS3eCQECsorBpT2PLS6mLiAzlIxi9OSc+jFjY95w\\",
+									"9Na2HI7/wdlXVOywMqdxQKKd0bZ4L3a0k+50uwiRnT96qVTIL8FZem5stv0n7hbJ\\",
+									"qKf1Vqu9WC+iRJhSKOVgynVomEz0PqvLUKNcWs5rYJ8tbKFCQZjfPwAdiQKBgQC5\\",
+									"Qe5OuWaPpvfZjUjtrxRGssEsDsxYmyuup1QTK2t7BIahW4WbVjQ60XS8pCYjXejn\\",
+									"q/ppOajqUEdO9DvvFaAVr3HGygMdYUvUj0Qj6mc6JqVL4nSx0+/PVXl6iw9YefgE\\",
+									"b2768zi0QWrX6napY7ongs5/wJHrMCbG3urVsrPyywKBgFGElTqKdcTajAutNJMW\\",
+									"wRTS2NXGdgEIqm+0LyAQJeKx1wHFGYHWfNUhFvoSa9hD+h6IjpoXcNt2ugSCzSq+\\",
+									"ZEj73T4WAf1E7n2/s+UaUYX1K66FIWN+9IeZMLtqZGxH6CZpx/tdRPAXbVXIyNlw\\",
+									"McLC0/LoIApnF5I0o5n+2mMG\\",
+									"-----END PRIVATE KEY-----\"",
+									" ",
+									" ",
+									" ",
+									"//life time of your token in secondes",
+									"const LIFE_TIME = 300",
+									" ",
+									"/********** END CONST ******************/",
+									" ",
+									"var navigator = {};",
+									"var window = {};",
+									"pm.sendRequest('https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js', (err, res) => {",
+									"eval(res.text());",
+									" ",
+									"// Set headers for JWT",
+									"var header = {",
+									"    \"kid\": KID,",
+									"    \"alg\": \"RS256\"",
+									"};",
+									" ",
+									"// Prepare timestamp in seconds",
+									"var currentTimestamp = Math.floor(Date.now() / 1000)",
+									" ",
+									"var data = {",
+									"  \"aud\": AUD,",
+									"  \"exp\": currentTimestamp + LIFE_TIME,",
+									"  \"iss\": CLIENT_ID,",
+									"  \"sub\": CLIENT_ID,",
+									"  \"iat\": currentTimestamp,",
+									"  \"jti\": generateUUID()",
+									"}",
+									" ",
+									"var sHeader = JSON.stringify(header);",
+									"var sPayload = JSON.stringify(data);",
+									" ",
+									"var sJWT = KJUR.jws.JWS.sign(header.alg, sHeader, sPayload, PRIVATE_KEY);",
+									" ",
+									"pm.environment.set('client_assertion', sJWT);",
+									"});",
+									"",
+									"function generateUUID() { // Public Domain/MIT",
+									"    var d = new Date().getTime();//Timestamp",
+									"    var d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now()*1000)) || 0;//Time in microseconds since page-load or 0 if unsupported",
+									"    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {",
+									"        var r = Math.random() * 16;//random number between 0 and 16",
+									"        if(d > 0){//Use timestamp until depleted",
+									"            r = (d + r)%16 | 0;",
+									"            d = Math.floor(d/16);",
+									"        } else {//Use microseconds since page-load if supported",
+									"            r = (d2 + r)%16 | 0;",
+									"            d2 = Math.floor(d2/16);",
+									"        }",
+									"        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "scope",
+									"value": "apis.default",
+									"type": "text"
+								},
+								{
+									"key": "client_assertion_type",
+									"value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+									"type": "text"
+								},
+								{
+									"key": "client_assertion",
+									"value": "{{client_assertion}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://sso-dev.renault.com/oauth2/austmw35vFS9ZhxVY416/v1/token",
+							"protocol": "https",
+							"host": [
+								"sso-dev",
+								"renault",
+								"com"
+							],
+							"path": [
+								"oauth2",
+								"austmw35vFS9ZhxVY416",
+								"v1",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Embed Url",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJraWQiOiJkU3hsLVdveWpJRUR1WW5sUXUwWUxxVE1VMGtXVXZSOUNsWjFDZjNZU2g4IiwiYWxnIjoiUlMyNTYifQ.eyJ2ZXIiOjEsImp0aSI6IkFULkRFVUxROXJMV3FfSTdlSGZiLTFiREp3RllweVprLUZxd1cxVF8xUk9SZTAiLCJpc3MiOiJodHRwczovL3Nzby1kZXYucmVuYXVsdC5jb20vb2F1dGgyL2F1c3RtdzM1dkZTOVpoeFZZNDE2IiwiYXVkIjoiaHR0cHM6Ly9hcGlzLnJlbmF1bHQuY29tIiwiaWF0IjoxNzMxNTA0Mjc1LCJleHAiOjE3MzE1MDc4NzUsImNpZCI6Imlybi03MjIwMl9kZXZfcGtqd3RfYXZlcmE3cnR2djVwIiwic2NwIjpbImFwaXMuZGVmYXVsdCJdLCJzdWIiOiJpcm4tNzIyMDJfZGV2X3Brand0X2F2ZXJhN3J0dnY1cCIsImlybiI6IklSTi03MjIwMiIsImNlcnQtdWlkIjoiaXJuLTcyMjAyX2Rldl9wa2p3dCJ9.BOiYG1E1liCqYcYBQsEjBYnz8_h8IXi_LGL6hgikAEV0BczE51KI9jYlzxE35JfHpvhDabM9v_Mvo6nNe7JOBn9iFm0phwrfqsLeVZ8zRZ-_VvY44eIHsTu1Axk-XW5z52ch71I2LBMlBJ2NbFxpuo-Z2JzBPj6BTnlf4lf5-AB8V9ZErfnfveotVVlqVmwOAZpobEwOT4OYs5Tf5nUQROrHvV0jm7VmlyOlJKami9ZoFjDGq7xzo72vMBiQlKMbSI6NJZfSgq6YAaukKLDWesVojMYrUrmULpPBBOrssL7nBkNqXUx_8AfoJkPo_c1KM9bUYz3E-rQjREkEMBLiEg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n        \"dashboardUrl\": \"https://testUrl.com/dashboards/1\",\n        \"lookerUserInfoDto\" : {\n            \"email\": \"abgar.simonean-extern@renault.com\",\n            \"firstName\": \"Abgar\",\n            \"lastName\": \"Simonean\"\n        }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8050/looker/embed-url?lookerEnvironment=RENAULTSSADEV",
+							"host": [
+								"localhost"
+							],
+							"port": "8050",
+							"path": [
+								"looker",
+								"embed-url"
+							],
+							"query": [
+								{
+									"key": "lookerEnvironment",
+									"value": "RENAULTSSADEV"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pokaiok",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJraWQiOiJzVWJhaEpOdHBWVVZjVGowN0RzU2duUkNpT2hqS3hyOWxlZTlHMXo4VFJ3IiwiYWxnIjoiUlMyNTYifQ.eyJ2ZXIiOjEsImp0aSI6IkFULlV3SzBQc0lkcGo1Z3VsR2lobE5ZYllYVVVNWlFtSF9XVkY2TTRYb2pSaWciLCJpc3MiOiJodHRwczovL3Nzby1kZXYucmVuYXVsdC5jb20vb2F1dGgyL2F1c3RtdzM1dkZTOVpoeFZZNDE2IiwiYXVkIjoiaHR0cHM6Ly9hcGlzLnJlbmF1bHQuY29tIiwiaWF0IjoxNzUwNjczNzc0LCJleHAiOjE3NTA2NzczNzQsImNpZCI6Imlybi03MjIwMl9kZXZfcGtqd3RfYXZlcmE3cnR2djVwIiwic2NwIjpbImFwaXMuZGVmYXVsdCJdLCJzdWIiOiJpcm4tNzIyMDJfZGV2X3Brand0X2F2ZXJhN3J0dnY1cCIsImlybiI6IklSTi03MjIwMiIsImNlcnQtdWlkIjoiaXJuLTcyMjAyX2Rldl9wa2p3dCJ9.fvopzR7L2F0KKPrs37wymWklGjEO1BA0EuF95gj6F9YrxiH-iD2XYG-r_J0EyIwA0uAC7_IwrVNpioLGAe2iN19jQxQd8BzF00CLDQ4Ydo20DPC4HmybEJb7QKb4lo892qWHRKjWt1C2BoARUWlRlku7swgaaBc_P8XpBqOcZCbBHdhOSGXNdOhE7HB521pSnGZxc5ietFDrt2Ra5ElVPKQATGyxUxryCdpTvEmvTQkTfsmd8jg_oiZ8mC2hxNQ_uW-krO24Pku0v28g9bVht14aB4ffybBgRorq-hsf-VmDwzzCj7hJZbO8dnOmtTSfIEcY_wNzSsxSLCvX5Mawyg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://renaultssadev.cloud.looker.com/api/4.0/queries/run/json_bi",
+							"protocol": "https",
+							"host": [
+								"renaultssadev",
+								"cloud",
+								"looker",
+								"com"
+							],
+							"path": [
+								"api",
+								"4.0",
+								"queries",
+								"run",
+								"json_bi"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "looker token",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							},
+							{
+								"key": "Authorization",
+								"value": "Token token=\"5603e17437aa62d1640f5c75169228cb0e7c481468da8634ed7e7db63f504659\"",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "client_id",
+									"value": "FMb6yddPV4BqWhyggfYZ",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "9QD5M3sFdV5CBzZtCzfJD3Pm",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://renaultssadev.cloud.looker.com/login",
+							"protocol": "https",
+							"host": [
+								"renaultssadev",
+								"cloud",
+								"looker",
+								"com"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "looker token Copy",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded",
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "Token token=\"DMxSq5zfW7yMTsjKFWcR6jKMTGsbW64Wr7H9K48T\"",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "https://renaultssadev.cloud.looker.com/api/4.0/user",
+							"protocol": "https",
+							"host": [
+								"renaultssadev",
+								"cloud",
+								"looker",
+								"com"
+							],
+							"path": [
+								"api",
+								"4.0",
+								"user"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
