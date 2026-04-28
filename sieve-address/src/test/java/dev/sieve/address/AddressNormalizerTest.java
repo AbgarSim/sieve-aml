@@ -1,0 +1,119 @@
+package dev.sieve.address;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+
+import dev.sieve.core.model.Address;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Tests for {@link AddressNormalizer}.
+ *
+ * <p>These tests exercise the fallback mode (libpostal not available on the system). When running
+ * in CI or local dev without libpostal installed, the normalizer gracefully degrades to basic
+ * string normalization.
+ */
+class AddressNormalizerTest {
+
+    private final AddressNormalizer normalizer = new AddressNormalizer();
+
+    @Test
+    void fallbackMode_isNotAvailable() {
+        assertThatNoException().isThrownBy(() -> normalizer.init());
+    }
+
+    @Test
+    void expand_fallback_returnsStrippedInput() {
+        List<String> result = normalizer.expand("  123 Main St  ");
+        assertThat(result).containsExactly("123 Main St");
+    }
+
+    @Test
+    void expand_rejectsNull() {
+        assertThatNullPointerException().isThrownBy(() -> normalizer.expand(null));
+    }
+
+    @Test
+    void parse_fallback_splitsOnCommas() {
+        ParsedAddress result = normalizer.parse("  100 Leonard St, London  ");
+        assertThat(result.components()).hasSize(2);
+        assertThat(result.city()).isEqualTo("100 Leonard St");
+        assertThat(result.country()).isEqualTo("London");
+    }
+
+    @Test
+    void parse_fallback_threeSegments() {
+        ParsedAddress result = normalizer.parse("123 Main St, New York, US");
+        assertThat(result.components()).hasSize(3);
+        assertThat(result.road()).isEqualTo("123 Main St");
+        assertThat(result.city()).isEqualTo("New York");
+        assertThat(result.country()).isEqualTo("US");
+    }
+
+    @Test
+    void parse_fallback_singleSegment() {
+        ParsedAddress result = normalizer.parse("London");
+        assertThat(result.components()).hasSize(1);
+        assertThat(result.road()).isEqualTo("London");
+    }
+
+    @Test
+    void parse_rejectsNull() {
+        assertThatNullPointerException().isThrownBy(() -> normalizer.parse(null));
+    }
+
+    @Test
+    void normalize_nullAddress_returnsNull() {
+        assertThat(normalizer.normalize(null)).isNull();
+    }
+
+    @Test
+    void normalize_fallback_stripsWhitespace() {
+        Address input =
+                new Address(
+                        "  123 Main St  ",
+                        "  New York  ",
+                        "  NY  ",
+                        "  10001  ",
+                        "  US  ",
+                        "  123 Main St, New York, NY 10001, US  ");
+        Address result = normalizer.normalize(input);
+
+        assertThat(result.street()).isEqualTo("123 Main St");
+        assertThat(result.city()).isEqualTo("New York");
+        assertThat(result.stateOrProvince()).isEqualTo("NY");
+        assertThat(result.postalCode()).isEqualTo("10001");
+        assertThat(result.country()).isEqualTo("US");
+        assertThat(result.fullAddress()).isEqualTo("123 Main St, New York, NY 10001, US");
+    }
+
+    @Test
+    void normalize_fallback_preservesNullFields() {
+        Address input = new Address(null, "London", null, null, "GB", null);
+        Address result = normalizer.normalize(input);
+
+        assertThat(result.street()).isNull();
+        assertThat(result.city()).isEqualTo("London");
+        assertThat(result.stateOrProvince()).isNull();
+        assertThat(result.postalCode()).isNull();
+        assertThat(result.country()).isEqualTo("GB");
+        assertThat(result.fullAddress()).isNull();
+    }
+
+    @Test
+    void normalize_fallback_emptyAddress_returnsAsIs() {
+        Address input = new Address(null, null, null, null, null, null);
+        Address result = normalizer.normalize(input);
+        assertThat(result).isEqualTo(input);
+    }
+
+    @Test
+    void shutdown_doesNotThrow() {
+        normalizer.init();
+        assertThatNoException().isThrownBy(() -> normalizer.shutdown());
+        // Double shutdown should also be safe
+        assertThatNoException().isThrownBy(() -> normalizer.shutdown());
+    }
+}
