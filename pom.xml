@@ -27,6 +27,7 @@
         <module>sieve-address</module>
         <module>sieve-ingest</module>
         <module>sieve-match</module>
+        <module>sieve-server</module>
     </modules>
 
     <properties>
