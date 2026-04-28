@@ -1,0 +1,28 @@
+/* Custom styles for Sieve AML documentation */
+
+/* API endpoint styling */
+.endpoint {
+    font-family: monospace;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.method-post {
+    background-color: #49cc90;
+    color: #fff;
+}
+
+.method-get {
+    background-color: #61affe;
+    color: #fff;
+}
+
+/* Performance table styling */
+.performance-table th {
+    text-align: center;
+}
+
+.performance-table td {
+    text-align: right;
+}

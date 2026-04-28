@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.sieve</groupId>
+        <artifactId>sieve</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>sieve-benchmark</artifactId>
+    <name>Sieve Benchmark</name>
+    <description>Benchmarks and stress tests for Sieve sanctions screening</description>
+
+    <properties>
+        <jmh.version>1.37</jmh.version>
+        <jmeter-plugin.version>3.8.0</jmeter-plugin.version>
+        <benchmark.mainClass>dev.sieve.benchmark.BenchmarkRunner</benchmark.mainClass>
+    </properties>
+
+    <dependencies>
+        <!-- Internal modules -->
+        <dependency>
+            <groupId>dev.sieve</groupId>
+            <artifactId>sieve-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.sieve</groupId>
+            <artifactId>sieve-ingest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.sieve</groupId>
+            <artifactId>sieve-match</artifactId>
+        </dependency>
+
+        <!-- JMH -->
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>${jmh.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>${jmh.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Skip normal tests — benchmarks are run explicitly -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <!-- Build an executable uber-jar for benchmarks -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${benchmark.mainClass}</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            Max throughput test:
+            mvn verify -pl sieve-benchmark -P jmeter
+            mvn verify -pl sieve-benchmark -P jmeter -Djmeter.host=10.0.0.5 -Djmeter.port=8081
+            mvn verify -pl sieve-benchmark -P jmeter -Djmeter.peakThreads=2000 -Djmeter.peakDuration=300
+        -->
+        <profile>
+            <id>jmeter</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.lazerycode.jmeter</groupId>
+                        <artifactId>jmeter-maven-plugin</artifactId>
+                        <version>${jmeter-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jmeter-max-throughput</id>
+                                <goals>
+                                    <goal>jmeter</goal>
+                                </goals>
+                                <configuration>
+                                    <testFilesIncluded>
+                                        <jMeterTestFile>max-throughput-test.jmx</jMeterTestFile>
+                                    </testFilesIncluded>
+                                </configuration>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <testFilesDirectory>${project.basedir}/src/test/jmeter</testFilesDirectory>
+                            <resultsDirectory>${project.build.directory}/jmeter/results</resultsDirectory>
+                            <generateReports>true</generateReports>
+                            <propertiesUser>
+                                <host>${jmeter.host}</host>
+                                <port>${jmeter.port}</port>
+                                <protocol>${jmeter.protocol}</protocol>
+                                <stepDuration>${jmeter.stepDuration}</stepDuration>
+                                <peakDuration>${jmeter.peakDuration}</peakDuration>
+                                <peakThreads>${jmeter.peakThreads}</peakThreads>
+                            </propertiesUser>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <jmeter.host>localhost</jmeter.host>
+                <jmeter.port>8080</jmeter.port>
+                <jmeter.protocol>http</jmeter.protocol>
+                <jmeter.stepDuration>30</jmeter.stepDuration>
+                <jmeter.peakDuration>120</jmeter.peakDuration>
+                <jmeter.peakThreads>1000</jmeter.peakThreads>
+            </properties>
+        </profile>
+    </profiles>
+</project>
