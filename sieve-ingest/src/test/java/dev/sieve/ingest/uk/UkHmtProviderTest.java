@@ -43,7 +43,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldSelectPrimaryNameRow() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
         assertThat(smith.primaryName().fullName()).isEqualTo("SMITH, John Edward");
         assertThat(smith.primaryName().givenName()).isEqualTo("John");
@@ -57,7 +57,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldCollectAliases() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
         // 2 alias rows: AKA "SMYTH, Johnny" + FKA "JONES, John"
         assertThat(smith.aliases()).hasSize(2);
@@ -71,13 +71,13 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseEntityTypeIndividual() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.entityType()).isEqualTo(EntityType.INDIVIDUAL);
     }
 
     @Test
     void shouldParseAddress() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
         // Addresses are deduplicated — the AKA alias has the same address, so only 1
         assertThat(smith.addresses()).hasSize(1);
@@ -91,7 +91,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseIdentifiers() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
         // Passport + NI from primary row
         assertThat(smith.identifiers()).hasSizeGreaterThanOrEqualTo(2);
@@ -112,7 +112,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseDateOfBirth() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
         assertThat(smith.datesOfBirth()).hasSize(1);
         assertThat(smith.datesOfBirth().get(0).getYear()).isEqualTo(1985);
@@ -122,38 +122,38 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseNationalities() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.nationalities()).contains("British");
     }
 
     @Test
     void shouldParsePlacesOfBirth() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.placesOfBirth()).contains("Manchester");
     }
 
     @Test
     void shouldParseRemarks() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.remarks()).isEqualTo("Test individual for unit testing purposes.");
     }
 
     @Test
     void shouldParsePrograms() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.programs()).hasSize(1);
         assertThat(smith.programs().get(0).code()).isEqualTo("Global Human Rights");
     }
 
     @Test
     void shouldParseListedDate() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.listedDate()).isNotNull();
     }
 
     @Test
     void shouldParseLastUpdated() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "GHR0100");
+        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
         assertThat(smith.lastUpdated()).isNotNull();
     }
 
@@ -161,7 +161,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseEntityType() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "RUS0200");
+        SanctionedEntity acme = findById(loadEntities(), "uk-RUS0200");
 
         assertThat(acme.entityType()).isEqualTo(EntityType.ENTITY);
         assertThat(acme.primaryName().fullName()).isEqualTo("ACME HOLDINGS LTD");
@@ -169,7 +169,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseBusinessRegistrationNumber() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "RUS0200");
+        SanctionedEntity acme = findById(loadEntities(), "uk-RUS0200");
 
         assertThat(acme.identifiers())
                 .anyMatch(
@@ -182,7 +182,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseVessel() throws IOException {
-        SanctionedEntity vessel = findById(loadEntities(), "RUS0300");
+        SanctionedEntity vessel = findById(loadEntities(), "uk-RUS0300");
 
         assertThat(vessel.entityType()).isEqualTo(EntityType.VESSEL);
         assertThat(vessel.primaryName().fullName()).isEqualTo("MV OCEAN STAR");
@@ -190,7 +190,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseShipImoNumber() throws IOException {
-        SanctionedEntity vessel = findById(loadEntities(), "RUS0300");
+        SanctionedEntity vessel = findById(loadEntities(), "uk-RUS0300");
 
         assertThat(vessel.identifiers()).hasSize(1);
         assertThat(vessel.identifiers().get(0).type()).isEqualTo(IdentifierType.IMO_NUMBER);
@@ -201,7 +201,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldCollectNonLatinScriptAlias() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "RUS0400");
+        SanctionedEntity ivanov = findById(loadEntities(), "uk-RUS0400");
 
         assertThat(ivanov.primaryName().fullName()).isEqualTo("IVANOV, Sergei Petrovich");
 
@@ -213,7 +213,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldParseDateOfBirthFromIsoDatetime() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "RUS0400");
+        SanctionedEntity ivanov = findById(loadEntities(), "uk-RUS0400");
 
         assertThat(ivanov.datesOfBirth()).hasSize(1);
         assertThat(ivanov.datesOfBirth().get(0).getYear()).isEqualTo(1970);
@@ -225,7 +225,7 @@ class UkHmtProviderTest {
 
     @Test
     void shouldFallbackToFirstRowWhenNoPrimaryName() throws IOException {
-        SanctionedEntity ahmed = findById(loadEntities(), "SYR0500");
+        SanctionedEntity ahmed = findById(loadEntities(), "uk-SYR0500");
 
         assertThat(ahmed.primaryName().fullName()).isEqualTo("AL-HASSAN, Ahmed");
         assertThat(ahmed.primaryName().nameType()).isEqualTo(NameType.PRIMARY);

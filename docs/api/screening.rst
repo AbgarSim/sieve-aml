@@ -65,7 +65,7 @@ Screen a name against all loaded sanctions lists.
      "results": [
        {
          "entity": {
-           "id": "36735",
+           "id": "ofac-sdn-36735",
            "entityType": "INDIVIDUAL",
            "listSource": "OFAC_SDN",
            "primaryName": "PUTIN, Vladimir Vladimirovich",

@@ -321,7 +321,7 @@ public final class OfacSdnProvider implements ListProvider {
                         ScriptType.LATIN);
 
         return new SanctionedEntity(
-                uid,
+                "ofac-sdn-" + uid,
                 entityType,
                 ListSource.OFAC_SDN,
                 primaryName,
