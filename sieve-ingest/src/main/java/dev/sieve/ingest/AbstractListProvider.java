@@ -27,6 +27,11 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractListProvider implements ListProvider {
 
+    /** Attempts per download, including the first. */
+    static final int MAX_ATTEMPTS = 3;
+
+    private static final Duration RETRY_BACKOFF = Duration.ofSeconds(2);
+
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(120);
 
@@ -44,10 +49,14 @@ public abstract class AbstractListProvider implements ListProvider {
      *
      * @param listSource the list source this provider handles
      * @param sourceUri the URI to fetch data from
-     * @param acceptHeader the HTTP Accept header value (e.g., "application/xml", "application/json")
+     * @param acceptHeader the HTTP Accept header value (e.g., "application/xml",
+     *     "application/json")
      */
     protected AbstractListProvider(ListSource listSource, URI sourceUri, String acceptHeader) {
-        this(listSource, sourceUri, acceptHeader,
+        this(
+                listSource,
+                sourceUri,
+                acceptHeader,
                 HttpClientFactory.createTrustAllClient(DEFAULT_CONNECT_TIMEOUT),
                 DEFAULT_REQUEST_TIMEOUT);
     }
@@ -71,7 +80,8 @@ public abstract class AbstractListProvider implements ListProvider {
         this.sourceUri = Objects.requireNonNull(sourceUri, "sourceUri must not be null");
         this.acceptHeader = Objects.requireNonNull(acceptHeader, "acceptHeader must not be null");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient must not be null");
-        this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout must not be null");
+        this.requestTimeout =
+                Objects.requireNonNull(requestTimeout, "requestTimeout must not be null");
         this.currentMetadata = new ListMetadata(listSource, null, null, null, sourceUri, 0);
     }
 
@@ -85,6 +95,41 @@ public abstract class AbstractListProvider implements ListProvider {
         return currentMetadata;
     }
 
+    /**
+     * Sends a request, retrying when the connection fails or drops mid-download. Large lists are
+     * served by government sites that sometimes cut a transfer short; HTTP error statuses are not
+     * retried.
+     */
+    private HttpResponse<byte[]> sendWithRetry(HttpRequest request)
+            throws IOException, InterruptedException {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            } catch (IOException e) {
+                if (attempt >= MAX_ATTEMPTS) {
+                    throw e;
+                }
+                long backoffMs = retryBackoff().toMillis() * attempt;
+                log.warn(
+                        "{} download failed, retrying [attempt={}, backoffMs={}, error={}]",
+                        listSource.displayName(),
+                        attempt,
+                        backoffMs,
+                        e.getMessage());
+                Thread.sleep(backoffMs);
+            }
+        }
+    }
+
+    /**
+     * Returns the wait before the first retry; later retries wait proportionally longer.
+     *
+     * @return the base retry backoff
+     */
+    Duration retryBackoff() {
+        return RETRY_BACKOFF;
+    }
+
     @Override
     public final List<SanctionedEntity> fetch() throws ListIngestionException {
         log.info("Fetching {} list [uri={}]", listSource.displayName(), sourceUri);
@@ -92,16 +137,15 @@ public abstract class AbstractListProvider implements ListProvider {
 
         try {
             HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(sourceUri)
-                            .timeout(requestTimeout)
-                            .header("Accept", acceptHeader)
-                            .header("User-Agent", "sieve-aml/1.0")
-                            .GET()
-                            .build();
+                    buildRequest(
+                            httpClient,
+                            HttpRequest.newBuilder()
+                                    .uri(sourceUri)
+                                    .timeout(requestTimeout)
+                                    .header("Accept", acceptHeader)
+                                    .header("User-Agent", "sieve-aml/1.0"));
 
-            HttpResponse<byte[]> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> response = sendWithRetry(request);
 
             if (response.statusCode() != 200) {
                 throw new ListIngestionException(
@@ -127,7 +171,8 @@ public abstract class AbstractListProvider implements ListProvider {
             Instant now = Instant.now();
             Duration duration = Duration.between(start, now);
             currentMetadata =
-                    new ListMetadata(listSource, now, etag, contentHash, sourceUri, entities.size());
+                    new ListMetadata(
+                            listSource, now, etag, contentHash, sourceUri, entities.size());
 
             log.info(
                     "{} ingestion complete [entities={}, duration={}ms]",
@@ -150,7 +195,9 @@ public abstract class AbstractListProvider implements ListProvider {
                     listSource.displayName() + " fetch interrupted", listSource, e);
         } catch (Exception e) {
             throw new ListIngestionException(
-                    "Unexpected error during " + listSource.displayName() + " ingestion: "
+                    "Unexpected error during "
+                            + listSource.displayName()
+                            + " ingestion: "
                             + e.getMessage(),
                     listSource,
                     e);
@@ -187,10 +234,28 @@ public abstract class AbstractListProvider implements ListProvider {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.warn("Failed to check {} for updates, assuming updates exist",
-                    listSource.displayName(), e);
+            log.warn(
+                    "Failed to check {} for updates, assuming updates exist",
+                    listSource.displayName(),
+                    e);
             return true;
         }
+    }
+
+    /**
+     * Builds the download request from a builder that already carries the source URI, timeout and
+     * headers. The default is a plain GET; override it when a source needs more, such as a form
+     * post with a token read from another page first.
+     *
+     * @param client the HTTP client, for any requests needed before the download
+     * @param builder the request builder to complete
+     * @return the download request
+     * @throws IOException if a preliminary request fails
+     * @throws InterruptedException if a preliminary request is interrupted
+     */
+    protected HttpRequest buildRequest(HttpClient client, HttpRequest.Builder builder)
+            throws IOException, InterruptedException {
+        return builder.GET().build();
     }
 
     /**

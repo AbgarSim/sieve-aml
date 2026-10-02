@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<LVlist>
+	<PublishInfo>
+		<PublishDate>2018-03-29T15:10:00.000Z</PublishDate>
+	</PublishInfo>
+	<Entity>
+		<Id>2</Id>
+		<Type>FP</Type>
+		<Link>https://likumi.lv/ta/id/298111</Link>
+		<ListedOn>2018-03-29</ListedOn>
+		<Program>ZIEMEĻKOREJA</Program>
+		<Gender>V</Gender>
+		<Name>
+			<FirstName>Ri</FirstName>
+			<LastName>Song-Hyok</LastName>
+			<WholeName>Ri Song-Hyok</WholeName>
+		</Name>
+		<Alias>
+			<AliasFirstName>Li</AliasFirstName>
+			<AliasLastName>Cheng He</AliasLastName>
+			<AliasWholeName>Li, Cheng He</AliasWholeName>
+		</Alias>
+		<Birth>
+			<BirthDate>1965-03-19</BirthDate>
+			<BirthPlace>Kaesong</BirthPlace>
+			<BirthCountry>Korejas Tautas Demokrātiskā Republika</BirthCountry>
+			<BirthCountryIso2Code>KP</BirthCountryIso2Code>
+		</Birth>
+		<Document>
+			<DocumentType>Pase</DocumentType>
+			<DocumentNumber>645120234</DocumentNumber>
+			<DocumentCountry>Korejas Tautas Demokrātiskā Republika</DocumentCountry>
+			<DocumentCountryIso2Code>KP</DocumentCountryIso2Code>
+		</Document>
+		<Citizen>
+			<CitizenCountry>Taivāna</CitizenCountry>
+			<CitizenCountryIso2Code>TW</CitizenCountryIso2Code>
+		</Citizen>
+		<Remark>Subjekts ar savām darbībām ir veicinājis kodolprogrammu</Remark>
+	</Entity>
+	<Entity>
+		<Id>3</Id>
+		<Type>JP</Type>
+		<Link>https://likumi.lv/ta/id/298111</Link>
+		<ListedOn>2018-03-29</ListedOn>
+		<Program>ZIEMEĻKOREJA</Program>
+		<Name>
+			<WholeName>Ruskor International Company Ltd.</WholeName>
+		</Name>
+		<Address>
+			<AddressWhole>Drake Chambers, Tortola, British Virgin Islands</AddressWhole>
+			<AddressRemark>Bankas iesniegtajā patiesā labuma guvēja veidlapā norādītā adrese</AddressRemark>
+		</Address>
+		<Address>
+			<AddressStreet>Mosfilmovskaja 72</AddressStreet>
+			<AddressCity>Maskava</AddressCity>
+			<AddressCountry>Krievijas Federācija</AddressCountry>
+			<AddressCountryIso2Code>RU</AddressCountryIso2Code>
+			<AddressWhole>Mosfilmovskaja 72, Maskava, Krievijas Federācija</AddressWhole>
+		</Address>
+		<Remark>Veic darbību Korejas Tautas Demokrātiskās Republikas valdības labā</Remark>
+	</Entity>
+</LVlist>
