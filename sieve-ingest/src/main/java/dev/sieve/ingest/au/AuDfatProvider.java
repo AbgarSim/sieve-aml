@@ -40,11 +40,10 @@ import org.slf4j.LoggerFactory;
  * Fetches and parses the Australian DFAT Consolidated Sanctions list.
  *
  * <p>Published by the Department of Foreign Affairs and Trade as XLSX. Covers ~15 sanctions
- * regimes. Typically contains ~5,100 entities. Requires a browser-like User-Agent header as the
- * DFAT CDN blocks non-browser clients.
+ * regimes. Typically contains ~5,100 entities. Requires a browser-like User-Agent header
+ * as the DFAT CDN blocks non-browser clients.
  *
- * @see <a
- *     href="https://www.dfat.gov.au/international-relations/security/sanctions/consolidated-list">
+ * @see <a href="https://www.dfat.gov.au/international-relations/security/sanctions/consolidated-list">
  *     DFAT Sanctions</a>
  */
 public final class AuDfatProvider implements ListProvider {
@@ -64,8 +63,7 @@ public final class AuDfatProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public AuDfatProvider() {
-        this(
-                URI.create(DEFAULT_URL),
+        this(URI.create(DEFAULT_URL),
                 HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)));
     }
 
@@ -76,18 +74,15 @@ public final class AuDfatProvider implements ListProvider {
     public AuDfatProvider(URI sourceUri, HttpClient httpClient) {
         this.sourceUri = sourceUri;
         this.httpClient = httpClient;
-        this.currentMetadata = new ListMetadata(ListSource.AU_DFAT, null, null, null, sourceUri, 0);
+        this.currentMetadata = new ListMetadata(
+                ListSource.AU_DFAT, null, null, null, sourceUri, 0);
     }
 
     @Override
-    public ListSource source() {
-        return ListSource.AU_DFAT;
-    }
+    public ListSource source() { return ListSource.AU_DFAT; }
 
     @Override
-    public ListMetadata metadata() {
-        return currentMetadata;
-    }
+    public ListMetadata metadata() { return currentMetadata; }
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
@@ -95,14 +90,13 @@ public final class AuDfatProvider implements ListProvider {
         Instant start = Instant.now();
 
         try {
-            HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(sourceUri)
-                            .timeout(REQUEST_TIMEOUT)
-                            .header("Accept", "*/*")
-                            .header("User-Agent", BROWSER_UA)
-                            .GET()
-                            .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(sourceUri)
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Accept", "*/*")
+                    .header("User-Agent", BROWSER_UA)
+                    .GET()
+                    .build();
 
             HttpResponse<byte[]> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -116,26 +110,15 @@ public final class AuDfatProvider implements ListProvider {
             byte[] body = response.body();
             String hash = computeSha256(body);
             String etag = response.headers().firstValue("ETag").orElse(null);
-            log.info(
-                    "AU DFAT downloaded [bytes={}, etag={}, hash={}]",
-                    body.length,
-                    etag,
-                    hash.substring(0, 12) + "...");
+            log.info("AU DFAT downloaded [bytes={}, etag={}, hash={}]",
+                    body.length, etag, hash.substring(0, 12) + "...");
 
             List<SanctionedEntity> entities = parseXlsx(body);
 
-            currentMetadata =
-                    new ListMetadata(
-                            ListSource.AU_DFAT,
-                            Instant.now(),
-                            etag,
-                            hash,
-                            sourceUri,
-                            entities.size());
-            log.info(
-                    "AU DFAT ingestion complete [entities={}, duration={}ms]",
-                    entities.size(),
-                    Duration.between(start, Instant.now()).toMillis());
+            currentMetadata = new ListMetadata(
+                    ListSource.AU_DFAT, Instant.now(), etag, hash, sourceUri, entities.size());
+            log.info("AU DFAT ingestion complete [entities={}, duration={}ms]",
+                    entities.size(), Duration.between(start, Instant.now()).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -149,21 +132,19 @@ public final class AuDfatProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Unexpected error during AU DFAT ingestion: " + e.getMessage(),
-                    ListSource.AU_DFAT,
-                    e);
+                    ListSource.AU_DFAT, e);
         }
     }
 
     @Override
-    public boolean hasUpdates(ListMetadata previousMetadata) {
-        return true;
-    }
+    public boolean hasUpdates(ListMetadata previousMetadata) { return true; }
 
-    private List<SanctionedEntity> parseXlsx(byte[] responseBody) throws ListIngestionException {
+    private List<SanctionedEntity> parseXlsx(byte[] responseBody)
+            throws ListIngestionException {
         List<SanctionedEntity> entities = new ArrayList<>();
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(responseBody);
-                Workbook workbook = WorkbookFactory.create(bais)) {
+             Workbook workbook = WorkbookFactory.create(bais)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null) return entities;
@@ -204,10 +185,7 @@ public final class AuDfatProvider implements ListProvider {
                     SanctionedEntity entity = buildEntity(entry.getKey(), entry.getValue());
                     if (entity != null) entities.add(entity);
                 } catch (Exception e) {
-                    log.debug(
-                            "Skipping malformed ref {} in AU DFAT: {}",
-                            entry.getKey(),
-                            e.getMessage());
+                    log.debug("Skipping malformed ref {} in AU DFAT: {}", entry.getKey(), e.getMessage());
                 }
             }
 
@@ -251,9 +229,7 @@ public final class AuDfatProvider implements ListProvider {
 
             if ("Primary Name".equalsIgnoreCase(nameType)) {
                 if (primaryName == null) primaryName = name;
-                else
-                    aliases.add(
-                            new NameInfo(name, null, null, null, null, NameType.AKA, null, null));
+                else aliases.add(new NameInfo(name, null, null, null, null, NameType.AKA, null, null));
             } else {
                 // Alias, Original Script, etc.
                 aliases.add(new NameInfo(name, null, null, null, null, NameType.AKA, null, null));
@@ -275,8 +251,7 @@ public final class AuDfatProvider implements ListProvider {
 
             String committee = row.get("committees");
             if (committee != null && !committee.isBlank()) {
-                SanctionsProgram prog =
-                        new SanctionsProgram(committee.strip(), null, ListSource.AU_DFAT);
+                SanctionsProgram prog = new SanctionsProgram(committee.strip(), null, ListSource.AU_DFAT);
                 if (programs.stream().noneMatch(p -> committee.strip().equals(p.name())))
                     programs.add(prog);
             }
@@ -284,25 +259,14 @@ public final class AuDfatProvider implements ListProvider {
 
         if (primaryName == null) return null;
 
-        NameInfo primary =
-                new NameInfo(primaryName, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primary = new NameInfo(
+                primaryName, null, null, null, null, NameType.PRIMARY, null, null);
 
         return new SanctionedEntity(
-                "au-" + reference,
-                entityType,
-                ListSource.AU_DFAT,
-                primary,
-                aliases,
-                List.of(),
-                List.of(),
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                placesOfBirth,
-                null,
-                programs,
-                null,
-                Instant.now());
+                "au-" + reference, entityType, ListSource.AU_DFAT,
+                primary, aliases, List.of(), List.of(),
+                nationalities, List.of(), datesOfBirth, placesOfBirth,
+                null, programs, null, Instant.now());
     }
 
     private static String cellVal(Row row, Map<String, Integer> colIndex, String key) {
@@ -327,14 +291,10 @@ public final class AuDfatProvider implements ListProvider {
 
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
-        try {
-            return LocalDate.parse(dateStr.strip());
-        } catch (DateTimeParseException e) {
-            try {
-                return LocalDate.parse(dateStr.strip(), AU_DATE_FORMAT);
-            } catch (DateTimeParseException e2) {
-                return null;
-            }
+        try { return LocalDate.parse(dateStr.strip()); }
+        catch (DateTimeParseException e) {
+            try { return LocalDate.parse(dateStr.strip(), AU_DATE_FORMAT); }
+            catch (DateTimeParseException e2) { return null; }
         }
     }
 

@@ -29,9 +29,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Fetches and parses the EU Sanctions Map — entities not present in the EU FSF consolidated list.
  *
- * <p>Uses the regime API to iterate over all sanctions regimes and extract members that have no
- * FSD_ID (i.e., not already in the EU Financial Sanctions Files). The provider makes multiple HTTP
- * requests: one for the regime index, then one per regime for detail data.
+ * <p>Uses the regime API to iterate over all sanctions regimes and extract members that have
+ * no FSD_ID (i.e., not already in the EU Financial Sanctions Files). The provider makes
+ * multiple HTTP requests: one for the regime index, then one per regime for detail data.
  *
  * @see <a href="https://www.sanctionsmap.eu/api/v1/regime">EU Sanctions Map API</a>
  */
@@ -39,7 +39,8 @@ public final class EuSanctionsMapProvider implements ListProvider {
 
     private static final Logger log = LoggerFactory.getLogger(EuSanctionsMapProvider.class);
 
-    private static final String DEFAULT_REGIME_URL = "https://www.sanctionsmap.eu/api/v1/regime";
+    private static final String DEFAULT_REGIME_URL =
+            "https://www.sanctionsmap.eu/api/v1/regime";
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
@@ -48,8 +49,7 @@ public final class EuSanctionsMapProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public EuSanctionsMapProvider() {
-        this(
-                URI.create(DEFAULT_REGIME_URL),
+        this(URI.create(DEFAULT_REGIME_URL),
                 HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)));
     }
 
@@ -60,8 +60,8 @@ public final class EuSanctionsMapProvider implements ListProvider {
     public EuSanctionsMapProvider(URI regimeUri, HttpClient httpClient) {
         this.regimeUri = regimeUri;
         this.httpClient = httpClient;
-        this.currentMetadata =
-                new ListMetadata(ListSource.EU_SANCTIONS_MAP, null, null, null, regimeUri, 0);
+        this.currentMetadata = new ListMetadata(
+                ListSource.EU_SANCTIONS_MAP, null, null, null, regimeUri, 0);
     }
 
     @Override
@@ -83,7 +83,8 @@ public final class EuSanctionsMapProvider implements ListProvider {
         try {
             // Step 1: Fetch regime index
             Map<String, Object> regimeIndex = fetchJson(regimeUri);
-            List<Map<String, Object>> regimes = (List<Map<String, Object>>) regimeIndex.get("data");
+            List<Map<String, Object>> regimes =
+                    (List<Map<String, Object>>) regimeIndex.get("data");
             if (regimes == null) {
                 throw new ListIngestionException(
                         "No 'data' array in regime index", ListSource.EU_SANCTIONS_MAP);
@@ -98,10 +99,8 @@ public final class EuSanctionsMapProvider implements ListProvider {
                 int regimeId = ((Number) regimeIdObj).intValue();
 
                 List<Object> programme = (List<Object>) regime.get("programme");
-                String progName =
-                        programme != null && !programme.isEmpty()
-                                ? programme.get(0).toString()
-                                : "EU";
+                String progName = programme != null && !programme.isEmpty()
+                        ? programme.get(0).toString() : "EU";
 
                 URI regimeDetailUri = URI.create(regimeUri + "/" + regimeId);
                 Map<String, Object> regimeDetail;
@@ -129,7 +128,8 @@ public final class EuSanctionsMapProvider implements ListProvider {
                     if (lists == null) continue;
 
                     for (Map<String, Object> list : lists) {
-                        Map<String, Object> membersObj = (Map<String, Object>) list.get("members");
+                        Map<String, Object> membersObj =
+                                (Map<String, Object>) list.get("members");
                         if (membersObj == null) continue;
                         List<Object> members = (List<Object>) membersObj.get("data");
                         if (members == null) continue;
@@ -150,20 +150,13 @@ public final class EuSanctionsMapProvider implements ListProvider {
             }
 
             Instant now = Instant.now();
-            String hash = computeSha256(String.valueOf(entities.size()).getBytes());
-            currentMetadata =
-                    new ListMetadata(
-                            ListSource.EU_SANCTIONS_MAP,
-                            now,
-                            null,
-                            hash,
-                            regimeUri,
-                            entities.size());
+            String hash = computeSha256(
+                    String.valueOf(entities.size()).getBytes());
+            currentMetadata = new ListMetadata(
+                    ListSource.EU_SANCTIONS_MAP, now, null, hash, regimeUri, entities.size());
 
-            log.info(
-                    "EU Sanctions Map ingestion complete [entities={}, duration={}ms]",
-                    entities.size(),
-                    Duration.between(start, now).toMillis());
+            log.info("EU Sanctions Map ingestion complete [entities={}, duration={}ms]",
+                    entities.size(), Duration.between(start, now).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -171,8 +164,7 @@ public final class EuSanctionsMapProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Error fetching EU Sanctions Map: " + e.getMessage(),
-                    ListSource.EU_SANCTIONS_MAP,
-                    e);
+                    ListSource.EU_SANCTIONS_MAP, e);
         }
     }
 
@@ -183,22 +175,20 @@ public final class EuSanctionsMapProvider implements ListProvider {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> fetchJson(URI uri) throws Exception {
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(uri)
-                        .timeout(REQUEST_TIMEOUT)
-                        .header("Accept", "application/json")
-                        .header("User-Agent", "sieve-aml/1.0")
-                        .GET()
-                        .build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(uri)
+                .timeout(REQUEST_TIMEOUT)
+                .header("Accept", "application/json")
+                .header("User-Agent", "sieve-aml/1.0")
+                .GET()
+                .build();
 
         HttpResponse<byte[]> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
         if (response.statusCode() != 200) {
             throw new ListIngestionException(
-                    String.format(
-                            "EU Sanctions Map fetch failed [status=%d, uri=%s]",
+                    String.format("EU Sanctions Map fetch failed [status=%d, uri=%s]",
                             response.statusCode(), uri),
                     ListSource.EU_SANCTIONS_MAP);
         }
@@ -218,41 +208,31 @@ public final class EuSanctionsMapProvider implements ListProvider {
             if (parts.length > 1) {
                 String aliasStr = parts[1].replaceAll("\\)$", "").strip();
                 if (!aliasStr.isEmpty()) {
-                    aliases.add(
-                            new NameInfo(
-                                    aliasStr, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(new NameInfo(
+                            aliasStr, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
 
         String typeStr = stringVal(member, "type");
-        EntityType entityType = "P".equals(typeStr) ? EntityType.INDIVIDUAL : EntityType.ENTITY;
+        EntityType entityType = "P".equals(typeStr)
+                ? EntityType.INDIVIDUAL : EntityType.ENTITY;
 
         String creationDate = stringVal(member, "creation_date");
         String id = cleanName.hashCode() + "-" + (creationDate != null ? creationDate : "0");
 
-        NameInfo primaryName =
-                new NameInfo(cleanName, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                cleanName, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<SanctionsProgram> programs = new ArrayList<>();
-        programs.add(new SanctionsProgram(programme, null, ListSource.EU_SANCTIONS_MAP));
+        programs.add(new SanctionsProgram(
+                programme, null, ListSource.EU_SANCTIONS_MAP));
 
         return new SanctionedEntity(
-                "eu-map-" + id,
-                entityType,
-                ListSource.EU_SANCTIONS_MAP,
-                primaryName,
-                aliases,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                null,
-                programs,
-                null,
-                Instant.now());
+                "eu-map-" + id, entityType, ListSource.EU_SANCTIONS_MAP,
+                primaryName, aliases, List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
+                null, programs, null, Instant.now());
     }
 
     private static String stringVal(Map<String, Object> map, String key) {

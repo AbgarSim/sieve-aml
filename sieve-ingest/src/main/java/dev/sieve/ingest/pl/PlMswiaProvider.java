@@ -37,8 +37,8 @@ import org.slf4j.LoggerFactory;
  * <p>Published as an HTML page with two tables: "Osoby" (persons) and "Podmioty" (companies).
  * Typically contains ~560 entities combined.
  *
- * @see <a href="https://www.gov.pl/web/mswia/lista-osob-i-podmiotow-objetych-sankcjami">Poland
- *     MSWiA Sanctions</a>
+ * @see <a href="https://www.gov.pl/web/mswia/lista-osob-i-podmiotow-objetych-sankcjami">
+ *     Poland MSWiA Sanctions</a>
  */
 public final class PlMswiaProvider implements ListProvider {
 
@@ -50,9 +50,10 @@ public final class PlMswiaProvider implements ListProvider {
     private static final DateTimeFormatter PL_DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-    private static final Pattern TR_PATTERN = Pattern.compile("<tr>(.*?)</tr>", Pattern.DOTALL);
-    private static final Pattern TD_PATTERN =
-            Pattern.compile("<td[^>]*>(.*?)</td>", Pattern.DOTALL);
+    private static final Pattern TR_PATTERN = Pattern.compile(
+            "<tr>(.*?)</tr>", Pattern.DOTALL);
+    private static final Pattern TD_PATTERN = Pattern.compile(
+            "<td[^>]*>(.*?)</td>", Pattern.DOTALL);
     private static final Pattern TAG_PATTERN = Pattern.compile("<[^>]+>");
 
     private final URI sourceUri;
@@ -60,8 +61,7 @@ public final class PlMswiaProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public PlMswiaProvider() {
-        this(
-                URI.create(DEFAULT_URL),
+        this(URI.create(DEFAULT_URL),
                 HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)));
     }
 
@@ -72,19 +72,15 @@ public final class PlMswiaProvider implements ListProvider {
     public PlMswiaProvider(URI sourceUri, HttpClient httpClient) {
         this.sourceUri = sourceUri;
         this.httpClient = httpClient;
-        this.currentMetadata =
-                new ListMetadata(ListSource.PL_MSWIA, null, null, null, sourceUri, 0);
+        this.currentMetadata = new ListMetadata(
+                ListSource.PL_MSWIA, null, null, null, sourceUri, 0);
     }
 
     @Override
-    public ListSource source() {
-        return ListSource.PL_MSWIA;
-    }
+    public ListSource source() { return ListSource.PL_MSWIA; }
 
     @Override
-    public ListMetadata metadata() {
-        return currentMetadata;
-    }
+    public ListMetadata metadata() { return currentMetadata; }
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
@@ -92,17 +88,15 @@ public final class PlMswiaProvider implements ListProvider {
         Instant start = Instant.now();
 
         try {
-            HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(sourceUri)
-                            .timeout(REQUEST_TIMEOUT)
-                            .header("Accept", "text/html")
-                            .GET()
-                            .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(sourceUri)
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Accept", "text/html")
+                    .GET()
+                    .build();
 
             HttpResponse<String> response =
-                    httpClient.send(
-                            request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
             if (response.statusCode() != 200) {
                 throw new ListIngestionException(
@@ -112,25 +106,15 @@ public final class PlMswiaProvider implements ListProvider {
 
             String html = response.body();
             String hash = computeSha256(html.getBytes(StandardCharsets.UTF_8));
-            log.info(
-                    "PL MSWiA downloaded [chars={}, hash={}]",
-                    html.length(),
-                    hash.substring(0, 12) + "...");
+            log.info("PL MSWiA downloaded [chars={}, hash={}]",
+                    html.length(), hash.substring(0, 12) + "...");
 
             List<SanctionedEntity> entities = parseHtml(html);
 
-            currentMetadata =
-                    new ListMetadata(
-                            ListSource.PL_MSWIA,
-                            Instant.now(),
-                            null,
-                            hash,
-                            sourceUri,
-                            entities.size());
-            log.info(
-                    "PL MSWiA ingestion complete [entities={}, duration={}ms]",
-                    entities.size(),
-                    Duration.between(start, Instant.now()).toMillis());
+            currentMetadata = new ListMetadata(
+                    ListSource.PL_MSWIA, Instant.now(), null, hash, sourceUri, entities.size());
+            log.info("PL MSWiA ingestion complete [entities={}, duration={}ms]",
+                    entities.size(), Duration.between(start, Instant.now()).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -144,15 +128,12 @@ public final class PlMswiaProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Unexpected error during PL MSWiA ingestion: " + e.getMessage(),
-                    ListSource.PL_MSWIA,
-                    e);
+                    ListSource.PL_MSWIA, e);
         }
     }
 
     @Override
-    public boolean hasUpdates(ListMetadata previousMetadata) {
-        return true;
-    }
+    public boolean hasUpdates(ListMetadata previousMetadata) { return true; }
 
     private List<SanctionedEntity> parseHtml(String html) {
         List<SanctionedEntity> entities = new ArrayList<>();
@@ -178,11 +159,8 @@ public final class PlMswiaProvider implements ListProvider {
         return entities;
     }
 
-    private void parseTable(
-            String section,
-            EntityType entityType,
-            String tableType,
-            List<SanctionedEntity> entities) {
+    private void parseTable(String section, EntityType entityType, String tableType,
+                            List<SanctionedEntity> entities) {
         Matcher rowMatcher = TR_PATTERN.matcher(section);
         boolean headerSkipped = false;
         int idx = 0;
@@ -213,23 +191,19 @@ public final class PlMswiaProvider implements ListProvider {
                 SanctionedEntity entity = buildEntity(cells, entityType, tableType, idx++);
                 if (entity != null) entities.add(entity);
             } catch (Exception e) {
-                log.debug(
-                        "Skipping malformed row {} in PL MSWiA {}: {}",
-                        idx,
-                        tableType,
-                        e.getMessage());
+                log.debug("Skipping malformed row {} in PL MSWiA {}: {}", idx, tableType, e.getMessage());
             }
         }
     }
 
-    private SanctionedEntity buildEntity(
-            List<String> cells, EntityType entityType, String tableType, int idx) {
+    private SanctionedEntity buildEntity(List<String> cells, EntityType entityType,
+                                          String tableType, int idx) {
         // Column 0: Name
         String name = cells.get(0);
         if (name == null || name.isBlank()) return null;
 
-        NameInfo primaryName =
-                new NameInfo(name.strip(), null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                name.strip(), null, null, null, null, NameType.PRIMARY, null, null);
 
         // Column 4: Listing date (dd.MM.yyyy)
         List<LocalDate> listingDates = new ArrayList<>();
@@ -238,31 +212,21 @@ public final class PlMswiaProvider implements ListProvider {
             if (listDate != null) listingDates.add(listDate);
         }
 
-        List<SanctionsProgram> programs =
-                List.of(new SanctionsProgram("PL MSWiA", null, ListSource.PL_MSWIA));
+        List<SanctionsProgram> programs = List.of(new SanctionsProgram(
+                "PL MSWiA", null, ListSource.PL_MSWIA));
 
         String id = tableType + "-" + idx;
 
         return new SanctionedEntity(
-                "pl-" + id,
-                entityType,
-                ListSource.PL_MSWIA,
-                primaryName,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                listingDates,
-                List.of(),
-                null,
-                programs,
-                null,
-                Instant.now());
+                "pl-" + id, entityType, ListSource.PL_MSWIA,
+                primaryName, List.of(), List.of(), List.of(),
+                List.of(), List.of(), listingDates, List.of(),
+                null, programs, null, Instant.now());
     }
 
     private static String decodeHtmlEntities(String text) {
-        return text.replace("&amp;", "&")
+        return text
+                .replace("&amp;", "&")
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
                 .replace("&quot;", "\"")
@@ -274,14 +238,10 @@ public final class PlMswiaProvider implements ListProvider {
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
-        try {
-            return LocalDate.parse(cleaned, PL_DATE_FORMAT);
-        } catch (DateTimeParseException e) {
-            try {
-                return LocalDate.parse(cleaned);
-            } catch (DateTimeParseException e2) {
-                return null;
-            }
+        try { return LocalDate.parse(cleaned, PL_DATE_FORMAT); }
+        catch (DateTimeParseException e) {
+            try { return LocalDate.parse(cleaned); }
+            catch (DateTimeParseException e2) { return null; }
         }
     }
 

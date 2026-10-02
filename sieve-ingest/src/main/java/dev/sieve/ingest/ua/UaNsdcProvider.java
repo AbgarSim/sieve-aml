@@ -33,8 +33,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Fetches and parses the Ukrainian NSDC (National Security and Defence Council) sanctions list.
  *
- * <p>Very large, Russia-focused. Published as JSON via a v2 API that requires an API key. Fetches
- * both individual and legal entity endpoints. Typically contains ~22,000 entities.
+ * <p>Very large, Russia-focused. Published as JSON via a v2 API that requires an API key.
+ * Fetches both individual and legal entity endpoints. Typically contains ~22,000 entities.
  *
  * <p>Requires the {@code SIEVE_NSDC_API_KEY} environment variable to be set.
  *
@@ -57,16 +57,13 @@ public final class UaNsdcProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public UaNsdcProvider() {
-        this(
-                URI.create(DEFAULT_BASE_URL),
+        this(URI.create(DEFAULT_BASE_URL),
                 HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)),
                 System.getenv(API_KEY_ENV));
     }
 
     public UaNsdcProvider(URI baseUri) {
-        this(
-                baseUri,
-                HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)),
+        this(baseUri, HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)),
                 System.getenv(API_KEY_ENV));
     }
 
@@ -74,24 +71,22 @@ public final class UaNsdcProvider implements ListProvider {
         this.baseUri = baseUri;
         this.httpClient = httpClient;
         this.apiKey = apiKey;
-        this.currentMetadata = new ListMetadata(ListSource.UA_NSDC, null, null, null, baseUri, 0);
+        this.currentMetadata = new ListMetadata(
+                ListSource.UA_NSDC, null, null, null, baseUri, 0);
     }
 
     @Override
-    public ListSource source() {
-        return ListSource.UA_NSDC;
-    }
+    public ListSource source() { return ListSource.UA_NSDC; }
 
     @Override
-    public ListMetadata metadata() {
-        return currentMetadata;
-    }
+    public ListMetadata metadata() { return currentMetadata; }
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
         if (apiKey == null || apiKey.isBlank()) {
             throw new ListIngestionException(
-                    "Missing API key. Set environment variable " + API_KEY_ENV, ListSource.UA_NSDC);
+                    "Missing API key. Set environment variable " + API_KEY_ENV,
+                    ListSource.UA_NSDC);
         }
 
         log.info("Fetching UA NSDC list [base={}]", baseUri);
@@ -101,8 +96,8 @@ public final class UaNsdcProvider implements ListProvider {
             List<SanctionedEntity> entities = new ArrayList<>();
 
             // Fetch individuals
-            List<Map<String, Object>> individuals =
-                    fetchEndpoint("/v2/subjects?subjectType=individual");
+            List<Map<String, Object>> individuals = fetchEndpoint(
+                    "/v2/subjects?subjectType=individual");
             log.info("UA NSDC individuals: {} records", individuals.size());
             for (Map<String, Object> item : individuals) {
                 SanctionedEntity entity = parseSubject(item, EntityType.INDIVIDUAL);
@@ -110,26 +105,20 @@ public final class UaNsdcProvider implements ListProvider {
             }
 
             // Fetch legal entities
-            List<Map<String, Object>> legals = fetchEndpoint("/v2/subjects?subjectType=legal");
+            List<Map<String, Object>> legals = fetchEndpoint(
+                    "/v2/subjects?subjectType=legal");
             log.info("UA NSDC legal entities: {} records", legals.size());
             for (Map<String, Object> item : legals) {
                 SanctionedEntity entity = parseSubject(item, EntityType.ENTITY);
                 if (entity != null) entities.add(entity);
             }
 
-            String hash = computeSha256((individuals.size() + ":" + legals.size()).getBytes());
-            currentMetadata =
-                    new ListMetadata(
-                            ListSource.UA_NSDC,
-                            Instant.now(),
-                            null,
-                            hash,
-                            baseUri,
-                            entities.size());
-            log.info(
-                    "UA NSDC ingestion complete [entities={}, duration={}ms]",
-                    entities.size(),
-                    Duration.between(start, Instant.now()).toMillis());
+            String hash = computeSha256(
+                    (individuals.size() + ":" + legals.size()).getBytes());
+            currentMetadata = new ListMetadata(
+                    ListSource.UA_NSDC, Instant.now(), null, hash, baseUri, entities.size());
+            log.info("UA NSDC ingestion complete [entities={}, duration={}ms]",
+                    entities.size(), Duration.between(start, Instant.now()).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -143,36 +132,31 @@ public final class UaNsdcProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Unexpected error during UA NSDC ingestion: " + e.getMessage(),
-                    ListSource.UA_NSDC,
-                    e);
+                    ListSource.UA_NSDC, e);
         }
     }
 
     @Override
-    public boolean hasUpdates(ListMetadata previousMetadata) {
-        return true;
-    }
+    public boolean hasUpdates(ListMetadata previousMetadata) { return true; }
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> fetchEndpoint(String path)
             throws IOException, InterruptedException, ListIngestionException {
         URI uri = URI.create(baseUri.toString() + path);
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(uri)
-                        .timeout(REQUEST_TIMEOUT)
-                        .header("Accept", "application/json")
-                        .header("x-cota-public-api-key", apiKey)
-                        .GET()
-                        .build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(uri)
+                .timeout(REQUEST_TIMEOUT)
+                .header("Accept", "application/json")
+                .header("x-cota-public-api-key", apiKey)
+                .GET()
+                .build();
 
         HttpResponse<byte[]> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
         if (response.statusCode() != 200) {
             throw new ListIngestionException(
-                    String.format(
-                            "UA NSDC fetch failed [path=%s, status=%d]",
+                    String.format("UA NSDC fetch failed [path=%s, status=%d]",
                             path, response.statusCode()),
                     ListSource.UA_NSDC);
         }
@@ -188,8 +172,8 @@ public final class UaNsdcProvider implements ListProvider {
         String name = strVal(item, "name");
         if (name == null || name.isBlank()) return null;
 
-        NameInfo primaryName =
-                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                name, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
 
@@ -229,27 +213,16 @@ public final class UaNsdcProvider implements ListProvider {
             nationalities.add(s);
         }
 
-        List<SanctionsProgram> programs =
-                List.of(new SanctionsProgram("NSDC Sanctions", "Ukraine NSDC", ListSource.UA_NSDC));
+        List<SanctionsProgram> programs = List.of(
+                new SanctionsProgram("NSDC Sanctions", "Ukraine NSDC", ListSource.UA_NSDC));
 
         String entityId = id != null ? id : String.valueOf(name.hashCode());
 
         return new SanctionedEntity(
-                "ua-" + entityId,
-                entityType,
-                ListSource.UA_NSDC,
-                primaryName,
-                aliases,
-                List.of(),
-                List.of(),
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                List.of(),
-                null,
-                programs,
-                null,
-                Instant.now());
+                "ua-" + entityId, entityType, ListSource.UA_NSDC,
+                primaryName, aliases, List.of(), List.of(),
+                nationalities, List.of(), datesOfBirth, List.of(),
+                null, programs, null, Instant.now());
     }
 
     private static String strVal(Map<String, Object> map, String key) {
@@ -262,14 +235,10 @@ public final class UaNsdcProvider implements ListProvider {
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
-        try {
-            return LocalDate.parse(cleaned, UA_DATE_FORMAT);
-        } catch (DateTimeParseException e) {
-            try {
-                return LocalDate.parse(cleaned);
-            } catch (DateTimeParseException e2) {
-                return null;
-            }
+        try { return LocalDate.parse(cleaned, UA_DATE_FORMAT); }
+        catch (DateTimeParseException e) {
+            try { return LocalDate.parse(cleaned); }
+            catch (DateTimeParseException e2) { return null; }
         }
     }
 
