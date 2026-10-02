@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <a href=""><img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build"></a>
+  <a href="https://github.com/AbgarSim/sieve-aml/actions/workflows/ci.yml"><img src="https://github.com/AbgarSim/sieve-aml/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://abgarsim.github.io/sieve-aml/"><img src="https://github.com/AbgarSim/sieve-aml/actions/workflows/dashboard.yml/badge.svg" alt="Dashboard"></a>
   <a href=""><img src="https://img.shields.io/badge/coverage-90%25-brightgreen" alt="Coverage"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href=""><img src="https://img.shields.io/badge/Java-21-orange.svg" alt="Java 21"></a>
@@ -191,6 +192,15 @@ curl http://localhost:8080/api/v1/health
 
 - **Vert.x server** — configured via CLI flags and environment variables (see table above)
 - **Spring Boot server** — see [`sieve-spring-server/src/main/resources/application.yml`](sieve-spring-server/src/main/resources/application.yml)
+
+## Dashboard
+
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 25 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+
+```bash
+java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files
+cd dashboard && npm install && npm run dev                                     # serve the site on that snapshot
+```
 
 ## Docker
 
