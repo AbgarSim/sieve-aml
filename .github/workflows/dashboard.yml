@@ -24,26 +24,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  probe:
-    if: github.event.inputs.sources != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Probe sources
-        run: |
-          UA='Mozilla/5.0 (X11; Linux x86_64) sieve'
-          B=https://sankcijas.fid.gov.lv
-          curl -sSL -A "$UA" -c jar.txt "$B/lv/meklet-sankciju-sarakstos" -o s.html
-          grep -n -A28 "data-list'\|data('list')\|\.data(\"list\")\|downloadLv\|download-file-list" s.html | sed -n '1,80p'
-          CSRF=$(grep -o 'name="csrf" value="[^"]*"' s.html | head -1 | sed 's/.*value="//; s/"$//')
-          for u in /lejupieladet-sarakstu/lv /lejupieladet-sarakstu/LV /lejupieladet-sarakstu/lv/xml; do
-            echo "== POST $u"; curl -sS -A "$UA" -b jar.txt -D h.txt -o f.bin -X POST --data "csrf=$CSRF&fileType=xml" "$B$u"; grep -iE '^(HTTP|content-type|content-disposition|location)' h.txt; ls -l f.bin; file f.bin; head -c 1500 f.bin | grep -v '^\s*$' | head -30; echo
-            if head -c 200 f.bin | grep -q '<?xml'; then cp f.bin lv.xml; fi
-          done
-          if [ -f lv.xml ]; then
-            echo '--- LV xml histogram'; grep -o '<[A-Za-z_][A-Za-z0-9_:-]*' lv.xml | sort | uniq -c | sort -rn | head -60
-            echo '--- LV xml sample'; head -c 5000 lv.xml
-          fi
-
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 45
