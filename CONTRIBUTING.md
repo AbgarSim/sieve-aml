@@ -78,7 +78,9 @@ sieve/
 - Unit tests: `*Test.java` — run with `mvn test`
 - Integration tests: `*IT.java` — run with `mvn verify`
 - Test naming: `shouldDoSomethingWhenCondition()`
-- Do NOT create integration tests that hit real external URLs
+- Do NOT create tests that hit real external URLs, except live provider checks tagged
+  `@Tag("integration")`, which the build skips by default. Run those with
+  `mvn test -pl sieve-ingest -am -Dgroups=integration -Dtest.excludedGroups=none`
 
 ```bash
 # Run a single test class
