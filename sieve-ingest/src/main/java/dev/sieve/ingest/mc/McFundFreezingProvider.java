@@ -23,8 +23,8 @@ import java.util.Map;
 /**
  * Fetches and parses the Monaco national fund-freezing list.
  *
- * <p>Mirrors EU consolidated designations plus national additions. Published as JSON.
- * Typically contains ~5,998 entities.
+ * <p>Mirrors EU consolidated designations plus national additions. Published as JSON. Typically
+ * contains ~5,998 entities.
  *
  * @see <a href="https://geldefonds.gouv.mc/">Monaco Fund Freezing Registry</a>
  */
@@ -45,7 +45,11 @@ public final class McFundFreezingProvider extends AbstractListProvider {
     }
 
     public McFundFreezingProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.MC_FUND_FREEZING, sourceUri, "application/json", httpClient,
+        super(
+                ListSource.MC_FUND_FREEZING,
+                sourceUri,
+                "application/json",
+                httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -54,8 +58,7 @@ public final class McFundFreezingProvider extends AbstractListProvider {
     protected List<SanctionedEntity> parseResponse(byte[] responseBody)
             throws ListIngestionException {
         try {
-            List<Map<String, Object>> records =
-                    MAPPER.readValue(responseBody, List.class);
+            List<Map<String, Object>> records = MAPPER.readValue(responseBody, List.class);
 
             List<SanctionedEntity> entities = new ArrayList<>(records.size());
             for (Map<String, Object> record : records) {
@@ -72,7 +75,8 @@ public final class McFundFreezingProvider extends AbstractListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Failed to parse Monaco fund-freezing JSON: " + e.getMessage(),
-                    ListSource.MC_FUND_FREEZING, e);
+                    ListSource.MC_FUND_FREEZING,
+                    e);
         }
     }
 
@@ -112,8 +116,9 @@ public final class McFundFreezingProvider extends AbstractListProvider {
                 for (String a : aliasStr.split(";")) {
                     String trimmed = a.strip();
                     if (!trimmed.isEmpty()) {
-                        aliases.add(new NameInfo(
-                                trimmed, null, null, null, null, NameType.AKA, null, null));
+                        aliases.add(
+                                new NameInfo(
+                                        trimmed, null, null, null, null, NameType.AKA, null, null));
                     }
                 }
             }
@@ -137,23 +142,37 @@ public final class McFundFreezingProvider extends AbstractListProvider {
 
             String regime = strVal(details, "regimeSanction");
             if (regime != null && !regime.isBlank()) {
-                programs.add(new SanctionsProgram(
-                        regime.strip(), null, ListSource.MC_FUND_FREEZING));
+                programs.add(
+                        new SanctionsProgram(regime.strip(), null, ListSource.MC_FUND_FREEZING));
             }
         }
 
-        String fullName = givenName != null && !givenName.isBlank()
-                ? givenName + " " + familyName : familyName;
+        String fullName =
+                givenName != null && !givenName.isBlank()
+                        ? givenName + " " + familyName
+                        : familyName;
         if (id == null) id = String.valueOf(fullName.hashCode());
 
-        NameInfo primaryName = new NameInfo(
-                fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
 
         return new SanctionedEntity(
-                "mc-" + id, entityType, ListSource.MC_FUND_FREEZING,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, placesOfBirth,
-                null, programs, null, Instant.now());
+                "mc-" + id,
+                entityType,
+                ListSource.MC_FUND_FREEZING,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                placesOfBirth,
+                null,
+                programs,
+                null,
+                Instant.now());
     }
 
     private static String strVal(Map<String, Object> map, String key) {
@@ -166,10 +185,14 @@ public final class McFundFreezingProvider extends AbstractListProvider {
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip().replaceAll(",\\s*$", "");
-        try { return LocalDate.parse(cleaned, MC_DATE_FORMAT); }
-        catch (DateTimeParseException e) {
-            try { return LocalDate.parse(cleaned); }
-            catch (DateTimeParseException e2) { return null; }
+        try {
+            return LocalDate.parse(cleaned, MC_DATE_FORMAT);
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDate.parse(cleaned);
+            } catch (DateTimeParseException e2) {
+                return null;
+            }
         }
     }
 }

@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.stream.XMLInputFactory;
@@ -33,7 +32,8 @@ import javax.xml.stream.XMLStreamReader;
  * <p>Published by the State Secretariat for Economic Affairs (SECO) as XML. Very comprehensive,
  * covering ~30 sanctions programs with ~8,500 entities.
  *
- * @see <a href="https://www.seco.admin.ch/seco/en/home/Aussenwirtschaftspolitik_Wirtschaftliche_Zusammenarbeit/Wirtschaftsbeziehungen/Exportkontrollen-und-Sanktionen/Sanktionen-Embargos.html">
+ * @see <a
+ *     href="https://www.seco.admin.ch/seco/en/home/Aussenwirtschaftspolitik_Wirtschaftliche_Zusammenarbeit/Wirtschaftsbeziehungen/Exportkontrollen-und-Sanktionen/Sanktionen-Embargos.html">
  *     SECO Sanctions</a>
  */
 public final class ChSecoProvider extends AbstractListProvider {
@@ -50,7 +50,11 @@ public final class ChSecoProvider extends AbstractListProvider {
     }
 
     public ChSecoProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.CH_SECO, sourceUri, "application/xml", httpClient,
+        super(
+                ListSource.CH_SECO,
+                sourceUri,
+                "application/xml",
+                httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -138,13 +142,23 @@ public final class ChSecoProvider extends AbstractListProvider {
                                 givenName = np.given;
                                 wholeName = np.whole;
                             } else {
-                                String aName = np.whole != null ? np.whole :
-                                        (np.given != null && np.family != null
-                                                ? np.given + " " + np.family : np.family);
+                                String aName =
+                                        np.whole != null
+                                                ? np.whole
+                                                : (np.given != null && np.family != null
+                                                        ? np.given + " " + np.family
+                                                        : np.family);
                                 if (aName != null && !aName.isBlank()) {
-                                    aliases.add(new NameInfo(
-                                            aName, null, null, null, null,
-                                            NameType.AKA, null, null));
+                                    aliases.add(
+                                            new NameInfo(
+                                                    aName,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    null,
+                                                    NameType.AKA,
+                                                    null,
+                                                    null));
                                 }
                             }
                         } else {
@@ -192,7 +206,9 @@ public final class ChSecoProvider extends AbstractListProvider {
                             skipElement(reader);
                         }
                     }
-                    default -> { /* let it continue */ }
+                    default -> {
+                        /* let it continue */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
                 String elem = reader.getLocalName();
@@ -217,8 +233,9 @@ public final class ChSecoProvider extends AbstractListProvider {
         }
         if (ssid == null) ssid = String.valueOf(fullName.hashCode());
 
-        NameInfo primaryName = new NameInfo(
-                fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
 
         List<SanctionsProgram> programs = new ArrayList<>();
         if (program != null && !program.isBlank()) {
@@ -226,10 +243,21 @@ public final class ChSecoProvider extends AbstractListProvider {
         }
 
         return new SanctionedEntity(
-                "ch-" + ssid, entityType, ListSource.CH_SECO,
-                primaryName, aliases, addresses, identifiers,
-                nationalities, List.of(), datesOfBirth, placesOfBirth,
-                null, programs, null, Instant.now());
+                "ch-" + ssid,
+                entityType,
+                ListSource.CH_SECO,
+                primaryName,
+                aliases,
+                addresses,
+                identifiers,
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                placesOfBirth,
+                null,
+                programs,
+                null,
+                Instant.now());
     }
 
     private static class NameParts {
@@ -262,15 +290,14 @@ public final class ChSecoProvider extends AbstractListProvider {
         // Add spelling variants as aliases
         for (String sv : spellingVariants) {
             if (sv != null && !sv.isBlank()) {
-                aliases.add(new NameInfo(
-                        sv, null, null, null, null, NameType.AKA, null, null));
+                aliases.add(new NameInfo(sv, null, null, null, null, NameType.AKA, null, null));
             }
         }
         return parts;
     }
 
-    private void parseNamePart(XMLStreamReader reader, String partType,
-                               NameParts parts, List<String> spellingVariants)
+    private void parseNamePart(
+            XMLStreamReader reader, String partType, NameParts parts, List<String> spellingVariants)
             throws XMLStreamException {
         while (reader.hasNext()) {
             int event = reader.next();
@@ -283,7 +310,9 @@ public final class ChSecoProvider extends AbstractListProvider {
                             case "family-name" -> parts.family = val;
                             case "given-name" -> parts.given = val;
                             case "whole-name" -> parts.whole = val;
-                            case "father-name" -> { /* skip */ }
+                            case "father-name" -> {
+                                /* skip */
+                            }
                         }
                     }
                 } else if ("spelling-variant".equals(elem)) {
@@ -323,10 +352,16 @@ public final class ChSecoProvider extends AbstractListProvider {
         if (street == null && city == null && country == null) return null;
         StringBuilder full = new StringBuilder();
         if (street != null) full.append(street);
-        if (city != null) { if (!full.isEmpty()) full.append(", "); full.append(city); }
-        if (country != null) { if (!full.isEmpty()) full.append(", "); full.append(country); }
-        return new Address(street, city, null, zip, country,
-                full.isEmpty() ? null : full.toString());
+        if (city != null) {
+            if (!full.isEmpty()) full.append(", ");
+            full.append(city);
+        }
+        if (country != null) {
+            if (!full.isEmpty()) full.append(", ");
+            full.append(country);
+        }
+        return new Address(
+                street, city, null, zip, country, full.isEmpty() ? null : full.toString());
     }
 
     private Identifier parseIdentification(XMLStreamReader reader) throws XMLStreamException {

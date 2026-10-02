@@ -22,11 +22,12 @@ import java.util.Map;
 /**
  * Fetches and parses the Qatar NCTC (National Counter Terrorism Committee) sanctions list.
  *
- * <p>Published by Qatar's National Counter Terrorism Committee as JSON. Contains both
- * UN-mandated and national sanctions designations (Targeted Financial Sanctions).
- * Typically contains ~700 entities (persons and organizations).
+ * <p>Published by Qatar's National Counter Terrorism Committee as JSON. Contains both UN-mandated
+ * and national sanctions designations (Targeted Financial Sanctions). Typically contains ~700
+ * entities (persons and organizations).
  *
- * @see <a href="https://www.moci.gov.qa/en/about-the-ministry/anti-money-laundering-and-terrorism-financing/legal-framework/unified-record-of-persons-and-entities-designated-on-sanction-list/">
+ * @see <a
+ *     href="https://www.moci.gov.qa/en/about-the-ministry/anti-money-laundering-and-terrorism-financing/legal-framework/unified-record-of-persons-and-entities-designated-on-sanction-list/">
  *     Qatar NCTC Sanctions</a>
  */
 public final class QaNctcProvider extends AbstractListProvider {
@@ -44,7 +45,11 @@ public final class QaNctcProvider extends AbstractListProvider {
     }
 
     public QaNctcProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.QA_NCTC, sourceUri, "application/json", httpClient,
+        super(
+                ListSource.QA_NCTC,
+                sourceUri,
+                "application/json",
+                httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -71,8 +76,7 @@ public final class QaNctcProvider extends AbstractListProvider {
             throw e;
         } catch (Exception e) {
             throw new ListIngestionException(
-                    "Failed to parse QA NCTC JSON: " + e.getMessage(),
-                    ListSource.QA_NCTC, e);
+                    "Failed to parse QA NCTC JSON: " + e.getMessage(), ListSource.QA_NCTC, e);
         }
     }
 
@@ -91,15 +95,14 @@ public final class QaNctcProvider extends AbstractListProvider {
         String thirdName = stringVal(item, "thirdNameEN");
         String fourthName = stringVal(item, "fourthNameEN");
 
-        NameInfo primaryName = new NameInfo(
-                fullNameEn, firstName, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(fullNameEn, firstName, null, null, null, NameType.PRIMARY, null, null);
 
         // Arabic name as alias
         List<NameInfo> aliases = new ArrayList<>();
         String fullNameAr = stringVal(item, "fullNameAr");
         if (fullNameAr != null && !fullNameAr.isBlank() && !fullNameAr.equals(fullNameEn)) {
-            aliases.add(new NameInfo(
-                    fullNameAr, null, null, null, null, NameType.AKA, null, null));
+            aliases.add(new NameInfo(fullNameAr, null, null, null, null, NameType.AKA, null, null));
         }
 
         // Parse comma/semicolon-separated aliases
@@ -108,8 +111,9 @@ public final class QaNctcProvider extends AbstractListProvider {
             for (String a : aliasStr.split("[;]")) {
                 String trimmed = a.strip();
                 if (!trimmed.isEmpty() && !trimmed.equals(fullNameEn)) {
-                    aliases.add(new NameInfo(
-                            trimmed, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(
+                            new NameInfo(
+                                    trimmed, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
@@ -139,12 +143,14 @@ public final class QaNctcProvider extends AbstractListProvider {
             Map<String, Object> sanctions = (Map<String, Object>) sanctionsDto;
             String programEn = stringVal(sanctions, "sanctionRegimeEn");
             if (programEn != null && !programEn.isBlank()) {
-                programs.add(new SanctionsProgram(
-                        programEn.strip(), programEn.strip(), ListSource.QA_NCTC));
+                programs.add(
+                        new SanctionsProgram(
+                                programEn.strip(), programEn.strip(), ListSource.QA_NCTC));
             }
         }
         if (programs.isEmpty()) {
-            programs.add(new SanctionsProgram("QA NCTC", "Qatar NCTC Sanctions", ListSource.QA_NCTC));
+            programs.add(
+                    new SanctionsProgram("QA NCTC", "Qatar NCTC Sanctions", ListSource.QA_NCTC));
         }
 
         // Listed date
@@ -160,10 +166,21 @@ public final class QaNctcProvider extends AbstractListProvider {
         String id = dataId != null ? dataId : String.valueOf(fullNameEn.hashCode());
 
         return new SanctionedEntity(
-                "qa-" + id, entityType, ListSource.QA_NCTC,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, List.of(),
-                null, programs, listedDate, Instant.now());
+                "qa-" + id,
+                entityType,
+                ListSource.QA_NCTC,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                List.of(),
+                null,
+                programs,
+                listedDate,
+                Instant.now());
     }
 
     private static String stringVal(Map<String, Object> map, String key) {
@@ -177,17 +194,24 @@ public final class QaNctcProvider extends AbstractListProvider {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
         // Try ISO format first
-        try { return LocalDate.parse(cleaned); }
-        catch (DateTimeParseException e) { /* try next */ }
+        try {
+            return LocalDate.parse(cleaned);
+        } catch (DateTimeParseException e) {
+            /* try next */
+        }
         // Try dd/MM/yyyy
         try {
-            return LocalDate.parse(cleaned,
-                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        } catch (DateTimeParseException e) { /* try next */ }
+            return LocalDate.parse(
+                    cleaned, java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (DateTimeParseException e) {
+            /* try next */
+        }
         // Try dd-MM-yyyy
         try {
-            return LocalDate.parse(cleaned,
-                    java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-        } catch (DateTimeParseException e) { return null; }
+            return LocalDate.parse(
+                    cleaned, java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 }
