@@ -24,6 +24,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  probe:
+    if: github.event.inputs.sources != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe sources
+        run: |
+          B=https://sankcijas.fid.gov.lv
+          try() {
+            label=$1; shift
+            rm -f jar.txt
+            curl -sS "$@" -c jar.txt -D g.txt "$B/lv/meklet-sankciju-sarakstos" -o s.html
+            CSRF=$(grep -o 'name="csrf" value="[^"]*"' s.html | head -1 | sed 's/.*value="//; s/"$//')
+            curl -sS "$@" -b jar.txt -D h.txt -o f.bin -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data "csrf=$CSRF&fileType=xml" "$B/lejupieladet-sarakstu/lv"
+            echo "== $label: $(head -1 h.txt) $(grep -i '^location' h.txt) bytes=$(stat -c %s f.bin)"
+          }
+          grep -i 'set-cookie' g.txt 2>/dev/null; true
+          try plain
+          grep -i set-cookie g.txt; grep -c 'name="csrf"' s.html; grep -o 'name="csrf" value="[^"]*"' s.html | sort | uniq -c
+          try ua-sieve -A 'sieve-aml/1.0'
+          try accept-xml -H 'Accept: application/xml'
+          try http2 --http2
+          try ua-accept -A 'sieve-aml/1.0' -H 'Accept: application/xml'
+
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 45
