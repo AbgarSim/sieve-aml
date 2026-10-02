@@ -40,9 +40,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Integration tests that verify real HTTP connections and parsing for each sanctions list provider.
  *
- * <p>These tests hit live government endpoints and require network access. Run with:
+ * <p>These tests hit live government endpoints and require network access, so the build skips
+ * the {@code integration} tag by default. Run them with:
  * <pre>
- *   mvn test -pl sieve-ingest -Dgroups=integration
+ *   mvn test -pl sieve-ingest -am -Dgroups=integration -Dtest.excludedGroups=none
  * </pre>
  *
  * <p>Each test verifies:
