@@ -31,16 +31,35 @@ jobs:
       - name: Probe sources
         run: |
           UA='Mozilla/5.0 (X11; Linux x86_64) sieve'
-          curl -sSL -A "$UA" https://sankcijas.fid.gov.lv/ -o home.html
-          echo '--- homepage links'; grep -oiE '(href|src|action|data-[a-z-]+)="[^"]*"' home.html | sed 's/&#x2F;/\//g' | sort -u
-          for path in $(grep -oiE 'href="[^"#]*"' home.html | sed 's/&#x2F;/\//g; s/href="//I; s/"$//' | grep -E '^/[^/]' | sort -u | head -40); do
-            echo "=================== $path"
-            curl -sSL -A "$UA" "https://sankcijas.fid.gov.lv$path" -o p.html --max-time 30
-            grep -oiE '(href|src|action)="[^"]*"' p.html | sed 's/&#x2F;/\//g' | grep -iE 'xml|csv|json|xls|download|lejup|files|saraksts|export|api' | sort -u
-          done
-          for u in /files/LV_national.xml /files/sankciju_saraksts.xml /api/sanctions /export/xml /files/; do
-            echo "=================== try $u"; curl -sSI -A "$UA" "https://sankcijas.fid.gov.lv$u" | grep -iE '^(HTTP|content-type|location|content-length)'
-          done
+          B=https://sankcijas.fid.gov.lv
+          echo '--- subjects page text'
+          curl -sSL -A "$UA" "$B/lv/iesaldetie-aktivi/sankciju-subjekti" -o subj.html
+          python3 -c "import re,html,sys;t=open('subj.html',encoding='utf-8').read();t=re.sub(r'(?s)<(script|style).*?</\\1>','',t);t=re.sub(r'<[^>]+>',' ',t);print(re.sub(r'\\s+',' ',html.unescape(t))[:4000])"
+          echo '--- download'
+          curl -sSL -A "$UA" -D h.txt -o subj.bin "$B/lv/iesaldetie-aktivi/iesaldetie-aktivi-download/sankciju-subjektu-dati"
+          grep -iE '^(HTTP|content-type|content-disposition|content-length|location)' h.txt; ls -l subj.bin; file subj.bin
+          pip install -q openpyxl xlrd >/dev/null 2>&1 || true
+          python3 - <<'PY'
+          import openpyxl
+          wb = openpyxl.load_workbook('subj.bin', read_only=True)
+          for ws in wb.worksheets:
+              print('== sheet', ws.title, ws.max_row, ws.max_column)
+              for i, row in enumerate(ws.iter_rows(values_only=True)):
+                  if i < 12 or i % 50 == 0: print(i, row)
+          PY
+          echo '--- search page forms and scripts'
+          curl -sSL -A "$UA" "$B/lv/meklet-sankciju-sarakstos" -o s.html
+          grep -oiE '(action|src|data-url|url)\s*[:=]\s*["'"'"'][^"'"'"']*' s.html | sort -u | head -40
+          curl -sSL -A "$UA" "$B/assets/base_js.1768480214.js" | grep -oE '["'"'"'](/[a-z][^"'"'"' ]*)["'"'"']' | sort -u | head -60
+          echo '--- CA aliases and entity samples'
+          curl -sSL 'https://www.international.gc.ca/world-monde/assets/office_docs/international_relations-relations_internationales/sanctions/sema-lmes.xml' -o ca.xml
+          grep -m 25 'Aliases-Alias' ca.xml
+          grep -m 15 'EntityOrShip' ca.xml
+          grep -m 10 'TitleOrShipType' ca.xml
+          grep -m 5 'ShipIMONumber' ca.xml
+          grep -o '<DateOfBirthOrShipBuildDate[^>]*>[^<]*' ca.xml | sed 's/.*>//' | awk '{print length($0)}' | sort | uniq -c
+          grep -o '<Country-Pays>[^<]*' ca.xml | sort | uniq -c | sort -rn | head -30
+          grep -o '<Schedule-Annexe>[^<]*' ca.xml | sort | uniq -c | sort -rn | head -15
 
   snapshot:
     runs-on: ubuntu-latest
