@@ -10,8 +10,8 @@ import java.util.Set;
 /**
  * Union-Find (disjoint set) data structure for transitive entity merging.
  *
- * <p>When entity A matches entity B, and entity B matches entity C, all three should be merged
- * into a single canonical entity. Union-Find efficiently handles this transitive closure.
+ * <p>When entity A matches entity B, and entity B matches entity C, all three should be merged into
+ * a single canonical entity. Union-Find efficiently handles this transitive closure.
  *
  * <p>Uses path compression and union by rank for near-constant-time operations.
  *
@@ -19,7 +19,7 @@ import java.util.Set;
  */
 final class UnionFind<T> {
 
-    private final Map<T, T> parent = new HashMap<>();
+    private final Map<T, T> parent = new LinkedHashMap<>();
     private final Map<T, Integer> rank = new HashMap<>();
 
     /**
