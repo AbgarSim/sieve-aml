@@ -24,46 +24,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  probe:
-    if: github.event.inputs.sources != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Probe sources
-        run: |
-          cat > Probe.java <<'JAVA'
-          import java.net.*; import java.net.http.*; import java.time.*; import java.util.regex.*; import java.util.stream.*;
-          public class Probe {
-            public static void main(String[] a) throws Exception {
-              for (String mode : new String[] {"normal", "never"}) {
-                HttpClient c = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30))
-                    .followRedirects(mode.equals("normal") ? HttpClient.Redirect.NORMAL : HttpClient.Redirect.NEVER).build();
-                URI page = URI.create("https://sankcijas.fid.gov.lv/lv/meklet-sankciju-sarakstos");
-                HttpResponse<String> r = c.send(HttpRequest.newBuilder(page).header("User-Agent", "sieve-aml/1.0").GET().build(), HttpResponse.BodyHandlers.ofString());
-                System.out.println(mode + " page " + r.version() + " " + r.statusCode() + " uri=" + r.uri() + " prev=" + r.previousResponse().map(p -> p.statusCode() + " " + p.headers().allValues("set-cookie")).orElse("-"));
-                System.out.println("  set-cookie=" + r.headers().allValues("Set-Cookie"));
-                Matcher m = Pattern.compile("name=\"csrf\"\\s+value=\"([^\"]+)\"").matcher(r.body());
-                String csrf = m.find() ? m.group(1) : null;
-                System.out.println("  csrf=" + csrf + " bodyLen=" + r.body().length());
-                String cookies = r.headers().allValues("Set-Cookie").stream().map(x -> x.split(";", 2)[0]).collect(Collectors.joining("; "));
-                for (HttpClient.Version v : HttpClient.Version.values()) {
-                  HttpRequest.Builder b = HttpRequest.newBuilder(page.resolve("/lejupieladet-sarakstu/lv")).version(v)
-                      .header("Accept", "application/xml").header("User-Agent", "sieve-aml/1.0")
-                      .header("Content-Type", "application/x-www-form-urlencoded")
-                      .POST(HttpRequest.BodyPublishers.ofString("csrf=" + URLEncoder.encode(csrf, "UTF-8") + "&fileType=xml"));
-                  if (!cookies.isEmpty()) b.header("Cookie", cookies);
-                  HttpResponse<byte[]> d = c.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
-                  System.out.println("  post " + v + " -> " + d.version() + " " + d.statusCode() + " " + d.headers().firstValue("location").orElse("") + " " + d.headers().firstValue("content-type").orElse("") + " bytes=" + d.body().length);
-                }
-              }
-            }
-          }
-          JAVA
-          java Probe.java
-
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 45

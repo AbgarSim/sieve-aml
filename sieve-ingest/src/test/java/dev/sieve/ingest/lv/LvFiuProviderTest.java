@@ -81,7 +81,11 @@ class LvFiuProviderTest {
         when(page.headers())
                 .thenReturn(
                         HttpHeaders.of(
-                                Map.of("Set-Cookie", List.of("PHPSESSID=s1; path=/; HttpOnly")),
+                                Map.of(
+                                        "Set-Cookie",
+                                        List.of(
+                                                "fidsankcijuweb=old; path=/; secure",
+                                                "fidsankcijuweb=new; path=/; secure")),
                                 (k, v) -> true));
         doReturn(page).when(client).send(any(HttpRequest.class), any());
 
@@ -92,7 +96,7 @@ class LvFiuProviderTest {
         assertThat(request.method()).isEqualTo("POST");
         assertThat(request.uri())
                 .isEqualTo(URI.create("https://sankcijas.fid.gov.lv/lejupieladet-sarakstu/lv"));
-        assertThat(request.headers().firstValue("Cookie")).contains("PHPSESSID=s1");
+        assertThat(request.headers().firstValue("Cookie")).contains("fidsankcijuweb=new");
         assertThat(request.headers().firstValue("Content-Type"))
                 .contains("application/x-www-form-urlencoded");
     }
