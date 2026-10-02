@@ -30,6 +30,7 @@ jobs:
     steps:
       - name: Probe sources
         run: |
+          set +e
           B=https://sankcijas.fid.gov.lv
           try() {
             label=$1; shift
@@ -39,7 +40,6 @@ jobs:
             curl -sS "$@" -b jar.txt -D h.txt -o f.bin -X POST -H 'Content-Type: application/x-www-form-urlencoded' --data "csrf=$CSRF&fileType=xml" "$B/lejupieladet-sarakstu/lv"
             echo "== $label: $(head -1 h.txt) $(grep -i '^location' h.txt) bytes=$(stat -c %s f.bin)"
           }
-          grep -i 'set-cookie' g.txt 2>/dev/null; true
           try plain
           grep -i set-cookie g.txt; grep -c 'name="csrf"' s.html; grep -o 'name="csrf" value="[^"]*"' s.html | sort | uniq -c
           try ua-sieve -A 'sieve-aml/1.0'
