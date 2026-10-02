@@ -1,0 +1,109 @@
+name: Dashboard
+
+# Nightly: fetches every sanctions list, writes the snapshot data files, builds the
+# dashboard in dashboard/ and publishes both to GitHub Pages. History is carried over
+# from the published site, so trends grow by one row per night.
+#
+# Requires Settings > Pages > Source: GitHub Actions.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: 'Comma-separated list sources to fetch (empty for all). A partial run is not published.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build CLI
+        run: mvn -B -ntp -q package -pl sieve-cli -am -DskipTests
+      - name: Install Chromium for Playwright-based providers (IL, TR)
+        run: java -cp "sieve-cli/target/lib/*" com.microsoft.playwright.CLI install --with-deps chromium
+      - name: Restore history from the published site
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          mkdir -p snapshot
+          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/history.json" -o snapshot/history.json \
+            || { echo "No published history yet"; rm -f snapshot/history.json; }
+      - name: Fetch lists and write snapshot
+        env:
+          SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}
+          SOURCES: ${{ github.event.inputs.sources }}
+        run: |
+          ARGS=(snapshot --out snapshot)
+          if [ -n "$SOURCES" ]; then ARGS+=(--source "$SOURCES"); fi
+          java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar "${ARGS[@]}"
+      - name: Summarize
+        if: always()
+        run: |
+          if [ -f snapshot/sources.json ]; then
+            {
+              echo '| Source | Status | Entities | Fetch ms |'
+              echo '| --- | --- | ---: | ---: |'
+              jq -r '.sources[] | "| \(.source) | \(.status) | \(.entities // 0) | \(.fetchMs // "") |"' snapshot/sources.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-snapshot
+          path: snapshot/
+          retention-days: 14
+
+  build:
+    needs: snapshot
+    if: github.event.inputs.sources == ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Build site
+        working-directory: dashboard
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: dashboard-snapshot
+          path: dashboard/dist/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
