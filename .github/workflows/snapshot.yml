@@ -1,0 +1,65 @@
+name: Dashboard snapshot
+
+# Fetches every sanctions list and builds the dashboard data files.
+# For now the result is uploaded as a workflow artifact; publishing to
+# GitHub Pages is added with the dashboard itself.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: 'Comma-separated list sources to fetch (empty for all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build CLI
+        run: |
+          mvn -B -ntp -q install -pl sieve-cli -am -DskipTests
+          mvn -B -ntp -q -pl sieve-cli dependency:build-classpath -Dmdep.outputFile=cp.txt
+          echo "SIEVE_CP=sieve-cli/target/classes:$(cat sieve-cli/cp.txt)" >> "$GITHUB_ENV"
+      - name: Install Chromium for Playwright-based providers (IL, TR)
+        run: java -cp "$SIEVE_CP" com.microsoft.playwright.CLI install --with-deps chromium
+      - name: Fetch lists and write snapshot
+        env:
+          SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}
+          SOURCES: ${{ github.event.inputs.sources }}
+        run: |
+          ARGS=(snapshot --out snapshot)
+          if [ -n "$SOURCES" ]; then ARGS+=(--source "$SOURCES"); fi
+          java -cp "$SIEVE_CP" dev.sieve.cli.SieveCli "${ARGS[@]}"
+      - name: Summarize
+        if: always()
+        run: |
+          if [ -f snapshot/sources.json ]; then
+            {
+              echo '| Source | Status | Entities | Fetch ms |'
+              echo '| --- | --- | ---: | ---: |'
+              jq -r '.sources[] | "| \(.source) | \(.status) | \(.entities // 0) | \(.fetchMs // "") |"' snapshot/sources.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-snapshot
+          path: snapshot/
+          retention-days: 14

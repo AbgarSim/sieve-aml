@@ -68,3 +68,7 @@ sieve-benchmark/results/
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
+
+# Dashboard snapshot output (sieve snapshot)
+/snapshot/
+sieve-cli/cp.txt
