@@ -9,9 +9,12 @@ import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.CommandLineOptionException;
+import org.openjdk.jmh.runner.options.CommandLineOptions;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.slf4j.Logger;
@@ -45,7 +48,7 @@ public final class BenchmarkRunner {
     public static void main(String[] args) throws Exception {
         // Check for subcommands first
         if (args.length > 0 && "jmh".equals(args[0])) {
-            runJmh();
+            runJmh(Arrays.copyOfRange(args, 1, args.length));
             return;
         }
         boolean runDownload = false;
@@ -96,7 +99,12 @@ public final class BenchmarkRunner {
         System.out.println("Benchmark suite complete.");
     }
 
-    private static void runJmh() throws RunnerException {
+    /**
+     * Runs the JMH suite. Extra arguments are standard JMH options, for example {@code -f 1 -wi 2
+     * -i 3 -rf json -rff results.json} for a short run that writes machine-readable results.
+     */
+    private static void runJmh(String[] jmhArgs)
+            throws RunnerException, CommandLineOptionException {
         System.out.println();
         System.out.println("╔══════════════════════════════════════════════════════════════════╗");
         System.out.println("║           Sieve AML — JMH Microbenchmarks                       ║");
@@ -104,7 +112,10 @@ public final class BenchmarkRunner {
         System.out.println();
 
         Options opts =
-                new OptionsBuilder().include(MatchingJmhBenchmark.class.getSimpleName()).build();
+                new OptionsBuilder()
+                        .parent(new CommandLineOptions(jmhArgs))
+                        .include(MatchingJmhBenchmark.class.getSimpleName())
+                        .build();
         new Runner(opts).run();
     }
 
@@ -144,7 +155,9 @@ public final class BenchmarkRunner {
         System.out.println();
         System.out.println("Commands:");
         System.out.println(
-                "  jmh           Run JMH microbenchmarks (synthetic data, reproducible)");
+                "  jmh [JMH options]  Run JMH microbenchmarks (synthetic data, reproducible)");
+        System.out.println(
+                "                     e.g. jmh -f 1 -wi 2 -i 3 -rf json -rff jmh-results.json");
         System.out.println();
         System.out.println("HTTP load testing:");
         System.out.println("  Use JMeter test plans in src/test/jmeter/ (see README.md)");
