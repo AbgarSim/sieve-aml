@@ -26,8 +26,10 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -91,10 +93,7 @@ public final class LvFiuProvider extends AbstractListProvider {
                             + page.statusCode()
                             + "]");
         }
-        String cookies =
-                page.headers().allValues("Set-Cookie").stream()
-                        .map(c -> c.split(";", 2)[0])
-                        .collect(Collectors.joining("; "));
+        String cookies = cookieHeader(page.headers().allValues("Set-Cookie"));
 
         String form = "csrf=" + URLEncoder.encode(csrf, StandardCharsets.UTF_8) + "&fileType=xml";
         builder.uri(sourceUri().resolve(DOWNLOAD_PATH))
@@ -104,6 +103,22 @@ public final class LvFiuProvider extends AbstractListProvider {
             builder.header("Cookie", cookies);
         }
         return builder.build();
+    }
+
+    /**
+     * Builds a {@code Cookie} header from {@code Set-Cookie} values. The page regenerates its
+     * session and sets the same cookie twice; only the last value is valid, as in a browser.
+     */
+    static String cookieHeader(List<String> setCookies) {
+        Map<String, String> cookies = new LinkedHashMap<>();
+        for (String setCookie : setCookies) {
+            String pair = setCookie.split(";", 2)[0].strip();
+            int eq = pair.indexOf('=');
+            if (eq > 0) cookies.put(pair.substring(0, eq), pair.substring(eq + 1));
+        }
+        return cookies.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining("; "));
     }
 
     static String csrfToken(String html) {
