@@ -26,8 +26,8 @@ import javax.xml.stream.XMLStreamReader;
 /**
  * Fetches and parses the Latvia FIU (Finanšu izlūkošanas dienests) national sanctions list.
  *
- * <p>Published by the Latvian Financial Intelligence Unit as XML. Contains national
- * sanctions designations expanding on EU regulations. Typically contains ~200 entities.
+ * <p>Published by the Latvian Financial Intelligence Unit as XML. Contains national sanctions
+ * designations expanding on EU regulations. Typically contains ~200 entities.
  *
  * @see <a href="https://sankcijas.fid.gov.lv">Latvia FIU Sanctions</a>
  */
@@ -45,8 +45,7 @@ public final class LvFiuProvider extends AbstractListProvider {
     }
 
     public LvFiuProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.LV_FIU, sourceUri, "application/xml", httpClient,
-                Duration.ofSeconds(120));
+        super(ListSource.LV_FIU, sourceUri, "application/xml", httpClient, Duration.ofSeconds(120));
     }
 
     @Override
@@ -58,8 +57,8 @@ public final class LvFiuProvider extends AbstractListProvider {
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(responseBody)) {
-            XMLStreamReader reader = factory.createXMLStreamReader(bais,
-                    StandardCharsets.UTF_8.name());
+            XMLStreamReader reader =
+                    factory.createXMLStreamReader(bais, StandardCharsets.UTF_8.name());
 
             while (reader.hasNext()) {
                 int event = reader.next();
@@ -114,8 +113,7 @@ public final class LvFiuProvider extends AbstractListProvider {
                 String elem = reader.getLocalName();
                 switch (elem) {
                     case "Id" -> {
-                        if (!inName && !inBirth && !inCitizen && !inAlias)
-                            id = readText(reader);
+                        if (!inName && !inBirth && !inCitizen && !inAlias) id = readText(reader);
                     }
                     case "Type" -> type = readText(reader);
                     case "Name" -> inName = true;
@@ -168,31 +166,58 @@ public final class LvFiuProvider extends AbstractListProvider {
                     case "Program" -> program = readText(reader);
                     case "Remark" -> reason = readText(reader);
                     case "Link" -> sourceUrl = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
                 String elem = reader.getLocalName();
                 switch (elem) {
                     case "Entity" -> {
                         // End of this entity
-                        return buildEntity(id, type, wholeName, firstName, middleName,
-                                lastName, birthDate, birthCountry, birthCountryCode,
-                                nationality, listedOn, program, reason, aliases);
+                        return buildEntity(
+                                id,
+                                type,
+                                wholeName,
+                                firstName,
+                                middleName,
+                                lastName,
+                                birthDate,
+                                birthCountry,
+                                birthCountryCode,
+                                nationality,
+                                listedOn,
+                                program,
+                                reason,
+                                aliases);
                     }
                     case "Name" -> inName = false;
                     case "Birth" -> inBirth = false;
                     case "Citizen" -> inCitizen = false;
                     case "Alias" -> {
                         inAlias = false;
-                        String aliasFullName = buildFullName(aliasWholeName,
-                                aliasFirstName, aliasMiddleName, aliasLastName);
+                        String aliasFullName =
+                                buildFullName(
+                                        aliasWholeName,
+                                        aliasFirstName,
+                                        aliasMiddleName,
+                                        aliasLastName);
                         if (aliasFullName != null && !aliasFullName.isBlank()) {
-                            aliases.add(new NameInfo(
-                                    aliasFullName, aliasFirstName, aliasLastName,
-                                    null, null, NameType.AKA, null, null));
+                            aliases.add(
+                                    new NameInfo(
+                                            aliasFullName,
+                                            aliasFirstName,
+                                            aliasLastName,
+                                            null,
+                                            null,
+                                            NameType.AKA,
+                                            null,
+                                            null));
                         }
                     }
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             }
         }
@@ -200,11 +225,20 @@ public final class LvFiuProvider extends AbstractListProvider {
     }
 
     private SanctionedEntity buildEntity(
-            String id, String type, String wholeName, String firstName,
-            String middleName, String lastName, String birthDate,
-            String birthCountry, String birthCountryCode,
-            String nationality, String listedOn, String program,
-            String reason, List<NameInfo> aliases) {
+            String id,
+            String type,
+            String wholeName,
+            String firstName,
+            String middleName,
+            String lastName,
+            String birthDate,
+            String birthCountry,
+            String birthCountryCode,
+            String nationality,
+            String listedOn,
+            String program,
+            String reason,
+            List<NameInfo> aliases) {
 
         // fp = natural person, jp = legal person
         boolean isPerson = type != null && type.equalsIgnoreCase("fp");
@@ -213,8 +247,9 @@ public final class LvFiuProvider extends AbstractListProvider {
         String fullName = buildFullName(wholeName, firstName, middleName, lastName);
         if (fullName == null || fullName.isBlank()) return null;
 
-        NameInfo primaryName = new NameInfo(
-                fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
 
         List<LocalDate> datesOfBirth = new ArrayList<>();
         if (birthDate != null && !birthDate.isBlank()) {
@@ -234,8 +269,9 @@ public final class LvFiuProvider extends AbstractListProvider {
         if (program != null && !program.isBlank()) {
             programs.add(new SanctionsProgram(program.strip(), program.strip(), ListSource.LV_FIU));
         } else {
-            programs.add(new SanctionsProgram("LV FIU", "Latvia FIU National Sanctions",
-                    ListSource.LV_FIU));
+            programs.add(
+                    new SanctionsProgram(
+                            "LV FIU", "Latvia FIU National Sanctions", ListSource.LV_FIU));
         }
 
         Instant listedDate = null;
@@ -250,14 +286,25 @@ public final class LvFiuProvider extends AbstractListProvider {
         String prefix = isPerson ? "lv-person-" : "lv-org-";
 
         return new SanctionedEntity(
-                prefix + entityId, entityType, ListSource.LV_FIU,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, placesOfBirth,
-                reason, programs, listedDate, Instant.now());
+                prefix + entityId,
+                entityType,
+                ListSource.LV_FIU,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                placesOfBirth,
+                reason,
+                programs,
+                listedDate,
+                Instant.now());
     }
 
-    private static String buildFullName(String wholeName, String firstName,
-            String middleName, String lastName) {
+    private static String buildFullName(
+            String wholeName, String firstName, String middleName, String lastName) {
         if (wholeName != null && !wholeName.isBlank()) return wholeName.strip();
         StringBuilder sb = new StringBuilder();
         if (firstName != null && !firstName.isBlank()) sb.append(firstName.strip());
@@ -290,19 +337,26 @@ public final class LvFiuProvider extends AbstractListProvider {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
         // Try ISO format
-        try { return LocalDate.parse(cleaned); }
-        catch (DateTimeParseException e) { /* try next */ }
-        // Try dd.MM.yyyy. (Latvian format with trailing dot)
-        String withoutTrailingDot = cleaned.endsWith(".")
-                ? cleaned.substring(0, cleaned.length() - 1) : cleaned;
         try {
-            return LocalDate.parse(withoutTrailingDot,
-                    java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-        } catch (DateTimeParseException e) { /* try next */ }
+            return LocalDate.parse(cleaned);
+        } catch (DateTimeParseException e) {
+            /* try next */
+        }
+        // Try dd.MM.yyyy. (Latvian format with trailing dot)
+        String withoutTrailingDot =
+                cleaned.endsWith(".") ? cleaned.substring(0, cleaned.length() - 1) : cleaned;
+        try {
+            return LocalDate.parse(
+                    withoutTrailingDot, java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        } catch (DateTimeParseException e) {
+            /* try next */
+        }
         // Try dd/MM/yy
         try {
-            return LocalDate.parse(cleaned,
-                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yy"));
-        } catch (DateTimeParseException e) { return null; }
+            return LocalDate.parse(
+                    cleaned, java.time.format.DateTimeFormatter.ofPattern("dd/MM/yy"));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 }

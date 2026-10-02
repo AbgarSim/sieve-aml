@@ -20,20 +20,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.poi.util.IOUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.util.IOUtils;
 
 /**
  * Fetches and parses the New Zealand Russia Sanctions Register.
  *
- * <p>Published as XLSX by the New Zealand Ministry of Foreign Affairs and Trade. Separate from
- * New Zealand's terrorism list. Typically contains ~1,853 entities.
+ * <p>Published as XLSX by the New Zealand Ministry of Foreign Affairs and Trade. Separate from New
+ * Zealand's terrorism list. Typically contains ~1,853 entities.
  *
- * @see <a href="https://www.mfat.govt.nz/en/countries-and-regions/europe/ukraine/russian-invasion-of-ukraine/sanctions/">
+ * @see <a
+ *     href="https://www.mfat.govt.nz/en/countries-and-regions/europe/ukraine/russian-invasion-of-ukraine/sanctions/">
  *     NZ Russia Sanctions Register</a>
  */
 public final class NzRussiaProvider extends AbstractListProvider {
@@ -44,19 +45,26 @@ public final class NzRussiaProvider extends AbstractListProvider {
             DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public NzRussiaProvider() {
-        super(ListSource.NZ_RUSSIA, URI.create(DEFAULT_URL),
+        super(
+                ListSource.NZ_RUSSIA,
+                URI.create(DEFAULT_URL),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     public NzRussiaProvider(URI sourceUri) {
-        super(ListSource.NZ_RUSSIA, sourceUri,
+        super(
+                ListSource.NZ_RUSSIA,
+                sourceUri,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     public NzRussiaProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.NZ_RUSSIA, sourceUri,
+        super(
+                ListSource.NZ_RUSSIA,
+                sourceUri,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                httpClient, Duration.ofSeconds(120));
+                httpClient,
+                Duration.ofSeconds(120));
     }
 
     @Override
@@ -91,8 +99,10 @@ public final class NzRussiaProvider extends AbstractListProvider {
                             SanctionedEntity entity = parseRow(row, colIndex, entities.size());
                             if (entity != null) entities.add(entity);
                         } catch (Exception e) {
-                            log.debug("Skipping malformed row {} in NZ Russia XLSX: {}",
-                                    r, e.getMessage());
+                            log.debug(
+                                    "Skipping malformed row {} in NZ Russia XLSX: {}",
+                                    r,
+                                    e.getMessage());
                         }
                     }
                 }
@@ -152,8 +162,9 @@ public final class NzRussiaProvider extends AbstractListProvider {
         String uniqueId = cellVal(row, colIndex, "unique identifier");
         if (uniqueId == null) uniqueId = String.valueOf(idx);
 
-        NameInfo primaryName = new NameInfo(
-                fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
         String aliasStr = cellVal(row, colIndex, "alias/alternate spellings");
@@ -161,8 +172,9 @@ public final class NzRussiaProvider extends AbstractListProvider {
             for (String a : aliasStr.split("[;,]")) {
                 String trimmed = a.strip();
                 if (!trimmed.isEmpty() && !trimmed.equalsIgnoreCase(fullName)) {
-                    aliases.add(new NameInfo(
-                            trimmed, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(
+                            new NameInfo(
+                                    trimmed, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
@@ -184,14 +196,27 @@ public final class NzRussiaProvider extends AbstractListProvider {
         String pob = cellVal(row, colIndex, "place of birth");
         if (pob != null && !pob.isBlank()) placesOfBirth.add(pob.strip());
 
-        List<SanctionsProgram> programs = List.of(
-                new SanctionsProgram("NZ-RSA2022", "Russia Sanctions", ListSource.NZ_RUSSIA));
+        List<SanctionsProgram> programs =
+                List.of(
+                        new SanctionsProgram(
+                                "NZ-RSA2022", "Russia Sanctions", ListSource.NZ_RUSSIA));
 
         return new SanctionedEntity(
-                "nz-" + uniqueId, entityType, ListSource.NZ_RUSSIA,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, placesOfBirth,
-                null, programs, null, Instant.now());
+                "nz-" + uniqueId,
+                entityType,
+                ListSource.NZ_RUSSIA,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                placesOfBirth,
+                null,
+                programs,
+                null,
+                Instant.now());
     }
 
     private static String cellVal(Row row, Map<String, Integer> colIndex, String key) {
@@ -216,10 +241,14 @@ public final class NzRussiaProvider extends AbstractListProvider {
 
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
-        try { return LocalDate.parse(dateStr.strip()); }
-        catch (DateTimeParseException e) {
-            try { return LocalDate.parse(dateStr.strip(), NZ_DATE_FORMAT); }
-            catch (DateTimeParseException e2) { return null; }
+        try {
+            return LocalDate.parse(dateStr.strip());
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDate.parse(dateStr.strip(), NZ_DATE_FORMAT);
+            } catch (DateTimeParseException e2) {
+                return null;
+            }
         }
     }
 }

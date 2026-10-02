@@ -44,9 +44,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Fetches and parses Israeli WMD and Terrorism sanctions lists.
  *
- * <p>Downloads two XLSX files (organizations and individuals) from the Israeli NBCTF site.
- * Uses Playwright headless browser to bypass Incapsula WAF protection.
- * Typically contains ~1,200 entities combined.
+ * <p>Downloads two XLSX files (organizations and individuals) from the Israeli NBCTF site. Uses
+ * Playwright headless browser to bypass Incapsula WAF protection. Typically contains ~1,200
+ * entities combined.
  *
  * @see <a href="https://nbctf.mod.gov.il/en">Israel NBCTF</a>
  */
@@ -68,15 +68,20 @@ public final class IlWmdTerrorProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public IlWmdTerrorProvider() {
-        this.currentMetadata = new ListMetadata(
-                ListSource.IL_WMD_TERROR, null, null, null, URI.create(ORG_URL), 0);
+        this.currentMetadata =
+                new ListMetadata(
+                        ListSource.IL_WMD_TERROR, null, null, null, URI.create(ORG_URL), 0);
     }
 
     @Override
-    public ListSource source() { return ListSource.IL_WMD_TERROR; }
+    public ListSource source() {
+        return ListSource.IL_WMD_TERROR;
+    }
 
     @Override
-    public ListMetadata metadata() { return currentMetadata; }
+    public ListMetadata metadata() {
+        return currentMetadata;
+    }
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
@@ -84,8 +89,8 @@ public final class IlWmdTerrorProvider implements ListProvider {
         Instant start = Instant.now();
 
         try (Playwright pw = Playwright.create();
-             Browser browser = pw.chromium().launch(
-                     new BrowserType.LaunchOptions().setHeadless(true))) {
+                Browser browser =
+                        pw.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
 
             // First visit the main NBCTF page to pass Incapsula JS challenge
             Page page = browser.newPage();
@@ -106,13 +111,19 @@ public final class IlWmdTerrorProvider implements ListProvider {
             log.info("IL WMD/Terror: downloaded individuals XLSX [bytes={}]", peopleData.length);
             entities.addAll(parseIndividuals(peopleData));
 
-            String hash = computeSha256(
-                    (orgData.length + ":" + peopleData.length).getBytes());
-            currentMetadata = new ListMetadata(
-                    ListSource.IL_WMD_TERROR, Instant.now(), null, hash,
-                    URI.create(ORG_URL), entities.size());
-            log.info("IL WMD/Terror ingestion complete [entities={}, duration={}ms]",
-                    entities.size(), Duration.between(start, Instant.now()).toMillis());
+            String hash = computeSha256((orgData.length + ":" + peopleData.length).getBytes());
+            currentMetadata =
+                    new ListMetadata(
+                            ListSource.IL_WMD_TERROR,
+                            Instant.now(),
+                            null,
+                            hash,
+                            URI.create(ORG_URL),
+                            entities.size());
+            log.info(
+                    "IL WMD/Terror ingestion complete [entities={}, duration={}ms]",
+                    entities.size(),
+                    Duration.between(start, Instant.now()).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -120,19 +131,23 @@ public final class IlWmdTerrorProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Error during IL WMD/Terror ingestion: " + e.getMessage(),
-                    ListSource.IL_WMD_TERROR, e);
+                    ListSource.IL_WMD_TERROR,
+                    e);
         }
     }
 
     @Override
-    public boolean hasUpdates(ListMetadata previousMetadata) { return true; }
+    public boolean hasUpdates(ListMetadata previousMetadata) {
+        return true;
+    }
 
     private byte[] downloadFile(Page page, String url, String label) throws ListIngestionException {
         try {
             // Use the existing page session (with Incapsula cookies) to trigger download
-            Download download = page.waitForDownload(
-                    new Page.WaitForDownloadOptions().setTimeout(60000),
-                    () -> page.evaluate("url => { location.href = url; }", url));
+            Download download =
+                    page.waitForDownload(
+                            new Page.WaitForDownloadOptions().setTimeout(60000),
+                            () -> page.evaluate("url => { location.href = url; }", url));
 
             Path tempFile = Files.createTempFile("il-wmd-", ".xlsx");
             try {
@@ -140,8 +155,11 @@ public final class IlWmdTerrorProvider implements ListProvider {
                 byte[] data = Files.readAllBytes(tempFile);
                 if (data.length < 500) {
                     throw new ListIngestionException(
-                            "IL WMD/Terror download too small for " + label
-                                    + " (" + data.length + " bytes, likely blocked)",
+                            "IL WMD/Terror download too small for "
+                                    + label
+                                    + " ("
+                                    + data.length
+                                    + " bytes, likely blocked)",
                             ListSource.IL_WMD_TERROR);
                 }
                 return data;
@@ -153,14 +171,15 @@ public final class IlWmdTerrorProvider implements ListProvider {
         } catch (IOException e) {
             throw new ListIngestionException(
                     "IO error downloading " + label + ": " + e.getMessage(),
-                    ListSource.IL_WMD_TERROR, e);
+                    ListSource.IL_WMD_TERROR,
+                    e);
         }
     }
 
     private List<SanctionedEntity> parseOrganizations(byte[] data) throws ListIngestionException {
         List<SanctionedEntity> entities = new ArrayList<>();
         try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-             Workbook workbook = WorkbookFactory.create(bais)) {
+                Workbook workbook = WorkbookFactory.create(bais)) {
 
             for (Sheet sheet : workbook) {
                 Map<String, Integer> colIndex = findHeaders(sheet, 1);
@@ -180,7 +199,8 @@ public final class IlWmdTerrorProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Failed to parse IL organizations XLSX: " + e.getMessage(),
-                    ListSource.IL_WMD_TERROR, e);
+                    ListSource.IL_WMD_TERROR,
+                    e);
         }
         log.info("IL WMD/Terror: parsed {} organizations", entities.size());
         return entities;
@@ -189,7 +209,7 @@ public final class IlWmdTerrorProvider implements ListProvider {
     private List<SanctionedEntity> parseIndividuals(byte[] data) throws ListIngestionException {
         List<SanctionedEntity> entities = new ArrayList<>();
         try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-             Workbook workbook = WorkbookFactory.create(bais)) {
+                Workbook workbook = WorkbookFactory.create(bais)) {
 
             for (Sheet sheet : workbook) {
                 Map<String, Integer> colIndex = findHeaders(sheet, 1);
@@ -209,7 +229,8 @@ public final class IlWmdTerrorProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Failed to parse IL individuals XLSX: " + e.getMessage(),
-                    ListSource.IL_WMD_TERROR, e);
+                    ListSource.IL_WMD_TERROR,
+                    e);
         }
         log.info("IL WMD/Terror: parsed {} individuals", entities.size());
         return entities;
@@ -237,8 +258,8 @@ public final class IlWmdTerrorProvider implements ListProvider {
         String name = nameEn != null ? nameEn : nameHe;
         if (name == null || name.isBlank()) return null;
 
-        NameInfo primaryName = new NameInfo(
-                name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
         if (nameHe != null && !nameHe.equals(name)) {
@@ -249,15 +270,28 @@ public final class IlWmdTerrorProvider implements ListProvider {
 
         List<SanctionsProgram> programs = new ArrayList<>();
         String designation = cellVal(row, colIndex, "designation_type");
-        programs.add(new SanctionsProgram(
-                designation != null ? designation : "IL Terror Designation",
-                null, ListSource.IL_WMD_TERROR));
+        programs.add(
+                new SanctionsProgram(
+                        designation != null ? designation : "IL Terror Designation",
+                        null,
+                        ListSource.IL_WMD_TERROR));
 
         return new SanctionedEntity(
-                "il-org-" + id, EntityType.ENTITY, ListSource.IL_WMD_TERROR,
-                primaryName, aliases, List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(),
-                null, programs, null, Instant.now());
+                "il-org-" + id,
+                EntityType.ENTITY,
+                ListSource.IL_WMD_TERROR,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                programs,
+                null,
+                Instant.now());
     }
 
     private SanctionedEntity parsePersonRow(Row row, Map<String, Integer> colIndex) {
@@ -274,8 +308,8 @@ public final class IlWmdTerrorProvider implements ListProvider {
         // Clean numbered names like "1: IBRAHIM 2: ALI"
         name = name.replaceAll("\\b\\d+\\s*:\\s*", "").strip().replaceAll("\\s+", " ");
 
-        NameInfo primaryName = new NameInfo(
-                name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
         if (nameHe != null && !nameHe.equals(name)) {
@@ -300,15 +334,28 @@ public final class IlWmdTerrorProvider implements ListProvider {
 
         List<SanctionsProgram> programs = new ArrayList<>();
         String designation = cellVal(row, colIndex, "designation");
-        programs.add(new SanctionsProgram(
-                designation != null ? designation : "IL Terror Designation",
-                null, ListSource.IL_WMD_TERROR));
+        programs.add(
+                new SanctionsProgram(
+                        designation != null ? designation : "IL Terror Designation",
+                        null,
+                        ListSource.IL_WMD_TERROR));
 
         return new SanctionedEntity(
-                "il-ind-" + id, EntityType.INDIVIDUAL, ListSource.IL_WMD_TERROR,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, List.of(),
-                null, programs, null, Instant.now());
+                "il-ind-" + id,
+                EntityType.INDIVIDUAL,
+                ListSource.IL_WMD_TERROR,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                List.of(),
+                null,
+                programs,
+                null,
+                Instant.now());
     }
 
     private static String cellVal(Row row, Map<String, Integer> colIndex, String key) {
@@ -338,8 +385,7 @@ public final class IlWmdTerrorProvider implements ListProvider {
 
     /** Slugify header: lowercase, replace non-alphanumeric with _, strip edges. */
     private static String slugify(String header) {
-        return header
-                .replace("(DD/MM/YYYY)", "")
+        return header.replace("(DD/MM/YYYY)", "")
                 .toLowerCase()
                 .replaceAll("[^a-z0-9]+", "_")
                 .replaceAll("^_|_$", "");
@@ -358,10 +404,14 @@ public final class IlWmdTerrorProvider implements ListProvider {
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
-        try { return LocalDate.parse(cleaned, IL_DATE_FORMAT); }
-        catch (DateTimeParseException e) {
-            try { return LocalDate.parse(cleaned); }
-            catch (DateTimeParseException e2) { return null; }
+        try {
+            return LocalDate.parse(cleaned, IL_DATE_FORMAT);
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDate.parse(cleaned);
+            } catch (DateTimeParseException e2) {
+                return null;
+            }
         }
     }
 

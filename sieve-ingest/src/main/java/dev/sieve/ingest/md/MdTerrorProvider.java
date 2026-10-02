@@ -24,18 +24,18 @@ import java.util.regex.Pattern;
 /**
  * Fetches and parses the Moldovan national terrorism sanctions list.
  *
- * <p>Published by the Moldova Intelligence and Security Service (SIS) as an HTML table.
- * Columns: name, date of birth, terrorist sanctions, proliferation sanctions.
- * Typically contains ~700+ entities.
+ * <p>Published by the Moldova Intelligence and Security Service (SIS) as an HTML table. Columns:
+ * name, date of birth, terrorist sanctions, proliferation sanctions. Typically contains ~700+
+ * entities.
  *
  * @see <a href="https://antiteror.sis.md/lista-terorista-xls">Moldova SIS Terror List</a>
  */
 public final class MdTerrorProvider extends AbstractListProvider {
 
-    private static final String DEFAULT_URL =
-            "https://antiteror.sis.md/lista-terorista-xls";
+    private static final String DEFAULT_URL = "https://antiteror.sis.md/lista-terorista-xls";
     private static final Pattern ROW_PATTERN =
-            Pattern.compile("<tr[^>]*>\\s*<td>(.*?)</td>\\s*<td>(.*?)</td>\\s*<td>(.*?)</td>\\s*<td>(.*?)</td>",
+            Pattern.compile(
+                    "<tr[^>]*>\\s*<td>(.*?)</td>\\s*<td>(.*?)</td>\\s*<td>(.*?)</td>\\s*<td>(.*?)</td>",
                     Pattern.DOTALL);
     private static final Pattern HTML_TAG = Pattern.compile("<[^>]+>");
     private static final DateTimeFormatter MD_DATE_FORMAT =
@@ -50,8 +50,7 @@ public final class MdTerrorProvider extends AbstractListProvider {
     }
 
     public MdTerrorProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.MD_TERROR, sourceUri, "*/*", httpClient,
-                Duration.ofSeconds(120));
+        super(ListSource.MD_TERROR, sourceUri, "*/*", httpClient, Duration.ofSeconds(120));
     }
 
     @Override
@@ -74,9 +73,15 @@ public final class MdTerrorProvider extends AbstractListProvider {
             String name;
             List<NameInfo> aliases = new ArrayList<>();
             String[] parts = rawName.split("(?i)\\balias\\b");
-            name = parts[0].strip().replaceAll("^[\\]\\), ]+", "").replaceAll("[\\[\\(\\., ]+$", "");
+            name =
+                    parts[0].strip()
+                            .replaceAll("^[\\]\\), ]+", "")
+                            .replaceAll("[\\[\\(\\., ]+$", "");
             for (int i = 1; i < parts.length; i++) {
-                String a = parts[i].strip().replaceAll("^[\\]\\), ]+", "").replaceAll("[\\[\\(\\., ]+$", "");
+                String a =
+                        parts[i].strip()
+                                .replaceAll("^[\\]\\), ]+", "")
+                                .replaceAll("[\\[\\(\\., ]+$", "");
                 if (!a.isEmpty() && !a.equals(name)) {
                     aliases.add(new NameInfo(a, null, null, null, null, NameType.AKA, null, null));
                 }
@@ -84,8 +89,8 @@ public final class MdTerrorProvider extends AbstractListProvider {
 
             if (name.isEmpty()) continue;
 
-            NameInfo primaryName = new NameInfo(
-                    name, null, null, null, null, NameType.PRIMARY, null, null);
+            NameInfo primaryName =
+                    new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
 
             List<LocalDate> datesOfBirth = new ArrayList<>();
             if (!rawDob.isEmpty()) {
@@ -98,32 +103,49 @@ public final class MdTerrorProvider extends AbstractListProvider {
 
             List<SanctionsProgram> programs = new ArrayList<>();
             if (!terrorProgram.isEmpty()) {
-                programs.add(new SanctionsProgram(
-                        terrorProgram, null, ListSource.MD_TERROR));
+                programs.add(new SanctionsProgram(terrorProgram, null, ListSource.MD_TERROR));
             }
             if (!prolifProgram.isEmpty()) {
-                programs.add(new SanctionsProgram(
-                        prolifProgram, null, ListSource.MD_TERROR));
+                programs.add(new SanctionsProgram(prolifProgram, null, ListSource.MD_TERROR));
             }
             if (programs.isEmpty()) {
-                programs.add(new SanctionsProgram(
-                        "MD Terror", "Moldova Terrorism", ListSource.MD_TERROR));
+                programs.add(
+                        new SanctionsProgram(
+                                "MD Terror", "Moldova Terrorism", ListSource.MD_TERROR));
             }
 
-            entities.add(new SanctionedEntity(
-                    "md-" + idx, EntityType.INDIVIDUAL, ListSource.MD_TERROR,
-                    primaryName, aliases, List.of(), List.of(),
-                    List.of(), List.of(), datesOfBirth, List.of(),
-                    null, programs, null, Instant.now()));
+            entities.add(
+                    new SanctionedEntity(
+                            "md-" + idx,
+                            EntityType.INDIVIDUAL,
+                            ListSource.MD_TERROR,
+                            primaryName,
+                            aliases,
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            datesOfBirth,
+                            List.of(),
+                            null,
+                            programs,
+                            null,
+                            Instant.now()));
             idx++;
         }
         return entities;
     }
 
     private static String stripHtml(String s) {
-        return HTML_TAG.matcher(s).replaceAll("").replace("&amp;", "&")
-                .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
-                .replace("&#039;", "'").replace("&nbsp;", " ").strip();
+        return HTML_TAG.matcher(s)
+                .replaceAll("")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#039;", "'")
+                .replace("&nbsp;", " ")
+                .strip();
     }
 
     private static LocalDate parseDateSafe(String dateStr) {

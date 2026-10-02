@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-set>
+	<record>
+		<Country-Pays>Belarus / Bélarus</Country-Pays>
+		<LastName-NomDeFamille>Lukashenko</LastName-NomDeFamille>
+		<GivenName-Prenom>Aleksandr Grigoryevich</GivenName-Prenom>
+		<DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire>1954-08-30</DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire>
+		<Schedule-Annexe>1, Part 1</Schedule-Annexe>
+		<Item-NumeroDarticle>8</Item-NumeroDarticle>
+		<DateOfListing-DateDinscription>2020-09-28</DateOfListing-DateDinscription>
+	</record>
+	<record>
+		<Country-Pays>Belarus / Bélarus</Country-Pays>
+		<LastName-NomDeFamille>Atabekov</LastName-NomDeFamille>
+		<GivenName-Prenom>Khazalbek Bakhtibekovich</GivenName-Prenom>
+		<DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire>1972</DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire>
+		<Aliases-Alias>Khazalbek Atabekov; Hazalbek Atabekau</Aliases-Alias>
+		<TitleOrShipType-TitreOuTypeDeNavire>Commander</TitleOrShipType-TitreOuTypeDeNavire>
+		<Schedule-Annexe>1, Part 1</Schedule-Annexe>
+		<Item-NumeroDarticle>1</Item-NumeroDarticle>
+		<DateOfListing-DateDinscription>2020-09-28</DateOfListing-DateDinscription>
+	</record>
+	<record>
+		<Country-Pays>Russia / Russie</Country-Pays>
+		<EntityOrShip-EntiteOuNavire>Example Defence Plant JSC</EntityOrShip-EntiteOuNavire>
+		<Schedule-Annexe>1, Part 2</Schedule-Annexe>
+		<Item-NumeroDarticle>1</Item-NumeroDarticle>
+		<DateOfListing-DateDinscription>2022-02-24</DateOfListing-DateDinscription>
+	</record>
+	<record>
+		<Country-Pays>Russia / Russie</Country-Pays>
+		<EntityOrShip-EntiteOuNavire>EXAMPLE STAR</EntityOrShip-EntiteOuNavire>
+		<TitleOrShipType-TitreOuTypeDeNavire>Crude oil tanker</TitleOrShipType-TitreOuTypeDeNavire>
+		<ShipIMONumber-NumeroOMIDuNavire>9123456</ShipIMONumber-NumeroOMIDuNavire>
+		<DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire>2004</DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire>
+		<Schedule-Annexe>7</Schedule-Annexe>
+		<Item-NumeroDarticle>12</Item-NumeroDarticle>
+		<DateOfListing-DateDinscription>2024-05-10</DateOfListing-DateDinscription>
+	</record>
+	<record>
+		<Country-Pays>Russia / Russie</Country-Pays>
+		<Schedule-Annexe>7</Schedule-Annexe>
+		<Item-NumeroDarticle>13</Item-NumeroDarticle>
+	</record>
+</data-set>

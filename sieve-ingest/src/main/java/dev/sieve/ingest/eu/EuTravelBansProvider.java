@@ -27,8 +27,8 @@ import javax.xml.stream.XMLStreamReader;
 /**
  * Fetches and parses the EU Travel Bans list.
  *
- * <p>Complements the EU Financial Sanctions File (FSF). Published as XML. Typically contains
- * ~4,184 entities.
+ * <p>Complements the EU Financial Sanctions File (FSF). Published as XML. Typically contains ~4,184
+ * entities.
  *
  * @see <a href="https://webgate.ec.europa.eu/fsd/fsf">EU Financial Sanctions</a>
  */
@@ -46,7 +46,11 @@ public final class EuTravelBansProvider extends AbstractListProvider {
     }
 
     public EuTravelBansProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.EU_TRAVEL_BANS, sourceUri, "application/xml", httpClient,
+        super(
+                ListSource.EU_TRAVEL_BANS,
+                sourceUri,
+                "application/xml",
+                httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -74,17 +78,18 @@ public final class EuTravelBansProvider extends AbstractListProvider {
         } catch (XMLStreamException e) {
             throw new ListIngestionException(
                     "Failed to parse EU Travel Bans XML: " + e.getMessage(),
-                    ListSource.EU_TRAVEL_BANS, e);
+                    ListSource.EU_TRAVEL_BANS,
+                    e);
         } catch (Exception e) {
             throw new ListIngestionException(
                     "IO error reading EU Travel Bans XML: " + e.getMessage(),
-                    ListSource.EU_TRAVEL_BANS, e);
+                    ListSource.EU_TRAVEL_BANS,
+                    e);
         }
         return entities;
     }
 
-    private SanctionedEntity parseSanctionEntity(XMLStreamReader reader)
-            throws XMLStreamException {
+    private SanctionedEntity parseSanctionEntity(XMLStreamReader reader) throws XMLStreamException {
         String id = attrVal(reader, "logicalId");
         if (id == null) id = attrVal(reader, "euReferenceNumber");
         String fullName = null, givenName = null, familyName = null;
@@ -109,8 +114,16 @@ public final class EuTravelBansProvider extends AbstractListProvider {
                             givenName = fn;
                             familyName = ln;
                         } else if (wholeName != null && !wholeName.isBlank()) {
-                            aliases.add(new NameInfo(
-                                    wholeName, fn, ln, null, null, NameType.AKA, null, null));
+                            aliases.add(
+                                    new NameInfo(
+                                            wholeName,
+                                            fn,
+                                            ln,
+                                            null,
+                                            null,
+                                            NameType.AKA,
+                                            null,
+                                            null));
                         }
                         skipElement(reader);
                     }
@@ -134,8 +147,9 @@ public final class EuTravelBansProvider extends AbstractListProvider {
                     case "regulation" -> {
                         String prog = attrVal(reader, "programme");
                         if (prog != null && !prog.isBlank())
-                            programs.add(new SanctionsProgram(
-                                    prog.strip(), null, ListSource.EU_TRAVEL_BANS));
+                            programs.add(
+                                    new SanctionsProgram(
+                                            prog.strip(), null, ListSource.EU_TRAVEL_BANS));
                         skipElement(reader);
                     }
                     default -> skipElement(reader);
@@ -149,14 +163,26 @@ public final class EuTravelBansProvider extends AbstractListProvider {
         if (fullName == null) return null;
         if (id == null) id = String.valueOf(fullName.hashCode());
 
-        NameInfo primaryName = new NameInfo(
-                fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(
+                        fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
 
         return new SanctionedEntity(
-                "eu-tb-" + id, entityType, ListSource.EU_TRAVEL_BANS,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, placesOfBirth,
-                null, programs, null, Instant.now());
+                "eu-tb-" + id,
+                entityType,
+                ListSource.EU_TRAVEL_BANS,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                placesOfBirth,
+                null,
+                programs,
+                null,
+                Instant.now());
     }
 
     private static String attrVal(XMLStreamReader reader, String name) {
@@ -180,7 +206,10 @@ public final class EuTravelBansProvider extends AbstractListProvider {
 
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
-        try { return LocalDate.parse(dateStr.strip()); }
-        catch (DateTimeParseException e) { return null; }
+        try {
+            return LocalDate.parse(dateStr.strip());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 }

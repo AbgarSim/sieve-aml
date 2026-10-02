@@ -37,14 +37,14 @@ import org.slf4j.LoggerFactory;
  * Fetches and parses the South Africa FIC (Financial Intelligence Centre) targeted financial
  * sanctions list.
  *
- * <p>Published by the FIC as XML via a POST request. Covers UN Security Council sanctions
- * plus South African additions. Typically contains ~900 entities (persons and organizations).
+ * <p>Published by the FIC as XML via a POST request. Covers UN Security Council sanctions plus
+ * South African additions. Typically contains ~900 entities (persons and organizations).
  *
- * <p>Note: This provider uses HTTP POST (with {@code fileType=xml}) instead of GET,
- * so it does not extend {@link dev.sieve.ingest.AbstractListProvider}.
+ * <p>Note: This provider uses HTTP POST (with {@code fileType=xml}) instead of GET, so it does not
+ * extend {@link dev.sieve.ingest.AbstractListProvider}.
  *
- * @see <a href="https://www.fic.gov.za/International/sanctions/SitePages/Home.aspx">
- *     SA FIC Sanctions</a>
+ * @see <a href="https://www.fic.gov.za/International/sanctions/SitePages/Home.aspx">SA FIC
+ *     Sanctions</a>
  */
 public final class ZaFicProvider implements ListProvider {
 
@@ -59,7 +59,8 @@ public final class ZaFicProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public ZaFicProvider() {
-        this(URI.create(DEFAULT_URL),
+        this(
+                URI.create(DEFAULT_URL),
                 HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)));
     }
 
@@ -89,13 +90,14 @@ public final class ZaFicProvider implements ListProvider {
         Instant start = Instant.now();
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(sourceUri)
-                    .timeout(REQUEST_TIMEOUT)
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .header("User-Agent", "sieve-aml/1.0")
-                    .POST(HttpRequest.BodyPublishers.ofString("fileType=xml"))
-                    .build();
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(sourceUri)
+                            .timeout(REQUEST_TIMEOUT)
+                            .header("Content-Type", "application/x-www-form-urlencoded")
+                            .header("User-Agent", "sieve-aml/1.0")
+                            .POST(HttpRequest.BodyPublishers.ofString("fileType=xml"))
+                            .build();
 
             HttpResponse<byte[]> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -108,17 +110,22 @@ public final class ZaFicProvider implements ListProvider {
 
             byte[] body = response.body();
             String contentHash = computeSha256(body);
-            log.info("ZA FIC downloaded [bytes={}, hash={}]", body.length,
+            log.info(
+                    "ZA FIC downloaded [bytes={}, hash={}]",
+                    body.length,
                     contentHash.substring(0, 12) + "...");
 
             List<SanctionedEntity> entities = parseXml(body);
 
             Instant now = Instant.now();
-            currentMetadata = new ListMetadata(
-                    ListSource.ZA_FIC, now, null, contentHash, sourceUri, entities.size());
+            currentMetadata =
+                    new ListMetadata(
+                            ListSource.ZA_FIC, now, null, contentHash, sourceUri, entities.size());
 
-            log.info("ZA FIC ingestion complete [entities={}, duration={}ms]",
-                    entities.size(), Duration.between(start, now).toMillis());
+            log.info(
+                    "ZA FIC ingestion complete [entities={}, duration={}ms]",
+                    entities.size(),
+                    Duration.between(start, now).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -141,8 +148,8 @@ public final class ZaFicProvider implements ListProvider {
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(body)) {
-            XMLStreamReader reader = factory.createXMLStreamReader(bais,
-                    StandardCharsets.UTF_8.name());
+            XMLStreamReader reader =
+                    factory.createXMLStreamReader(bais, StandardCharsets.UTF_8.name());
 
             // The XML contains <Table> and <Table1> elements with row data
             while (reader.hasNext()) {
@@ -209,7 +216,9 @@ public final class ZaFicProvider implements ListProvider {
                     case "Comments" -> comments = readText(reader);
                     case "ReferenceNumber" -> referenceNumber = readText(reader);
                     case "ListedOn" -> listedOn = readText(reader);
-                    default -> { /* skip */ }
+                    default -> {
+                        /* skip */
+                    }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && tableName.equals(reader.getLocalName())) {
@@ -226,8 +235,8 @@ public final class ZaFicProvider implements ListProvider {
 
         EntityType entityType = isIndividual ? EntityType.INDIVIDUAL : EntityType.ENTITY;
 
-        NameInfo primaryName = new NameInfo(
-                name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName =
+                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
         String aliasStr = isIndividual ? alias : entityAlias;
@@ -235,8 +244,9 @@ public final class ZaFicProvider implements ListProvider {
             for (String a : aliasStr.split("[;,]")) {
                 String trimmed = a.strip();
                 if (!trimmed.isEmpty() && !trimmed.equals(name)) {
-                    aliases.add(new NameInfo(
-                            trimmed, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(
+                            new NameInfo(
+                                    trimmed, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
@@ -257,9 +267,12 @@ public final class ZaFicProvider implements ListProvider {
             placesOfBirth.add(birthPlace.strip());
         }
 
-        List<SanctionsProgram> programs = List.of(
-                new SanctionsProgram("ZA FIC TFS", "South Africa Targeted Financial Sanctions",
-                        ListSource.ZA_FIC));
+        List<SanctionsProgram> programs =
+                List.of(
+                        new SanctionsProgram(
+                                "ZA FIC TFS",
+                                "South Africa Targeted Financial Sanctions",
+                                ListSource.ZA_FIC));
 
         Instant listedDate = null;
         if (listedOn != null && !listedOn.isBlank()) {
@@ -272,10 +285,21 @@ public final class ZaFicProvider implements ListProvider {
         String entityId2 = id != null ? id : String.valueOf(name.hashCode());
 
         return new SanctionedEntity(
-                "za-" + entityId2, entityType, ListSource.ZA_FIC,
-                primaryName, aliases, List.of(), List.of(),
-                nationalities, List.of(), datesOfBirth, placesOfBirth,
-                comments, programs, listedDate, Instant.now());
+                "za-" + entityId2,
+                entityType,
+                ListSource.ZA_FIC,
+                primaryName,
+                aliases,
+                List.of(),
+                List.of(),
+                nationalities,
+                List.of(),
+                datesOfBirth,
+                placesOfBirth,
+                comments,
+                programs,
+                listedDate,
+                Instant.now());
     }
 
     private String readText(XMLStreamReader reader) throws XMLStreamException {
@@ -295,10 +319,16 @@ public final class ZaFicProvider implements ListProvider {
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
-        try { return LocalDate.parse(cleaned); }
-        catch (DateTimeParseException e) { /* try next */ }
-        try { return LocalDate.parse(cleaned, ZA_DATE_FORMAT); }
-        catch (DateTimeParseException e) { return null; }
+        try {
+            return LocalDate.parse(cleaned);
+        } catch (DateTimeParseException e) {
+            /* try next */
+        }
+        try {
+            return LocalDate.parse(cleaned, ZA_DATE_FORMAT);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     private static String computeSha256(byte[] data) {
