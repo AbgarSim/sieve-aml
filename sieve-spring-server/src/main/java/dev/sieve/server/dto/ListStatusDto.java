@@ -10,10 +10,13 @@ import java.time.Instant;
  * @param entityCount number of entities loaded from this source
  * @param lastFetched when the source was last successfully fetched
  * @param status current loading status
+ * @param error error of the most recent fetch, or {@code null} when it succeeded
  */
 @Schema(description = "Status of a sanctions list source")
 public record ListStatusDto(
         @Schema(description = "List source identifier", example = "OFAC_SDN") String source,
         @Schema(description = "Number of entities loaded", example = "12543") int entityCount,
         @Schema(description = "Last successful fetch timestamp") Instant lastFetched,
-        @Schema(description = "Current status", example = "LOADED") String status) {}
+        @Schema(description = "Current status: LOADED, EMPTY or FAILED", example = "LOADED")
+                String status,
+        @Schema(description = "Error of the most recent fetch, when it failed") String error) {}

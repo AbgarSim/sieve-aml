@@ -46,11 +46,19 @@ public final class ListHandler {
                 Collection<SanctionedEntity> entities = entityIndex.findBySource(source);
                 int count = entities.size();
 
-                Map<String, Object> status = new HashMap<>(4);
+                Map<String, Object> status = new HashMap<>(8);
                 status.put("source", source.name());
                 status.put("entityCount", count);
                 status.put("lastFetched", metadata != null ? metadata.lastFetched() : null);
-                status.put("status", count > 0 ? "LOADED" : "EMPTY");
+                status.put("sourceUri", metadata != null ? metadata.sourceUri() : null);
+                status.put("status", orchestrator.status(source, count));
+                orchestrator
+                        .lastResult(source)
+                        .ifPresent(
+                                result -> {
+                                    status.put("durationMs", result.duration().toMillis());
+                                    result.error().ifPresent(e -> status.put("error", e));
+                                });
                 statuses.add(status);
             }
 

@@ -9,6 +9,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -27,7 +28,8 @@ public final class IngestionOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(IngestionOrchestrator.class);
 
     private final List<ListProvider> providers;
-    private final Map<ListSource, ListMetadata> metadataCache = new EnumMap<>(ListSource.class);
+    private final Map<ListSource, ListMetadata> metadataCache = new ConcurrentHashMap<>();
+    private final Map<ListSource, ProviderResult> lastResults = new ConcurrentHashMap<>();
 
     /**
      * Creates an orchestrator with the given list of providers.
@@ -105,11 +107,15 @@ public final class IngestionOrchestrator {
                                     Duration providerDuration =
                                             Duration.between(providerStart, Instant.now());
 
-                                    results.put(
-                                            source,
+                                    ProviderResult success =
                                             ProviderResult.success(
-                                                    source, entities.size(), providerDuration));
-                                    metadataCache.put(source, provider.metadata());
+                                                    source, entities.size(), providerDuration);
+                                    results.put(source, success);
+                                    lastResults.put(source, success);
+                                    ListMetadata metadata = provider.metadata();
+                                    if (metadata != null) {
+                                        metadataCache.put(source, metadata);
+                                    }
                                     totalEntities.addAndGet(entities.size());
 
                                     log.info(
@@ -121,10 +127,15 @@ public final class IngestionOrchestrator {
                                 } catch (Exception e) {
                                     Duration providerDuration =
                                             Duration.between(providerStart, Instant.now());
-                                    results.put(
-                                            source,
+                                    ProviderResult failure =
                                             ProviderResult.failed(
-                                                    source, providerDuration, e.getMessage()));
+                                                    source,
+                                                    providerDuration,
+                                                    e.getMessage() != null
+                                                            ? e.getMessage()
+                                                            : e.getClass().getSimpleName());
+                                    results.put(source, failure);
+                                    lastResults.put(source, failure);
                                     log.error(
                                             "Provider failed [source={}, duration={}ms]",
                                             source,
@@ -164,5 +175,35 @@ public final class IngestionOrchestrator {
      */
     public ListMetadata getMetadata(ListSource source) {
         return metadataCache.get(source);
+    }
+
+    /**
+     * Returns the outcome of the most recent fetch attempt for a list.
+     *
+     * @param source the list
+     * @return the last success or failure, or empty if the list was never fetched
+     */
+    public Optional<ProviderResult> lastResult(ListSource source) {
+        return Optional.ofNullable(lastResults.get(source));
+    }
+
+    /**
+     * Returns the status of a list for status endpoints: {@code FAILED} when the most recent fetch
+     * failed (entities from an earlier load may still be served), otherwise {@code LOADED} or
+     * {@code EMPTY} by entity count.
+     *
+     * @param source the list
+     * @param entityCount entities of the list currently in the index
+     * @return {@code LOADED}, {@code EMPTY} or {@code FAILED}
+     */
+    public String status(ListSource source, int entityCount) {
+        boolean failed =
+                lastResult(source)
+                        .map(r -> r.status() == ProviderResult.Status.FAILED)
+                        .orElse(false);
+        if (failed) {
+            return "FAILED";
+        }
+        return entityCount > 0 ? "LOADED" : "EMPTY";
     }
 }

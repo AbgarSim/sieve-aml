@@ -79,6 +79,37 @@ class IngestionOrchestratorTest {
     }
 
     @Test
+    void shouldReportFailedStatusWhenLastFetchFailed() throws Exception {
+        ListProvider failingProvider = mock(ListProvider.class);
+        when(failingProvider.source()).thenReturn(ListSource.OFAC_SDN);
+        when(failingProvider.fetch())
+                .thenThrow(new ListIngestionException("Network error", ListSource.OFAC_SDN));
+        IngestionOrchestrator orchestrator = new IngestionOrchestrator(List.of(failingProvider));
+
+        assertThat(orchestrator.status(ListSource.OFAC_SDN, 0)).isEqualTo("EMPTY");
+        assertThat(orchestrator.lastResult(ListSource.OFAC_SDN)).isEmpty();
+
+        orchestrator.ingest(new InMemoryEntityIndex());
+
+        assertThat(orchestrator.status(ListSource.OFAC_SDN, 0)).isEqualTo("FAILED");
+        assertThat(orchestrator.status(ListSource.OFAC_SDN, 12)).isEqualTo("FAILED");
+        assertThat(orchestrator.lastResult(ListSource.OFAC_SDN))
+                .get()
+                .satisfies(r -> assertThat(r.error()).isPresent());
+    }
+
+    @Test
+    void shouldReportLoadedStatusWhenLastFetchSucceeded() {
+        ListProvider provider = mockProvider(ListSource.UN_CONSOLIDATED, 3);
+        IngestionOrchestrator orchestrator = new IngestionOrchestrator(List.of(provider));
+
+        orchestrator.ingest(new InMemoryEntityIndex());
+
+        assertThat(orchestrator.status(ListSource.UN_CONSOLIDATED, 3)).isEqualTo("LOADED");
+        assertThat(orchestrator.status(ListSource.UN_CONSOLIDATED, 0)).isEqualTo("EMPTY");
+    }
+
+    @Test
     void shouldThrowForEmptyProviders() {
         assertThatThrownBy(() -> new IngestionOrchestrator(List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
