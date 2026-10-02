@@ -32,17 +32,15 @@ jobs:
         run: |
           UA='Mozilla/5.0 (X11; Linux x86_64) sieve'
           B=https://sankcijas.fid.gov.lv
-          curl -sSL -A "$UA" "$B/lv/meklet-sankciju-sarakstos" -o s.html
-          echo '--- around data-list'
-          grep -n -B3 -A3 'data-list' s.html | head -60
-          grep -n -i -B2 -A2 'XML ZIP\|lejupiel' s.html | head -40
-          echo '--- inline scripts mentioning list/download'
-          python3 -c "import re;t=open('s.html',encoding='utf-8').read();[print('SCRIPT',m[:1500]) for m in re.findall(r'(?s)<script[^>]*>(.*?)</script>',t) if re.search(r'download|data-list|zip',m,re.I)]"
-          curl -sSL -A "$UA" "$B/assets/base_js.1768480214.js" -o base.js; ls -l base.js
-          grep -o -i '.\{200\}data-list.\{300\}\|.\{200\}download.\{200\}' base.js | head -10
-          for u in /lv/download/lv /download/lv /lv/sankciju-saraksts/download/lv /buj; do echo "== $u"; curl -sSI -A "$UA" "$B$u" | grep -iE '^(HTTP|content-type|location|content-disposition)'; done
-          echo '--- sanctions.csv head'
-          curl -sSL 'https://data.gov.lv/dati/dataset/526d69b8-4b81-49a9-94a4-9acf3d601f69/resource/fa10a73f-0a10-4ce7-b0f8-f9652d572a10/download/sanctions.csv' -o risk.csv; wc -l risk.csv; head -c 1500 risk.csv
+          curl -sSL -A "$UA" -c jar.txt "$B/lv/meklet-sankciju-sarakstos" -o s.html
+          sed -n '940,1010p' s.html
+          for u in /lejupieladet-sarakstu/lv /lejupieladet-sarakstu/lv/xml /lejupieladet-sarakstu/LV/xml /lejupieladet-sarakstu/lv?fileType=xml; do
+            echo "== GET $u"; curl -sSL -A "$UA" -b jar.txt -D h.txt -o f.bin "$B$u"; grep -iE '^(HTTP|content-type|content-disposition|location)' h.txt; ls -l f.bin; head -c 600 f.bin; echo
+          done
+          CSRF=$(grep -o 'name="csrf" value="[^"]*"' s.html | head -1 | sed 's/.*value="//; s/"$//')
+          echo "== POST form"; curl -sSL -A "$UA" -b jar.txt -D h.txt -o f.bin -X POST --data "csrf=$CSRF&fileType=xml&downloadLv=LV+saraksts" "$B/lv/meklet-sankciju-sarakstos"; grep -iE '^(HTTP|content-type|content-disposition|location)' h.txt; ls -l f.bin; head -c 600 f.bin; echo
+          echo '--- element histogram of LV xml'
+          for f in f.bin; do grep -o '<[A-Za-z_][A-Za-z0-9_:-]*' $f | sort | uniq -c | sort -rn | head -50; done
 
   snapshot:
     runs-on: ubuntu-latest
