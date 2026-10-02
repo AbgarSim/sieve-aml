@@ -24,6 +24,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  probe:
+    if: github.event.inputs.sources != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe sources
+        run: |
+          probe() {
+            echo "=================== $1"
+            curl -sSL -A 'Mozilla/5.0 (X11; Linux x86_64) sieve' -D h.txt -o b.bin --max-time 120 "$1"; echo "curl exit $?"
+            cat h.txt | grep -iE '^(HTTP|content-type|content-length|location|transfer-encoding)'
+            ls -l b.bin; file b.bin
+            head -c 2500 b.bin; echo
+            echo '--- element histogram'
+            grep -o '<[A-Za-z_][A-Za-z0-9_:-]*' b.bin | sort | uniq -c | sort -rn | head -60
+          }
+          probe 'https://www.international.gc.ca/world-monde/assets/office_docs/international_relations-relations_internationales/sanctions/sema-lmes.xml'
+          probe 'https://www.sesam.search.admin.ch/sesam-search-web/pages/downloadXmlGesamtliste.xhtml?lang=en&action=downloadXmlGesamtlisteAction'
+          probe 'https://sankcijas.fid.gov.lv/files/LV_national_v2.xml'
+          probe 'https://sankcijas.fid.gov.lv/'
+          echo '--- CA sample records'; curl -sSL 'https://www.international.gc.ca/world-monde/assets/office_docs/international_relations-relations_internationales/sanctions/sema-lmes.xml' | head -c 6000 | tail -c 3500
+
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 45
