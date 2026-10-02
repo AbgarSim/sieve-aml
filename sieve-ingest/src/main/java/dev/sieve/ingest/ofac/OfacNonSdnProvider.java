@@ -4,6 +4,7 @@ import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.Identifier;
+import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
@@ -21,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.stream.XMLInputFactory;
@@ -31,11 +33,10 @@ import javax.xml.stream.XMLStreamReader;
 /**
  * Fetches and parses the OFAC Consolidated non-SDN XML list.
  *
- * <p>Covers SSI, NS-CMIC, NS-MBS, CAPTA, and PLC lists. Uses the same XML schema as the SDN list.
- * Typically contains ~1,200 entities.
+ * <p>Covers SSI, NS-CMIC, NS-MBS, CAPTA, and PLC lists. Uses the same XML schema as the SDN
+ * list. Typically contains ~1,200 entities.
  *
- * @see <a
- *     href="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/CONS_PRIM.XML">
+ * @see <a href="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/CONS_PRIM.XML">
  *     OFAC Consolidated non-SDN XML</a>
  */
 public final class OfacNonSdnProvider extends AbstractListProvider {
@@ -54,11 +55,7 @@ public final class OfacNonSdnProvider extends AbstractListProvider {
     }
 
     public OfacNonSdnProvider(URI sourceUri, HttpClient httpClient) {
-        super(
-                ListSource.OFAC_NONSDN,
-                sourceUri,
-                "application/xml",
-                httpClient,
+        super(ListSource.OFAC_NONSDN, sourceUri, "application/xml", httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -88,13 +85,11 @@ public final class OfacNonSdnProvider extends AbstractListProvider {
         } catch (XMLStreamException e) {
             throw new ListIngestionException(
                     "Failed to parse OFAC non-SDN XML: " + e.getMessage(),
-                    ListSource.OFAC_NONSDN,
-                    e);
+                    ListSource.OFAC_NONSDN, e);
         } catch (Exception e) {
             throw new ListIngestionException(
                     "IO error reading OFAC non-SDN XML: " + e.getMessage(),
-                    ListSource.OFAC_NONSDN,
-                    e);
+                    ListSource.OFAC_NONSDN, e);
         }
         return entities;
     }
@@ -124,9 +119,7 @@ public final class OfacNonSdnProvider extends AbstractListProvider {
                     case "sdnType" -> sdnType = readText(reader);
                     case "remarks" -> remarks = readText(reader);
                     case "programList" -> programs = parseProgramList(reader);
-                    default -> {
-                        /* skip */
-                    }
+                    default -> { /* skip */ }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "sdnEntry".equals(reader.getLocalName())) {
@@ -138,33 +131,15 @@ public final class OfacNonSdnProvider extends AbstractListProvider {
 
         String fullName = firstName != null ? lastName + ", " + firstName : lastName;
         EntityType entityType = mapSdnType(sdnType);
-        NameInfo primaryName =
-                new NameInfo(
-                        fullName,
-                        firstName,
-                        lastName,
-                        null,
-                        null,
-                        NameType.PRIMARY,
-                        NameStrength.STRONG,
-                        ScriptType.LATIN);
+        NameInfo primaryName = new NameInfo(
+                fullName, firstName, lastName, null, null,
+                NameType.PRIMARY, NameStrength.STRONG, ScriptType.LATIN);
 
         return new SanctionedEntity(
-                "ofac-nonsdn-" + uid,
-                entityType,
-                ListSource.OFAC_NONSDN,
-                primaryName,
-                aliases,
-                addresses,
-                identifiers,
-                nationalities,
-                citizenships,
-                datesOfBirth,
-                placesOfBirth,
-                remarks,
-                programs,
-                null,
-                Instant.now());
+                "ofac-nonsdn-" + uid, entityType, ListSource.OFAC_NONSDN,
+                primaryName, aliases, addresses, identifiers,
+                nationalities, citizenships, datesOfBirth, placesOfBirth,
+                remarks, programs, null, Instant.now());
     }
 
     private List<SanctionsProgram> parseProgramList(XMLStreamReader reader)

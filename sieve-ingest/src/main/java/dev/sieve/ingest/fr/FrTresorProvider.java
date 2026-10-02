@@ -17,6 +17,7 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,8 @@ import java.util.Map;
 /**
  * Fetches and parses the French Trésor (DG) national asset-freeze list.
  *
- * <p>Published by the Direction Générale du Trésor as JSON via a public REST API. Contains national
- * and EU-derived designations. Typically contains ~5,900 entities.
+ * <p>Published by the Direction Générale du Trésor as JSON via a public REST API.
+ * Contains national and EU-derived designations. Typically contains ~5,900 entities.
  *
  * @see <a href="https://gels-avoirs.dgtresor.gouv.fr/">French Trésor Sanctions</a>
  */
@@ -44,11 +45,7 @@ public final class FrTresorProvider extends AbstractListProvider {
     }
 
     public FrTresorProvider(URI sourceUri, HttpClient httpClient) {
-        super(
-                ListSource.FR_TRESOR,
-                sourceUri,
-                "application/json",
-                httpClient,
+        super(ListSource.FR_TRESOR, sourceUri, "application/json", httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -57,8 +54,7 @@ public final class FrTresorProvider extends AbstractListProvider {
     protected List<SanctionedEntity> parseResponse(byte[] responseBody)
             throws ListIngestionException {
         try {
-            Map<String, Object> root =
-                    (Map<String, Object>) MAPPER.readValue(responseBody, Object.class);
+            Map<String, Object> root = (Map<String, Object>) MAPPER.readValue(responseBody, Object.class);
 
             // Navigate: Publications.PublicationDetail[]
             Map<String, Object> publications = (Map<String, Object>) root.get("Publications");
@@ -85,8 +81,7 @@ public final class FrTresorProvider extends AbstractListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Failed to parse French Trésor JSON: " + e.getMessage(),
-                    ListSource.FR_TRESOR,
-                    e);
+                    ListSource.FR_TRESOR, e);
         }
     }
 
@@ -97,10 +92,8 @@ public final class FrTresorProvider extends AbstractListProvider {
         if (familyName == null) return null;
 
         String typeStr = stringVal(entry, "Nature");
-        EntityType entityType =
-                typeStr != null && typeStr.toLowerCase().contains("physique")
-                        ? EntityType.INDIVIDUAL
-                        : EntityType.ENTITY;
+        EntityType entityType = typeStr != null && typeStr.toLowerCase().contains("physique")
+                ? EntityType.INDIVIDUAL : EntityType.ENTITY;
 
         // Extract typed fields from RegistreDetail[]
         String givenName = null;
@@ -132,16 +125,8 @@ public final class FrTresorProvider extends AbstractListProvider {
                         for (Map<String, Object> v : valeurs) {
                             String a = stringVal(v, "Alias");
                             if (a != null && !a.isBlank()) {
-                                aliases.add(
-                                        new NameInfo(
-                                                a,
-                                                null,
-                                                null,
-                                                null,
-                                                null,
-                                                NameType.AKA,
-                                                null,
-                                                null));
+                                aliases.add(new NameInfo(
+                                        a, null, null, null, null, NameType.AKA, null, null));
                             }
                         }
                     }
@@ -154,11 +139,10 @@ public final class FrTresorProvider extends AbstractListProvider {
                     }
                     case "DATE_DE_NAISSANCE" -> {
                         for (Map<String, Object> v : valeurs) {
-                            LocalDate dob =
-                                    parseDmy(
-                                            stringVal(v, "Jour"),
-                                            stringVal(v, "Mois"),
-                                            stringVal(v, "Annee"));
+                            LocalDate dob = parseDmy(
+                                    stringVal(v, "Jour"),
+                                    stringVal(v, "Mois"),
+                                    stringVal(v, "Annee"));
                             if (dob != null) datesOfBirth.add(dob);
                         }
                     }
@@ -173,7 +157,8 @@ public final class FrTresorProvider extends AbstractListProvider {
                         for (Map<String, Object> v : valeurs) {
                             String addr = stringVal(v, "Adresse");
                             if (addr != null) {
-                                addresses.add(new Address(addr, null, null, null, null, addr));
+                                addresses.add(new Address(
+                                        addr, null, null, null, null, addr));
                             }
                         }
                     }
@@ -182,8 +167,8 @@ public final class FrTresorProvider extends AbstractListProvider {
                             String num = stringVal(v, "Numero");
                             if (num == null) num = stringVal(v, "Passeport");
                             if (num != null) {
-                                identifiers.add(
-                                        new Identifier(IdentifierType.PASSPORT, num, null, null));
+                                identifiers.add(new Identifier(
+                                        IdentifierType.PASSPORT, num, null, null));
                             }
                         }
                     }
@@ -192,9 +177,8 @@ public final class FrTresorProvider extends AbstractListProvider {
                             String num = stringVal(v, "Numero");
                             if (num == null) num = stringVal(v, "Identification");
                             if (num != null) {
-                                identifiers.add(
-                                        new Identifier(
-                                                IdentifierType.NATIONAL_ID, num, null, null));
+                                identifiers.add(new Identifier(
+                                        IdentifierType.NATIONAL_ID, num, null, null));
                             }
                         }
                     }
@@ -202,14 +186,12 @@ public final class FrTresorProvider extends AbstractListProvider {
                         for (Map<String, Object> v : valeurs) {
                             String label = stringVal(v, "FondementJuridiqueLabel");
                             if (label != null) {
-                                programs.add(
-                                        new SanctionsProgram(label, null, ListSource.FR_TRESOR));
+                                programs.add(new SanctionsProgram(
+                                        label, null, ListSource.FR_TRESOR));
                             }
                         }
                     }
-                    default -> {
-                        /* skip other field types */
-                    }
+                    default -> { /* skip other field types */ }
                 }
             }
         }
@@ -217,26 +199,14 @@ public final class FrTresorProvider extends AbstractListProvider {
         String fullName = givenName != null ? givenName + " " + familyName : familyName;
         if (id == null) id = String.valueOf(fullName.hashCode());
 
-        NameInfo primaryName =
-                new NameInfo(
-                        fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
 
         return new SanctionedEntity(
-                "fr-" + id,
-                entityType,
-                ListSource.FR_TRESOR,
-                primaryName,
-                aliases,
-                addresses,
-                identifiers,
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                placesOfBirth,
-                null,
-                programs,
-                null,
-                Instant.now());
+                "fr-" + id, entityType, ListSource.FR_TRESOR,
+                primaryName, aliases, addresses, identifiers,
+                nationalities, List.of(), datesOfBirth, placesOfBirth,
+                null, programs, null, Instant.now());
     }
 
     @SuppressWarnings("unchecked")

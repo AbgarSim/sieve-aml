@@ -43,8 +43,7 @@ public final class HttpClientFactory {
      * @param version the HTTP protocol version to use
      * @return a configured HttpClient
      */
-    public static HttpClient createTrustAllClient(
-            Duration connectTimeout, HttpClient.Version version) {
+    public static HttpClient createTrustAllClient(Duration connectTimeout, HttpClient.Version version) {
         try {
             SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, new SecureRandom());

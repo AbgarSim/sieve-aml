@@ -40,13 +40,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Fetches and parses the Japan Ministry of Finance sanctions list.
  *
- * <p>Published as XLSX with a dynamic URL that changes on each update. The provider first scrapes
- * the MoF HTML listing page to discover the current XLSX download link, then fetches and parses the
- * spreadsheet. Typically contains ~3,900 entities. The list covers designations under Japan's
- * Foreign Exchange and Foreign Trade Act.
+ * <p>Published as XLSX with a dynamic URL that changes on each update. The provider first
+ * scrapes the MoF HTML listing page to discover the current XLSX download link, then
+ * fetches and parses the spreadsheet. Typically contains ~3,900 entities. The list covers
+ * designations under Japan's Foreign Exchange and Foreign Trade Act.
  *
- * @see <a
- *     href="https://www.mof.go.jp/policy/international_policy/gaitame_kawase/gaitame/economic_sanctions/list.html">
+ * @see <a href="https://www.mof.go.jp/policy/international_policy/gaitame_kawase/gaitame/economic_sanctions/list.html">
  *     Japan MoF Sanctions</a>
  */
 public final class JpMofProvider implements ListProvider {
@@ -64,8 +63,7 @@ public final class JpMofProvider implements ListProvider {
     private volatile ListMetadata currentMetadata;
 
     public JpMofProvider() {
-        this(
-                URI.create(DEFAULT_LIST_PAGE_URL),
+        this(URI.create(DEFAULT_LIST_PAGE_URL),
                 HttpClientFactory.createTrustAllClient(Duration.ofSeconds(30)));
     }
 
@@ -76,8 +74,8 @@ public final class JpMofProvider implements ListProvider {
     public JpMofProvider(URI listPageUri, HttpClient httpClient) {
         this.listPageUri = listPageUri;
         this.httpClient = httpClient;
-        this.currentMetadata =
-                new ListMetadata(ListSource.JP_MOF, null, null, null, listPageUri, 0);
+        this.currentMetadata = new ListMetadata(
+                ListSource.JP_MOF, null, null, null, listPageUri, 0);
     }
 
     @Override
@@ -101,44 +99,37 @@ public final class JpMofProvider implements ListProvider {
             log.info("JP MoF discovered XLSX URL [uri={}]", xlsxUri);
 
             // Step 2: Download the XLSX file
-            HttpRequest xlsxRequest =
-                    HttpRequest.newBuilder()
-                            .uri(xlsxUri)
-                            .timeout(REQUEST_TIMEOUT)
-                            .header("User-Agent", "sieve-aml/1.0")
-                            .GET()
-                            .build();
+            HttpRequest xlsxRequest = HttpRequest.newBuilder()
+                    .uri(xlsxUri)
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("User-Agent", "sieve-aml/1.0")
+                    .GET()
+                    .build();
 
             HttpResponse<byte[]> xlsxResponse =
                     httpClient.send(xlsxRequest, HttpResponse.BodyHandlers.ofByteArray());
 
             if (xlsxResponse.statusCode() != 200) {
                 throw new ListIngestionException(
-                        String.format(
-                                "JP MoF XLSX fetch failed [status=%d, uri=%s]",
+                        String.format("JP MoF XLSX fetch failed [status=%d, uri=%s]",
                                 xlsxResponse.statusCode(), xlsxUri),
                         ListSource.JP_MOF);
             }
 
             byte[] body = xlsxResponse.body();
             String contentHash = computeSha256(body);
-            log.info(
-                    "JP MoF downloaded XLSX [bytes={}, hash={}]",
-                    body.length,
-                    contentHash.substring(0, 12) + "...");
+            log.info("JP MoF downloaded XLSX [bytes={}, hash={}]",
+                    body.length, contentHash.substring(0, 12) + "...");
 
             // Step 3: Parse the XLSX
             List<SanctionedEntity> entities = parseXlsx(body);
 
             Instant now = Instant.now();
-            currentMetadata =
-                    new ListMetadata(
-                            ListSource.JP_MOF, now, null, contentHash, xlsxUri, entities.size());
+            currentMetadata = new ListMetadata(
+                    ListSource.JP_MOF, now, null, contentHash, xlsxUri, entities.size());
 
-            log.info(
-                    "JP MoF ingestion complete [entities={}, duration={}ms]",
-                    entities.size(),
-                    Duration.between(start, now).toMillis());
+            log.info("JP MoF ingestion complete [entities={}, duration={}ms]",
+                    entities.size(), Duration.between(start, now).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
@@ -156,23 +147,19 @@ public final class JpMofProvider implements ListProvider {
 
     private URI discoverXlsxUrl() throws ListIngestionException {
         try {
-            HttpRequest htmlRequest =
-                    HttpRequest.newBuilder()
-                            .uri(listPageUri)
-                            .timeout(REQUEST_TIMEOUT)
-                            .header("User-Agent", "sieve-aml/1.0")
-                            .GET()
-                            .build();
+            HttpRequest htmlRequest = HttpRequest.newBuilder()
+                    .uri(listPageUri)
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("User-Agent", "sieve-aml/1.0")
+                    .GET()
+                    .build();
 
             HttpResponse<String> htmlResponse =
-                    httpClient.send(
-                            htmlRequest,
-                            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                    httpClient.send(htmlRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
             if (htmlResponse.statusCode() != 200) {
                 throw new ListIngestionException(
-                        String.format(
-                                "JP MoF list page fetch failed [status=%d]",
+                        String.format("JP MoF list page fetch failed [status=%d]",
                                 htmlResponse.statusCode()),
                         ListSource.JP_MOF);
             }
@@ -191,15 +178,17 @@ public final class JpMofProvider implements ListProvider {
             throw e;
         } catch (Exception e) {
             throw new ListIngestionException(
-                    "Error discovering JP MoF XLSX URL: " + e.getMessage(), ListSource.JP_MOF, e);
+                    "Error discovering JP MoF XLSX URL: " + e.getMessage(),
+                    ListSource.JP_MOF, e);
         }
     }
 
-    private List<SanctionedEntity> parseXlsx(byte[] responseBody) throws ListIngestionException {
+    private List<SanctionedEntity> parseXlsx(byte[] responseBody)
+            throws ListIngestionException {
         List<SanctionedEntity> entities = new ArrayList<>();
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(responseBody);
-                Workbook workbook = WorkbookFactory.create(bais)) {
+             Workbook workbook = WorkbookFactory.create(bais)) {
 
             for (int s = 0; s < workbook.getNumberOfSheets(); s++) {
                 Sheet sheet = workbook.getSheetAt(s);
@@ -223,11 +212,8 @@ public final class JpMofProvider implements ListProvider {
                         SanctionedEntity entity = parseRow(row, colIndex, s, i);
                         if (entity != null) entities.add(entity);
                     } catch (Exception e) {
-                        log.debug(
-                                "Skipping malformed row {} in Japan MoF XLSX sheet {}: {}",
-                                i,
-                                s,
-                                e.getMessage());
+                        log.debug("Skipping malformed row {} in Japan MoF XLSX sheet {}: {}",
+                                i, s, e.getMessage());
                     }
                 }
             }
@@ -251,8 +237,8 @@ public final class JpMofProvider implements ListProvider {
         }
     }
 
-    private SanctionedEntity parseRow(
-            Row row, Map<String, Integer> colIndex, int sheetIdx, int rowNum) {
+    private SanctionedEntity parseRow(Row row, Map<String, Integer> colIndex,
+                                       int sheetIdx, int rowNum) {
         // Try various column name patterns (Japanese MoF may use Japanese or English headers)
         String name = firstNonNull(row, colIndex, "name", "名前", "氏名", "名称");
         if (name == null || name.isBlank()) {
@@ -264,13 +250,12 @@ public final class JpMofProvider implements ListProvider {
 
         String typeStr = firstNonNull(row, colIndex, "type", "種別", "区分");
         EntityType entityType = EntityType.INDIVIDUAL;
-        if (typeStr != null
-                && (typeStr.contains("団体") || typeStr.toLowerCase().contains("entit"))) {
+        if (typeStr != null && (typeStr.contains("団体") || typeStr.toLowerCase().contains("entit"))) {
             entityType = EntityType.ENTITY;
         }
 
-        NameInfo primaryName =
-                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                name, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
         String aliasStr = firstNonNull(row, colIndex, "aliases", "alias", "別名", "aka");
@@ -278,9 +263,8 @@ public final class JpMofProvider implements ListProvider {
             for (String a : aliasStr.split("[;,、]")) {
                 String trimmed = a.strip();
                 if (!trimmed.isEmpty() && !trimmed.equals(name)) {
-                    aliases.add(
-                            new NameInfo(
-                                    trimmed, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(new NameInfo(
+                            trimmed, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
@@ -299,21 +283,10 @@ public final class JpMofProvider implements ListProvider {
         }
 
         return new SanctionedEntity(
-                "jp-" + sheetIdx + "-" + rowNum,
-                entityType,
-                ListSource.JP_MOF,
-                primaryName,
-                aliases,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                datesOfBirth,
-                List.of(),
-                null,
-                programs,
-                null,
-                Instant.now());
+                "jp-" + sheetIdx + "-" + rowNum, entityType, ListSource.JP_MOF,
+                primaryName, aliases, List.of(), List.of(),
+                List.of(), List.of(), datesOfBirth, List.of(),
+                null, programs, null, Instant.now());
     }
 
     private static String firstNonNull(Row row, Map<String, Integer> colIndex, String... keys) {
@@ -343,10 +316,7 @@ public final class JpMofProvider implements ListProvider {
 
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
-        try {
-            return LocalDate.parse(dateStr.strip());
-        } catch (DateTimeParseException e) {
-            return null;
-        }
+        try { return LocalDate.parse(dateStr.strip()); }
+        catch (DateTimeParseException e) { return null; }
     }
 }

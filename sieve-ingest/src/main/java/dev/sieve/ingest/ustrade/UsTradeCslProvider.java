@@ -1,6 +1,5 @@
 package dev.sieve.ingest.ustrade;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
@@ -11,6 +10,7 @@ import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.ingest.AbstractListProvider;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -30,8 +30,7 @@ import java.util.Map;
  *
  * <p>Uses streaming JSON parsing to handle the large response efficiently.
  *
- * @see <a href="https://api.trade.gov/gateway/v2/consolidated_screening_list/search">US Trade CSL
- *     API</a>
+ * @see <a href="https://api.trade.gov/gateway/v2/consolidated_screening_list/search">US Trade CSL API</a>
  */
 public final class UsTradeCslProvider extends AbstractListProvider {
 
@@ -59,11 +58,7 @@ public final class UsTradeCslProvider extends AbstractListProvider {
      * @param httpClient the HTTP client to use for requests
      */
     public UsTradeCslProvider(URI sourceUri, HttpClient httpClient) {
-        super(
-                ListSource.US_TRADE_CSL,
-                sourceUri,
-                "application/json",
-                httpClient,
+        super(ListSource.US_TRADE_CSL, sourceUri, "application/json", httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -87,11 +82,9 @@ public final class UsTradeCslProvider extends AbstractListProvider {
                 resultsObj = root.get("sources");
             }
             if (!(resultsObj instanceof List)) {
-                // Fallback: if the root itself is a list-like structure, try parsing entries
-                // directly
+                // Fallback: if the root itself is a list-like structure, try parsing entries directly
                 throw new ListIngestionException(
-                        "US Trade CSL: missing 'results' array in response",
-                        ListSource.US_TRADE_CSL);
+                        "US Trade CSL: missing 'results' array in response", ListSource.US_TRADE_CSL);
             }
 
             List<Map<String, Object>> results = (List<Map<String, Object>>) resultsObj;
@@ -131,8 +124,8 @@ public final class UsTradeCslProvider extends AbstractListProvider {
         EntityType entityType = mapEntityType(typeStr);
 
         // Build primary name
-        NameInfo primaryName =
-                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                name, null, null, null, null, NameType.PRIMARY, null, null);
 
         // Aliases
         List<NameInfo> aliases = new ArrayList<>();
@@ -140,17 +133,16 @@ public final class UsTradeCslProvider extends AbstractListProvider {
         if (altNames instanceof List) {
             for (Object alt : (List<Object>) altNames) {
                 if (alt instanceof String altStr && !altStr.isBlank()) {
-                    aliases.add(
-                            new NameInfo(altStr, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(new NameInfo(
+                            altStr, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         } else if (altNames instanceof String altStr && !altStr.isBlank()) {
             for (String alt : altStr.split(";")) {
                 String trimmed = alt.strip();
                 if (!trimmed.isEmpty()) {
-                    aliases.add(
-                            new NameInfo(
-                                    trimmed, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(new NameInfo(
+                            trimmed, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
@@ -162,14 +154,13 @@ public final class UsTradeCslProvider extends AbstractListProvider {
             for (Object a : (List<Object>) addrObj) {
                 if (a instanceof Map) {
                     Map<String, Object> am = (Map<String, Object>) a;
-                    addresses.add(
-                            new Address(
-                                    stringVal(am, "address"),
-                                    stringVal(am, "city"),
-                                    stringVal(am, "state"),
-                                    stringVal(am, "postal_code"),
-                                    stringVal(am, "country"),
-                                    stringVal(am, "address")));
+                    addresses.add(new Address(
+                            stringVal(am, "address"),
+                            stringVal(am, "city"),
+                            stringVal(am, "state"),
+                            stringVal(am, "postal_code"),
+                            stringVal(am, "country"),
+                            stringVal(am, "address")));
                 }
             }
         }
@@ -185,7 +176,8 @@ public final class UsTradeCslProvider extends AbstractListProvider {
                     String idNum = stringVal(idMap, "number");
                     String country = stringVal(idMap, "country");
                     if (idNum != null && !idNum.isBlank()) {
-                        identifiers.add(new Identifier(mapIdType(idType), idNum, country, null));
+                        identifiers.add(new Identifier(
+                                mapIdType(idType), idNum, country, null));
                     }
                 }
             }
@@ -213,9 +205,8 @@ public final class UsTradeCslProvider extends AbstractListProvider {
         }
         String sourceListName = stringVal(entry, "source");
         if (sourceListName != null && !sourceListName.isBlank()) {
-            programs.add(
-                    new SanctionsProgram(
-                            sourceListName.strip(), sourceListName, ListSource.US_TRADE_CSL));
+            programs.add(new SanctionsProgram(
+                    sourceListName.strip(), sourceListName, ListSource.US_TRADE_CSL));
         }
 
         // Dates of birth
@@ -241,21 +232,10 @@ public final class UsTradeCslProvider extends AbstractListProvider {
         String remarks = stringVal(entry, "remarks");
 
         return new SanctionedEntity(
-                "csl-" + id,
-                entityType,
-                ListSource.US_TRADE_CSL,
-                primaryName,
-                aliases,
-                addresses,
-                identifiers,
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                placesOfBirth,
-                remarks,
-                programs,
-                null,
-                Instant.now());
+                "csl-" + id, entityType, ListSource.US_TRADE_CSL,
+                primaryName, aliases, addresses, identifiers,
+                nationalities, List.of(), datesOfBirth, placesOfBirth,
+                remarks, programs, null, Instant.now());
     }
 
     private static String stringVal(Map<String, Object> map, String key) {
