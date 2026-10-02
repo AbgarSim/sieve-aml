@@ -181,6 +181,16 @@ class InMemoryEntityIndexTest {
         assertThat(index.findById("1").get().entityType()).isEqualTo(EntityType.ENTITY);
     }
 
+    @Test
+    void shouldMoveIdToNewSourceWhenIdIsReusedAcrossSources() {
+        index.add(createEntity("42", EntityType.INDIVIDUAL, ListSource.OFAC_SDN));
+        index.add(createEntity("42", EntityType.INDIVIDUAL, ListSource.UN_CONSOLIDATED));
+
+        assertThat(index.size()).isEqualTo(1);
+        assertThat(index.findBySource(ListSource.OFAC_SDN)).isEmpty();
+        assertThat(index.findBySource(ListSource.UN_CONSOLIDATED)).hasSize(1);
+    }
+
     private static SanctionedEntity createEntity(String id, EntityType type, ListSource source) {
         NameInfo name =
                 new NameInfo(

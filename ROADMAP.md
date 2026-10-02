@@ -23,7 +23,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
 
 ### Foundations
 
-- [ ] 1.1 Stable ids: every source's ids carry a source prefix, so no list can overwrite another.
+- [x] 1.1 Stable ids: every source's ids carry a source prefix, so no list can overwrite another.
 - [ ] 1.2 Replace on refresh: a refresh swaps out that source's whole set, so delisted entries
   disappear and are recorded as removed.
 - [ ] 1.3 Risk entity model: entity kinds (person, company, organisation, vessel, aircraft, crypto

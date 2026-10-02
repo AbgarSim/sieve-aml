@@ -40,7 +40,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParsePrimaryNameWithThreeComponents() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
 
         assertThat(eric.primaryName().fullName()).isEqualTo("BADEGE, ERIC MUNDOS");
         assertThat(eric.primaryName().givenName()).isEqualTo("ERIC");
@@ -53,13 +53,13 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseIndividualEntityType() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.entityType()).isEqualTo(EntityType.INDIVIDUAL);
     }
 
     @Test
     void shouldParseAliasesWithQuality() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
 
         // 3 valid aliases (4th has empty ALIAS_NAME and should be skipped)
         assertThat(eric.aliases()).hasSize(3);
@@ -79,7 +79,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseAddress() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
 
         assertThat(eric.addresses()).hasSize(1);
         assertThat(eric.addresses().get(0).street()).isEqualTo("123 Main Road");
@@ -90,7 +90,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseDateOfBirthFromFullDate() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
 
         assertThat(eric.datesOfBirth()).hasSize(1);
         assertThat(eric.datesOfBirth().get(0).getYear()).isEqualTo(1971);
@@ -100,14 +100,14 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParsePlaceOfBirth() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.placesOfBirth())
                 .contains("Goma, North Kivu, Democratic Republic of the Congo");
     }
 
     @Test
     void shouldParsePassportDocument() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
 
         assertThat(eric.identifiers()).hasSize(2);
 
@@ -123,32 +123,32 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseNationality() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.nationalities()).containsExactly("Democratic Republic of the Congo");
     }
 
     @Test
     void shouldParseRemarks() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.remarks()).isEqualTo("Test individual for unit testing purposes.");
     }
 
     @Test
     void shouldParseSanctionsProgram() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.programs()).hasSize(1);
         assertThat(eric.programs().get(0).code()).isEqualTo("DRC");
     }
 
     @Test
     void shouldParseListedDate() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.listedDate()).isNotNull();
     }
 
     @Test
     void shouldParseLastUpdatedFromLastValue() throws IOException {
-        SanctionedEntity eric = findById(loadEntities(), "CDi.001");
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         // LAST_DAY_UPDATED has 2 values; should pick the last one (2023-05-20)
         assertThat(eric.lastUpdated()).isNotNull();
     }
@@ -157,7 +157,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseYearOnlyDateOfBirth() throws IOException {
-        SanctionedEntity saddam = findById(loadEntities(), "IQi.001");
+        SanctionedEntity saddam = findById(loadEntities(), "un-IQi.001");
 
         assertThat(saddam.datesOfBirth()).hasSize(1);
         assertThat(saddam.datesOfBirth().get(0).getYear()).isEqualTo(1937);
@@ -165,7 +165,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseMultiplePlacesOfBirth() throws IOException {
-        SanctionedEntity saddam = findById(loadEntities(), "IQi.001");
+        SanctionedEntity saddam = findById(loadEntities(), "un-IQi.001");
         assertThat(saddam.placesOfBirth()).hasSize(2);
         assertThat(saddam.placesOfBirth()).contains("al-Awja, near Tikrit, Iraq");
         assertThat(saddam.placesOfBirth()).contains("Tikrit, Iraq");
@@ -175,7 +175,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldFallbackToDataIdWhenNoReferenceNumber() throws IOException {
-        SanctionedEntity mohammed = findById(loadEntities(), "UN-1003");
+        SanctionedEntity mohammed = findById(loadEntities(), "un-1003");
 
         assertThat(mohammed.primaryName().fullName()).isEqualTo("MOHAMMED");
         assertThat(mohammed.primaryName().givenName()).isEqualTo("MOHAMMED");
@@ -184,7 +184,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldHandleEmptyAliasAndDob() throws IOException {
-        SanctionedEntity mohammed = findById(loadEntities(), "UN-1003");
+        SanctionedEntity mohammed = findById(loadEntities(), "un-1003");
         assertThat(mohammed.aliases()).isEmpty();
         assertThat(mohammed.datesOfBirth()).isEmpty();
     }
@@ -193,7 +193,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseFourNameComponents() throws IOException {
-        SanctionedEntity qusay = findById(loadEntities(), "IQi.002");
+        SanctionedEntity qusay = findById(loadEntities(), "un-IQi.002");
 
         assertThat(qusay.primaryName().fullName()).isEqualTo("SADDAM, QUSAY HUSSEIN AL-TIKRITI");
         assertThat(qusay.primaryName().givenName()).isEqualTo("QUSAY");
@@ -203,7 +203,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseDateOfBirthPreferringFullDate() throws IOException {
-        SanctionedEntity qusay = findById(loadEntities(), "IQi.002");
+        SanctionedEntity qusay = findById(loadEntities(), "un-IQi.002");
 
         // Has both DATE and YEAR; should parse the full DATE
         assertThat(qusay.datesOfBirth()).hasSize(1);
@@ -216,7 +216,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseEntityType() throws IOException {
-        SanctionedEntity adf = findById(loadEntities(), "CDe.001");
+        SanctionedEntity adf = findById(loadEntities(), "un-CDe.001");
 
         assertThat(adf.entityType()).isEqualTo(EntityType.ENTITY);
         assertThat(adf.primaryName().fullName()).isEqualTo("ADF");
@@ -224,7 +224,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseEntityAliases() throws IOException {
-        SanctionedEntity adf = findById(loadEntities(), "CDe.001");
+        SanctionedEntity adf = findById(loadEntities(), "un-CDe.001");
 
         assertThat(adf.aliases()).hasSize(2);
         assertThat(adf.aliases().get(0).fullName()).isEqualTo("Allied Democratic Forces");
@@ -236,7 +236,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseEntityAddress() throws IOException {
-        SanctionedEntity adf = findById(loadEntities(), "CDe.001");
+        SanctionedEntity adf = findById(loadEntities(), "un-CDe.001");
 
         assertThat(adf.addresses()).hasSize(1);
         assertThat(adf.addresses().get(0).stateOrProvince()).isEqualTo("North Kivu");
@@ -245,7 +245,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseEntityLastUpdated() throws IOException {
-        SanctionedEntity adf = findById(loadEntities(), "CDe.001");
+        SanctionedEntity adf = findById(loadEntities(), "un-CDe.001");
         // last value is 2020-08-19
         assertThat(adf.lastUpdated()).isNotNull();
     }
@@ -254,7 +254,7 @@ class UnConsolidatedProviderTest {
 
     @Test
     void shouldParseMinimalEntity() throws IOException {
-        SanctionedEntity bal = findById(loadEntities(), "CDe.002");
+        SanctionedEntity bal = findById(loadEntities(), "un-CDe.002");
 
         assertThat(bal.primaryName().fullName()).isEqualTo("BUTEMBO AIRLINES (BAL)");
         assertThat(bal.aliases()).isEmpty();

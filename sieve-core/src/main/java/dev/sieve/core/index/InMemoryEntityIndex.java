@@ -103,7 +103,18 @@ public final class InMemoryEntityIndex implements EntityIndex {
     }
 
     private void addInternal(SanctionedEntity entity) {
-        entitiesById.put(entity.id(), entity);
+        SanctionedEntity previous = entitiesById.put(entity.id(), entity);
+        if (previous != null && previous.listSource() != entity.listSource()) {
+            Set<String> previousIds = idsBySource.get(previous.listSource());
+            if (previousIds != null) {
+                previousIds.remove(entity.id());
+            }
+            log.warn(
+                    "Entity id reused across sources [id={}, previous={}, current={}]",
+                    entity.id(),
+                    previous.listSource(),
+                    entity.listSource());
+        }
         idsBySource
                 .computeIfAbsent(entity.listSource(), k -> new CopyOnWriteArraySet<>())
                 .add(entity.id());
