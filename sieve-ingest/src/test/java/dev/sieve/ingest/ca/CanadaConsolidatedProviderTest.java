@@ -25,7 +25,7 @@ class CanadaConsolidatedProviderTest {
 
     @Test
     void shouldParseRecordsWhenElementNamesAreBilingual() {
-        assertThat(entities).hasSize(4);
+        assertThat(entities).hasSize(6);
     }
 
     @Test
@@ -76,12 +76,38 @@ class CanadaConsolidatedProviderTest {
                             assertThat(id.value()).isEqualTo("9123456");
                         });
         assertThat(ship.datesOfBirth()).isEmpty();
-        assertThat(ship.remarks()).isEqualTo("Crude oil tanker");
+        assertThat(ship.remarks()).isEqualTo("Oil Tanker");
+    }
+
+    @Test
+    void shouldSplitAliasesAndDropScriptLabelsWhenAliasesAreListed() {
+        SanctionedEntity person = byName("Ruslan Khikmetovich Mashadiyeu");
+
+        assertThat(person.aliases())
+                .extracting(a -> a.fullName())
+                .containsExactly(
+                        "Ruslan Chikmetovič MAŠADZEV",
+                        "Руслан Хiкметовiч МАШАДЗЕЎ",
+                        "Руслан Хикметович МАШАДИЕВ",
+                        "مجتبی خامنه‌ای");
+        assertThat(person.identifiers()).isEmpty();
+        assertThat(person.entityType()).isEqualTo(EntityType.INDIVIDUAL);
+    }
+
+    @Test
+    void shouldNotSetNationalityWhenRegimeIsThematic() {
+        SanctionedEntity person = byName("Example Official");
+
+        assertThat(person.nationalities()).isEmpty();
+        assertThat(person.programs())
+                .singleElement()
+                .satisfies(p -> assertThat(p.name()).startsWith("Justice for Victims"));
     }
 
     @Test
     void shouldReadEnglishPartWhenValueIsBilingual() {
-        assertThat(CanadaConsolidatedProvider.englishPart("Russia / Russie")).isEqualTo("Russia");
+        assertThat(CanadaConsolidatedProvider.englishPart("Russia / Russie", " / "))
+                .isEqualTo("Russia");
         assertThat(CanadaConsolidatedProvider.englishName("Item-NumeroDarticle")).isEqualTo("item");
     }
 

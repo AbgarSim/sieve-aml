@@ -1,6 +1,7 @@
 package dev.sieve.ingest.ca;
 
 import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.IdentifierType;
@@ -26,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -47,7 +49,14 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
     private static final String DEFAULT_URL =
             "https://www.international.gc.ca/world-monde/assets/office_docs/international_relations-relations_internationales/sanctions/sema-lmes.xml";
 
-    private static final Pattern ALIAS_SEPARATOR = Pattern.compile(";|,\\s+");
+    private static final Pattern ALIAS_SEPARATOR = Pattern.compile(";|,\\s+|/\\s*");
+
+    /** Script labels such as {@code "Russian: "} in front of an alias. */
+    private static final Pattern ALIAS_LABEL = Pattern.compile("^\\p{L}+:\\s*");
+
+    private static final Pattern IMO = Pattern.compile("(?i)^(?:IMO\\s*)?(\\d{7})$");
+
+    private static final CountryNormalizer COUNTRIES = CountryNormalizer.standard();
 
     public CanadaConsolidatedProvider() {
         super(ListSource.CA_CONSOLIDATED, URI.create(DEFAULT_URL), "*/*");
@@ -105,7 +114,7 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
         String givenName = null;
         String entityOrShip = null;
         String title = null;
-        String imo = null;
+        String imoText = null;
         String country = null;
         String schedule = null;
         String item = null;
@@ -120,9 +129,9 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
                     case "lastname" -> lastName = readText(reader);
                     case "givenname" -> givenName = readText(reader);
                     case "entityorship" -> entityOrShip = readText(reader);
-                    case "titleorshiptype" -> title = readText(reader);
-                    case "shipimonumber" -> imo = readText(reader);
-                    case "country" -> country = englishPart(readText(reader));
+                    case "titleorshiptype" -> title = englishPart(readText(reader), " | ");
+                    case "shipimonumber" -> imoText = readText(reader);
+                    case "country" -> country = englishPart(readText(reader), " / ");
                     case "schedule" -> schedule = readText(reader);
                     case "item" -> item = readText(reader);
                     case "dateofbirthorshipbuilddate" -> birthOrBuildDate = readText(reader);
@@ -136,6 +145,13 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
                     && "record".equalsIgnoreCase(reader.getLocalName())) {
                 break;
             }
+        }
+
+        // A few records carry a name rather than a number in the IMO column
+        Matcher imoMatch = imoText != null ? IMO.matcher(imoText) : null;
+        String imo = imoMatch != null && imoMatch.matches() ? imoMatch.group(1) : null;
+        if (imoText != null && imo == null) {
+            aliasText = aliasText == null ? imoText : aliasText + "; " + imoText;
         }
 
         EntityType entityType;
@@ -168,7 +184,7 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
         List<NameInfo> aliases = new ArrayList<>();
         if (aliasText != null) {
             for (String alias : ALIAS_SEPARATOR.split(aliasText)) {
-                String trimmed = alias.strip();
+                String trimmed = ALIAS_LABEL.matcher(alias.strip()).replaceFirst("").strip();
                 if (!trimmed.isEmpty()) {
                     aliases.add(
                             new NameInfo(
@@ -189,19 +205,18 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
             if (dob != null) datesOfBirth.add(dob);
         }
 
+        // The "country" column names the regime: usually a country, sometimes a thematic one
+        boolean isCountry = country != null && COUNTRIES.toIso2(country).isPresent();
         List<SanctionsProgram> programs = new ArrayList<>();
         if (country != null || schedule != null) {
             String regime = country != null ? country : "Canada";
             String code = schedule != null ? regime + " Schedule " + schedule : regime;
-            programs.add(
-                    new SanctionsProgram(
-                            code,
-                            "Special Economic Measures (" + regime + ")",
-                            ListSource.CA_CONSOLIDATED));
+            String name = isCountry ? "Special Economic Measures (" + regime + ")" : regime;
+            programs.add(new SanctionsProgram(code, name, ListSource.CA_CONSOLIDATED));
         }
 
-        // The regime country; for most records it is also the subject's country
-        List<String> nationalities = country != null ? List.of(country) : List.of();
+        // For a country regime, the targeted country; for most records also the subject's own
+        List<String> nationalities = isCountry ? List.of(country) : List.of();
 
         LocalDate listed = parseDateSafe(listedOn);
         Instant listedDate =
@@ -234,10 +249,10 @@ public final class CanadaConsolidatedProvider extends AbstractListProvider {
     }
 
     /** English part of a bilingual value such as {@code "Belarus / Bélarus"}. */
-    static String englishPart(String value) {
+    static String englishPart(String value, String separator) {
         if (value == null) return null;
-        int slash = value.indexOf(" / ");
-        String english = (slash < 0 ? value : value.substring(0, slash)).strip();
+        int at = value.indexOf(separator);
+        String english = (at < 0 ? value : value.substring(0, at)).strip();
         return english.isEmpty() ? null : english;
     }
 
