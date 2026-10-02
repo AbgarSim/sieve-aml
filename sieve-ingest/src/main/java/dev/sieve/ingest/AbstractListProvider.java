@@ -137,13 +137,13 @@ public abstract class AbstractListProvider implements ListProvider {
 
         try {
             HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(sourceUri)
-                            .timeout(requestTimeout)
-                            .header("Accept", acceptHeader)
-                            .header("User-Agent", "sieve-aml/1.0")
-                            .GET()
-                            .build();
+                    buildRequest(
+                            httpClient,
+                            HttpRequest.newBuilder()
+                                    .uri(sourceUri)
+                                    .timeout(requestTimeout)
+                                    .header("Accept", acceptHeader)
+                                    .header("User-Agent", "sieve-aml/1.0"));
 
             HttpResponse<byte[]> response = sendWithRetry(request);
 
@@ -240,6 +240,22 @@ public abstract class AbstractListProvider implements ListProvider {
                     e);
             return true;
         }
+    }
+
+    /**
+     * Builds the download request from a builder that already carries the source URI, timeout and
+     * headers. The default is a plain GET; override it when a source needs more, such as a form
+     * post with a token read from another page first.
+     *
+     * @param client the HTTP client, for any requests needed before the download
+     * @param builder the request builder to complete
+     * @return the download request
+     * @throws IOException if a preliminary request fails
+     * @throws InterruptedException if a preliminary request is interrupted
+     */
+    protected HttpRequest buildRequest(HttpClient client, HttpRequest.Builder builder)
+            throws IOException, InterruptedException {
+        return builder.GET().build();
     }
 
     /**
