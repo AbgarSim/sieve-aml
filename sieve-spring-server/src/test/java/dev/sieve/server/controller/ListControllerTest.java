@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -45,12 +46,30 @@ class ListControllerTest {
         when(entityIndex.findBySource(ListSource.EU_CONSOLIDATED)).thenReturn(List.of());
         when(entityIndex.findBySource(ListSource.UN_CONSOLIDATED)).thenReturn(List.of());
         when(entityIndex.findBySource(ListSource.UK_HMT)).thenReturn(List.of());
+        when(orchestrator.status(ListSource.OFAC_SDN, 1)).thenReturn("LOADED");
 
         mockMvc.perform(get("/api/v1/lists"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lists").isArray())
                 .andExpect(jsonPath("$.lists[0].source").value("OFAC_SDN"))
                 .andExpect(jsonPath("$.lists[0].status").value("LOADED"));
+    }
+
+    @Test
+    void shouldReportFailedListWithErrorWhenLastFetchFailed() throws Exception {
+        when(entityIndex.findBySource(any())).thenReturn(List.of());
+        when(orchestrator.status(ListSource.UK_HMT, 0)).thenReturn("FAILED");
+        when(orchestrator.lastResult(ListSource.UK_HMT))
+                .thenReturn(
+                        Optional.of(
+                                ProviderResult.failed(
+                                        ListSource.UK_HMT, Duration.ofSeconds(1), "HTTP 403")));
+
+        mockMvc.perform(get("/api/v1/lists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lists[8].source").value("UK_HMT"))
+                .andExpect(jsonPath("$.lists[8].status").value("FAILED"))
+                .andExpect(jsonPath("$.lists[8].error").value("HTTP 403"));
     }
 
     @Test

@@ -73,14 +73,16 @@ public class ListController {
             ListMetadata metadata = orchestrator.getMetadata(source);
             Collection<SanctionedEntity> entities = entityIndex.findBySource(source);
             int count = entities.size();
-            String status = count > 0 ? "LOADED" : "EMPTY";
+            String status = orchestrator.status(source, count);
+            String error = orchestrator.lastResult(source).flatMap(r -> r.error()).orElse(null);
 
             statuses.add(
                     new ListStatusDto(
                             source.name(),
                             count,
                             metadata != null ? metadata.lastFetched() : null,
-                            status));
+                            status,
+                            error));
         }
 
         return ResponseEntity.ok(new ListsResponseDto(statuses));

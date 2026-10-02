@@ -26,6 +26,9 @@ java -jar $JAR --match
 
 # JMH microbenchmarks (synthetic data, reproducible, no network needed)
 java -jar $JAR jmh
+
+# Any JMH option can follow `jmh`, e.g. a short run that writes JSON results
+java -jar $JAR jmh -f 1 -wi 2 -i 3 -rf json -rff jmh-results.json
 ```
 
 ## Benchmark Modes
