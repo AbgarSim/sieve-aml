@@ -27,8 +27,8 @@ import javax.xml.stream.XMLStreamReader;
 /**
  * Fetches and parses EU Official Journal sanctions designations.
  *
- * <p>Covers designations published in the EU Official Journal. Published as XML. Typically contains
- * ~2,990 entities.
+ * <p>Covers designations published in the EU Official Journal. Published as XML.
+ * Typically contains ~2,990 entities.
  *
  * @see <a href="https://eur-lex.europa.eu/">EUR-Lex</a>
  */
@@ -46,11 +46,7 @@ public final class EuJournalProvider extends AbstractListProvider {
     }
 
     public EuJournalProvider(URI sourceUri, HttpClient httpClient) {
-        super(
-                ListSource.EU_JOURNAL,
-                sourceUri,
-                "application/xml",
-                httpClient,
+        super(ListSource.EU_JOURNAL, sourceUri, "application/xml", httpClient,
                 Duration.ofSeconds(120));
     }
 
@@ -76,15 +72,18 @@ public final class EuJournalProvider extends AbstractListProvider {
             reader.close();
         } catch (XMLStreamException e) {
             throw new ListIngestionException(
-                    "Failed to parse EU Journal XML: " + e.getMessage(), ListSource.EU_JOURNAL, e);
+                    "Failed to parse EU Journal XML: " + e.getMessage(),
+                    ListSource.EU_JOURNAL, e);
         } catch (Exception e) {
             throw new ListIngestionException(
-                    "IO error reading EU Journal XML: " + e.getMessage(), ListSource.EU_JOURNAL, e);
+                    "IO error reading EU Journal XML: " + e.getMessage(),
+                    ListSource.EU_JOURNAL, e);
         }
         return entities;
     }
 
-    private SanctionedEntity parseSanctionEntity(XMLStreamReader reader) throws XMLStreamException {
+    private SanctionedEntity parseSanctionEntity(XMLStreamReader reader)
+            throws XMLStreamException {
         String id = attrVal(reader, "logicalId");
         if (id == null) id = attrVal(reader, "euReferenceNumber");
         String fullName = null, givenName = null, familyName = null;
@@ -108,16 +107,8 @@ public final class EuJournalProvider extends AbstractListProvider {
                             givenName = fn;
                             familyName = ln;
                         } else if (wholeName != null && !wholeName.isBlank()) {
-                            aliases.add(
-                                    new NameInfo(
-                                            wholeName,
-                                            fn,
-                                            ln,
-                                            null,
-                                            null,
-                                            NameType.AKA,
-                                            null,
-                                            null));
+                            aliases.add(new NameInfo(
+                                    wholeName, fn, ln, null, null, NameType.AKA, null, null));
                         }
                         skipElement(reader);
                     }
@@ -140,9 +131,8 @@ public final class EuJournalProvider extends AbstractListProvider {
                     case "regulation" -> {
                         String prog = attrVal(reader, "programme");
                         if (prog != null && !prog.isBlank())
-                            programs.add(
-                                    new SanctionsProgram(
-                                            prog.strip(), null, ListSource.EU_JOURNAL));
+                            programs.add(new SanctionsProgram(
+                                    prog.strip(), null, ListSource.EU_JOURNAL));
                         skipElement(reader);
                     }
                     default -> skipElement(reader);
@@ -156,26 +146,14 @@ public final class EuJournalProvider extends AbstractListProvider {
         if (fullName == null) return null;
         if (id == null) id = String.valueOf(fullName.hashCode());
 
-        NameInfo primaryName =
-                new NameInfo(
-                        fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                fullName, givenName, familyName, null, null, NameType.PRIMARY, null, null);
 
         return new SanctionedEntity(
-                "eu-oj-" + id,
-                entityType,
-                ListSource.EU_JOURNAL,
-                primaryName,
-                aliases,
-                List.of(),
-                List.of(),
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                List.of(),
-                null,
-                programs,
-                null,
-                Instant.now());
+                "eu-oj-" + id, entityType, ListSource.EU_JOURNAL,
+                primaryName, aliases, List.of(), List.of(),
+                nationalities, List.of(), datesOfBirth, List.of(),
+                null, programs, null, Instant.now());
     }
 
     private static String attrVal(XMLStreamReader reader, String name) {
@@ -199,10 +177,7 @@ public final class EuJournalProvider extends AbstractListProvider {
 
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
-        try {
-            return LocalDate.parse(dateStr.strip());
-        } catch (DateTimeParseException e) {
-            return null;
-        }
+        try { return LocalDate.parse(dateStr.strip()); }
+        catch (DateTimeParseException e) { return null; }
     }
 }

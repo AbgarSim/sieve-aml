@@ -44,10 +44,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Fetches and parses the Turkish MASAK (Financial Crimes Investigation Board) sanctions list.
  *
- * <p>The FCIB publishes asset freezing decisions as XLSX files linked from a React SPA. Uses
- * Playwright headless browser to render the JS-based frontend and discover XLSX URLs, then
- * downloads and parses the spreadsheets. Typically contains ~2,300 entities across three categories
- * (B, C, D). Category A (UN Security Council) is skipped as it duplicates the UN consolidated list.
+ * <p>The FCIB publishes asset freezing decisions as XLSX files linked from a React SPA.
+ * Uses Playwright headless browser to render the JS-based frontend and discover XLSX URLs,
+ * then downloads and parses the spreadsheets. Typically contains ~2,300 entities across
+ * three categories (B, C, D). Category A (UN Security Council) is skipped as it duplicates
+ * the UN consolidated list.
  *
  * @see <a href="https://en.hmb.gov.tr/fcib-tf-current-list">Turkey MASAK</a>
  */
@@ -55,19 +56,20 @@ public final class TrMasakProvider implements ListProvider {
 
     private static final Logger log = LoggerFactory.getLogger(TrMasakProvider.class);
 
-    private static final String DEFAULT_PAGE_URL = "https://en.hmb.gov.tr/fcib-tf-current-list";
+    private static final String DEFAULT_PAGE_URL =
+            "https://en.hmb.gov.tr/fcib-tf-current-list";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
     private static final DateTimeFormatter TR_DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy");
-    private static final Pattern XLSX_HREF =
-            Pattern.compile("href=[\"'](https?://[^\"']*\\.xlsx)[\"']", Pattern.CASE_INSENSITIVE);
+    private static final Pattern XLSX_HREF = Pattern.compile(
+            "href=[\"'](https?://[^\"']*\\.xlsx)[\"']", Pattern.CASE_INSENSITIVE);
 
     // Category slugs to process (skip 5madde_ing = UN Security Council)
-    private static final Map<String, String> LABEL_MAPPING =
-            Map.of(
-                    "6madde_ing", "B - Foreign government requests (Art. 6)",
-                    "7madde_ing", "C - Domestic legal actions (Art. 7)",
-                    "3a3b", "D - WMD proliferation prevention (Art. 3A/3B)");
+    private static final Map<String, String> LABEL_MAPPING = Map.of(
+            "6madde_ing", "B - Foreign government requests (Art. 6)",
+            "7madde_ing", "C - Domestic legal actions (Art. 7)",
+            "3a3b", "D - WMD proliferation prevention (Art. 3A/3B)"
+    );
 
     private final String pageUrl;
     private final HttpClient httpClient;
@@ -80,19 +82,15 @@ public final class TrMasakProvider implements ListProvider {
     public TrMasakProvider(String pageUrl, HttpClient httpClient) {
         this.pageUrl = pageUrl;
         this.httpClient = httpClient;
-        this.currentMetadata =
-                new ListMetadata(ListSource.TR_MASAK, null, null, null, URI.create(pageUrl), 0);
+        this.currentMetadata = new ListMetadata(
+                ListSource.TR_MASAK, null, null, null, URI.create(pageUrl), 0);
     }
 
     @Override
-    public ListSource source() {
-        return ListSource.TR_MASAK;
-    }
+    public ListSource source() { return ListSource.TR_MASAK; }
 
     @Override
-    public ListMetadata metadata() {
-        return currentMetadata;
-    }
+    public ListMetadata metadata() { return currentMetadata; }
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
@@ -127,58 +125,49 @@ public final class TrMasakProvider implements ListProvider {
                 entities.addAll(parsed);
             }
 
-            String hash = computeSha256(String.valueOf(entities.size()).getBytes());
-            currentMetadata =
-                    new ListMetadata(
-                            ListSource.TR_MASAK,
-                            Instant.now(),
-                            null,
-                            hash,
-                            URI.create(pageUrl),
-                            entities.size());
-            log.info(
-                    "TR MASAK ingestion complete [entities={}, duration={}ms]",
-                    entities.size(),
-                    Duration.between(start, Instant.now()).toMillis());
+            String hash = computeSha256(
+                    String.valueOf(entities.size()).getBytes());
+            currentMetadata = new ListMetadata(
+                    ListSource.TR_MASAK, Instant.now(), null, hash,
+                    URI.create(pageUrl), entities.size());
+            log.info("TR MASAK ingestion complete [entities={}, duration={}ms]",
+                    entities.size(), Duration.between(start, Instant.now()).toMillis());
             return entities;
 
         } catch (ListIngestionException e) {
             throw e;
         } catch (Exception e) {
             throw new ListIngestionException(
-                    "Error during TR MASAK ingestion: " + e.getMessage(), ListSource.TR_MASAK, e);
+                    "Error during TR MASAK ingestion: " + e.getMessage(),
+                    ListSource.TR_MASAK, e);
         }
     }
 
     @Override
-    public boolean hasUpdates(ListMetadata previousMetadata) {
-        return true;
-    }
+    public boolean hasUpdates(ListMetadata previousMetadata) { return true; }
 
     private List<String> discoverCategoryUrls() {
         try (Playwright pw = Playwright.create();
-                Browser browser =
-                        pw.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
+             Browser browser = pw.chromium().launch(
+                     new BrowserType.LaunchOptions().setHeadless(true))) {
             Page page = browser.newPage();
             page.navigate(pageUrl);
-            page.waitForSelector(
-                    "table.table.table-bordered",
-                    new Page.WaitForSelectorOptions().setTimeout(30000));
+            page.waitForSelector("table.table.table-bordered", new Page.WaitForSelectorOptions()
+                    .setTimeout(30000));
 
             // Extract all links from the bordered table
             @SuppressWarnings("unchecked")
-            List<String> urls =
-                    (List<String>)
-                            page.evalOnSelectorAll(
-                                    "table.table-bordered a[href]", "els => els.map(e => e.href)");
+            List<String> urls = (List<String>) page.evalOnSelectorAll(
+                    "table.table-bordered a[href]",
+                    "els => els.map(e => e.href)");
             return urls;
         }
     }
 
     private String discoverXlsxUrl(String categoryUrl) {
         try (Playwright pw = Playwright.create();
-                Browser browser =
-                        pw.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true))) {
+             Browser browser = pw.chromium().launch(
+                     new BrowserType.LaunchOptions().setHeadless(true))) {
             Page page = browser.newPage();
             page.navigate(categoryUrl);
             // Wait for content to render
@@ -195,21 +184,19 @@ public final class TrMasakProvider implements ListProvider {
     private List<SanctionedEntity> downloadAndParseXlsx(String xlsxUrl, String program)
             throws ListIngestionException {
         try {
-            HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(xlsxUrl))
-                            .timeout(REQUEST_TIMEOUT)
-                            .header("Accept", "*/*")
-                            .GET()
-                            .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(xlsxUrl))
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Accept", "*/*")
+                    .GET()
+                    .build();
 
             HttpResponse<byte[]> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
             if (response.statusCode() != 200) {
                 throw new ListIngestionException(
-                        String.format(
-                                "TR MASAK XLSX fetch failed [url=%s, status=%d]",
+                        String.format("TR MASAK XLSX fetch failed [url=%s, status=%d]",
                                 xlsxUrl, response.statusCode()),
                         ListSource.TR_MASAK);
             }
@@ -221,8 +208,7 @@ public final class TrMasakProvider implements ListProvider {
         } catch (Exception e) {
             throw new ListIngestionException(
                     "Failed to download TR MASAK XLSX from " + xlsxUrl + ": " + e.getMessage(),
-                    ListSource.TR_MASAK,
-                    e);
+                    ListSource.TR_MASAK, e);
         }
     }
 
@@ -231,7 +217,7 @@ public final class TrMasakProvider implements ListProvider {
         List<SanctionedEntity> entities = new ArrayList<>();
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-                Workbook workbook = WorkbookFactory.create(bais)) {
+             Workbook workbook = WorkbookFactory.create(bais)) {
 
             for (Sheet sheet : workbook) {
                 Row headerRow = sheet.getRow(0);
@@ -256,22 +242,21 @@ public final class TrMasakProvider implements ListProvider {
                         SanctionedEntity entity = parseRow(row, colIndex, nameIdx, program, i);
                         if (entity != null) entities.add(entity);
                     } catch (Exception e) {
-                        log.debug(
-                                "Skipping malformed row {} in TR MASAK XLSX: {}",
-                                i,
-                                e.getMessage());
+                        log.debug("Skipping malformed row {} in TR MASAK XLSX: {}",
+                                i, e.getMessage());
                     }
                 }
             }
         } catch (Exception e) {
             throw new ListIngestionException(
-                    "Failed to parse TR MASAK XLSX: " + e.getMessage(), ListSource.TR_MASAK, e);
+                    "Failed to parse TR MASAK XLSX: " + e.getMessage(),
+                    ListSource.TR_MASAK, e);
         }
         return entities;
     }
 
-    private SanctionedEntity parseRow(
-            Row row, Map<String, Integer> colIndex, int nameIdx, String program, int rowNum) {
+    private SanctionedEntity parseRow(Row row, Map<String, Integer> colIndex,
+                                       int nameIdx, String program, int rowNum) {
         String name = cellToString(row.getCell(nameIdx));
         if (name == null || name.isBlank()) return null;
 
@@ -283,8 +268,8 @@ public final class TrMasakProvider implements ListProvider {
             entityType = EntityType.ENTITY;
         }
 
-        NameInfo primaryName =
-                new NameInfo(name, null, null, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                name, null, null, null, null, NameType.PRIMARY, null, null);
 
         List<NameInfo> aliases = new ArrayList<>();
         String aliasStr = cellValNorm(row, colIndex, "alias", "diger_isimleri");
@@ -292,16 +277,16 @@ public final class TrMasakProvider implements ListProvider {
             for (String a : aliasStr.split(";")) {
                 String trimmed = a.strip();
                 if (!trimmed.isEmpty() && !trimmed.equals(name)) {
-                    aliases.add(
-                            new NameInfo(
-                                    trimmed, null, null, null, null, NameType.AKA, null, null));
+                    aliases.add(new NameInfo(
+                            trimmed, null, null, null, null, NameType.AKA, null, null));
                 }
             }
         }
 
         String prevName = cellValNorm(row, colIndex, "previous_name", "eski_adi");
         if (prevName != null && !prevName.isBlank() && !prevName.equals(name)) {
-            aliases.add(new NameInfo(prevName, null, null, null, null, NameType.FKA, null, null));
+            aliases.add(new NameInfo(
+                    prevName, null, null, null, null, NameType.FKA, null, null));
         }
 
         List<LocalDate> datesOfBirth = new ArrayList<>();
@@ -321,27 +306,16 @@ public final class TrMasakProvider implements ListProvider {
         String pob = cellValNorm(row, colIndex, "birth_place", "dogum_yeri");
         if (pob != null && !pob.isBlank()) placesOfBirth.add(pob.strip());
 
-        List<SanctionsProgram> programs =
-                List.of(new SanctionsProgram(program, "Turkey MASAK", ListSource.TR_MASAK));
+        List<SanctionsProgram> programs = List.of(
+                new SanctionsProgram(program, "Turkey MASAK", ListSource.TR_MASAK));
 
         String id = "r" + rowNum + "-" + name.hashCode();
 
         return new SanctionedEntity(
-                "tr-" + id,
-                entityType,
-                ListSource.TR_MASAK,
-                primaryName,
-                aliases,
-                List.of(),
-                List.of(),
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                placesOfBirth,
-                null,
-                programs,
-                null,
-                Instant.now());
+                "tr-" + id, entityType, ListSource.TR_MASAK,
+                primaryName, aliases, List.of(), List.of(),
+                nationalities, List.of(), datesOfBirth, placesOfBirth,
+                null, programs, null, Instant.now());
     }
 
     /** Normalize header text for matching: lowercase, remove diacritics, collapse whitespace. */
@@ -366,8 +340,8 @@ public final class TrMasakProvider implements ListProvider {
         return null;
     }
 
-    private static String cellValNorm(
-            Row row, Map<String, Integer> colIndex, String... candidates) {
+    private static String cellValNorm(Row row, Map<String, Integer> colIndex,
+                                       String... candidates) {
         Integer idx = findCol(colIndex, candidates);
         if (idx == null) return null;
         return cellToString(row.getCell(idx));
@@ -389,14 +363,10 @@ public final class TrMasakProvider implements ListProvider {
     private static LocalDate parseDateSafe(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         String cleaned = dateStr.strip();
-        try {
-            return LocalDate.parse(cleaned, TR_DATE_FORMAT);
-        } catch (DateTimeParseException e) {
-            try {
-                return LocalDate.parse(cleaned);
-            } catch (DateTimeParseException e2) {
-                return null;
-            }
+        try { return LocalDate.parse(cleaned, TR_DATE_FORMAT); }
+        catch (DateTimeParseException e) {
+            try { return LocalDate.parse(cleaned); }
+            catch (DateTimeParseException e2) { return null; }
         }
     }
 

@@ -25,19 +25,20 @@ import java.util.List;
 /**
  * Fetches and parses the Belgian FOD/SPF Finance sanctions list.
  *
- * <p>Includes the national terrorism list. Published as semicolon-delimited CSV. Columns: Lastname,
- * Firstname, Middlename, Wholename, Gender, Birth date, Birth place, Birth country, Function,
- * Number, Remark, Embargos, type, Regulation, Publication date, Links.
+ * <p>Includes the national terrorism list. Published as semicolon-delimited CSV.
+ * Columns: Lastname, Firstname, Middlename, Wholename, Gender, Birth date,
+ * Birth place, Birth country, Function, Number, Remark, Embargos, type,
+ * Regulation, Publication date, Links.
  *
- * @see <a
- *     href="https://financien.belgium.be/nl/thesaurie/financiele-sancties/terrorisme-en-terrorismefinanciering">
+ * @see <a href="https://financien.belgium.be/nl/thesaurie/financiele-sancties/terrorisme-en-terrorismefinanciering">
  *     Belgian FOD Sanctions</a>
  */
 public final class BeFodProvider extends AbstractListProvider {
 
     private static final String DEFAULT_URL =
             "https://sifi.minfin.fgov.be/public/api/consolidated-list";
-    private static final DateTimeFormatter BE_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yy");
+    private static final DateTimeFormatter BE_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd-MM-yy");
 
     // CSV column indices (0-based)
     private static final int COL_LASTNAME = 0;
@@ -60,7 +61,8 @@ public final class BeFodProvider extends AbstractListProvider {
     }
 
     public BeFodProvider(URI sourceUri, HttpClient httpClient) {
-        super(ListSource.BE_FOD, sourceUri, "*/*", httpClient, Duration.ofSeconds(120));
+        super(ListSource.BE_FOD, sourceUri, "*/*", httpClient,
+                Duration.ofSeconds(120));
     }
 
     @Override
@@ -68,10 +70,8 @@ public final class BeFodProvider extends AbstractListProvider {
             throws ListIngestionException {
         List<SanctionedEntity> entities = new ArrayList<>();
 
-        try (BufferedReader reader =
-                new BufferedReader(
-                        new InputStreamReader(
-                                new ByteArrayInputStream(responseBody), StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new ByteArrayInputStream(responseBody), StandardCharsets.UTF_8))) {
 
             String headerLine = reader.readLine();
             if (headerLine != null && headerLine.startsWith("\uFEFF")) {
@@ -114,20 +114,17 @@ public final class BeFodProvider extends AbstractListProvider {
         String fullName = wholeName;
         if (fullName == null || fullName.isEmpty()) {
             if (lastName == null || lastName.isEmpty()) return null;
-            fullName =
-                    firstName != null && !firstName.isEmpty()
-                            ? firstName + " " + lastName
-                            : lastName;
+            fullName = firstName != null && !firstName.isEmpty()
+                    ? firstName + " " + lastName : lastName;
         }
 
         // Determine entity type: "P" = person, "E" = entity
         String typeCode = clean(fields[COL_TYPE]);
-        EntityType entityType =
-                "E".equalsIgnoreCase(typeCode) ? EntityType.ENTITY : EntityType.INDIVIDUAL;
+        EntityType entityType = "E".equalsIgnoreCase(typeCode)
+                ? EntityType.ENTITY : EntityType.INDIVIDUAL;
 
-        NameInfo primaryName =
-                new NameInfo(
-                        fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
+        NameInfo primaryName = new NameInfo(
+                fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
 
         List<LocalDate> datesOfBirth = new ArrayList<>();
         String dobStr = clean(fields[COL_BIRTHDATE]);
@@ -147,26 +144,14 @@ public final class BeFodProvider extends AbstractListProvider {
         List<SanctionsProgram> programs = new ArrayList<>();
         String embargos = clean(fields[COL_EMBARGOS]);
         String regulation = clean(fields[COL_REGULATION]);
-        String progName =
-                embargos != null ? embargos : (regulation != null ? regulation : "BE FOD");
+        String progName = embargos != null ? embargos : (regulation != null ? regulation : "BE FOD");
         programs.add(new SanctionsProgram(progName, null, ListSource.BE_FOD));
 
         return new SanctionedEntity(
-                "be-" + idx,
-                entityType,
-                ListSource.BE_FOD,
-                primaryName,
-                List.of(),
-                List.of(),
-                List.of(),
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                placesOfBirth,
-                null,
-                programs,
-                null,
-                Instant.now());
+                "be-" + idx, entityType, ListSource.BE_FOD,
+                primaryName, List.of(), List.of(), List.of(),
+                nationalities, List.of(), datesOfBirth, placesOfBirth,
+                null, programs, null, Instant.now());
     }
 
     private static String[] parseCsvLine(String line) {
