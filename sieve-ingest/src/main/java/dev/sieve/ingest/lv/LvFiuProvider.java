@@ -1,7 +1,10 @@
 package dev.sieve.ingest.lv;
 
 import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Identifier;
+import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameType;
@@ -9,15 +12,25 @@ import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.AbstractListProvider;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
@@ -26,15 +39,21 @@ import javax.xml.stream.XMLStreamReader;
 /**
  * Fetches and parses the Latvia FIU (Finanšu izlūkošanas dienests) national sanctions list.
  *
- * <p>Published by the Latvian Financial Intelligence Unit as XML. Contains national sanctions
- * designations expanding on EU regulations. Typically contains ~200 entities.
+ * <p>The list is downloaded from the FIU's sanctions search page: the page sets a session cookie
+ * and a form token, and the XML comes back from a form post to {@code /lejupieladet-sarakstu/lv}.
+ * It holds only Latvia's national designations, a handful of entries.
  *
- * @see <a href="https://sankcijas.fid.gov.lv">Latvia FIU Sanctions</a>
+ * @see <a href="https://sankcijas.fid.gov.lv/lv/meklet-sankciju-sarakstos">Latvia FIU sanctions
+ *     search</a>
  */
 public final class LvFiuProvider extends AbstractListProvider {
 
     private static final String DEFAULT_URL =
-            "https://sankcijas.fid.gov.lv/files/LV_national_v2.xml";
+            "https://sankcijas.fid.gov.lv/lv/meklet-sankciju-sarakstos";
+
+    private static final String DOWNLOAD_PATH = "/lejupieladet-sarakstu/lv";
+
+    private static final Pattern CSRF = Pattern.compile("name=\"csrf\"\\s+value=\"([^\"]+)\"");
 
     public LvFiuProvider() {
         super(ListSource.LV_FIU, URI.create(DEFAULT_URL), "application/xml");
@@ -48,9 +67,64 @@ public final class LvFiuProvider extends AbstractListProvider {
         super(ListSource.LV_FIU, sourceUri, "application/xml", httpClient, Duration.ofSeconds(120));
     }
 
+    /**
+     * Opens the search page for its session cookie and form token, then posts the download form.
+     */
+    @Override
+    protected HttpRequest buildRequest(HttpClient client, HttpRequest.Builder builder)
+            throws IOException, InterruptedException {
+        HttpRequest pageRequest =
+                HttpRequest.newBuilder()
+                        .uri(sourceUri())
+                        .timeout(Duration.ofSeconds(30))
+                        .header("User-Agent", "sieve-aml/1.0")
+                        .GET()
+                        .build();
+        HttpResponse<String> page =
+                client.send(
+                        pageRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+        String csrf = csrfToken(page.body());
+        if (csrf == null) {
+            throw new IOException(
+                    "Latvia FIU search page has no download token [status="
+                            + page.statusCode()
+                            + "]");
+        }
+        String cookies =
+                page.headers().allValues("Set-Cookie").stream()
+                        .map(c -> c.split(";", 2)[0])
+                        .collect(Collectors.joining("; "));
+
+        String form = "csrf=" + URLEncoder.encode(csrf, StandardCharsets.UTF_8) + "&fileType=xml";
+        builder.uri(sourceUri().resolve(DOWNLOAD_PATH))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(form));
+        if (!cookies.isEmpty()) {
+            builder.header("Cookie", cookies);
+        }
+        return builder.build();
+    }
+
+    static String csrfToken(String html) {
+        Matcher m = CSRF.matcher(html == null ? "" : html);
+        return m.find() ? m.group(1) : null;
+    }
+
     @Override
     protected List<SanctionedEntity> parseResponse(byte[] responseBody)
             throws ListIngestionException {
+        String head =
+                new String(
+                        responseBody,
+                        0,
+                        Math.min(responseBody.length, 512),
+                        StandardCharsets.UTF_8);
+        if (!head.contains("<LVlist")) {
+            throw new ListIngestionException(
+                    "Latvia FIU returned a web page instead of the list XML", ListSource.LV_FIU);
+        }
+
         List<SanctionedEntity> entities = new ArrayList<>();
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
@@ -79,140 +153,123 @@ public final class LvFiuProvider extends AbstractListProvider {
         return entities;
     }
 
+    /** Fields of one {@code <Entity>} as they are read. */
+    private static final class Fields {
+        String id;
+        String type;
+        String wholeName;
+        String firstName;
+        String middleName;
+        String lastName;
+        String birthDate;
+        String birthPlace;
+        String birthCountry;
+        String listedOn;
+        String program;
+        String remark;
+        final List<NameInfo> aliases = new ArrayList<>();
+        final List<String> nationalities = new ArrayList<>();
+        final List<Address> addresses = new ArrayList<>();
+        final List<Identifier> identifiers = new ArrayList<>();
+    }
+
     private SanctionedEntity parseEntity(XMLStreamReader reader) throws XMLStreamException {
-        String id = null;
-        String type = null;
-        String wholeName = null;
-        String firstName = null;
-        String middleName = null;
-        String lastName = null;
-        String birthDate = null;
-        String birthCountry = null;
-        String birthCountryCode = null;
-        String nationality = null;
-        String listedOn = null;
-        String program = null;
-        String reason = null;
-        String sourceUrl = null;
-        List<NameInfo> aliases = new ArrayList<>();
-
-        // Track which sub-element we're in
-        boolean inName = false;
-        boolean inBirth = false;
-        boolean inCitizen = false;
-        boolean inAlias = false;
-
-        String aliasWholeName = null;
-        String aliasFirstName = null;
-        String aliasMiddleName = null;
-        String aliasLastName = null;
+        Fields f = new Fields();
+        String[] alias = new String[4];
+        String[] address = new String[5];
+        String[] document = new String[3];
+        String citizen = null;
+        String citizenCode = null;
 
         while (reader.hasNext()) {
             int event = reader.next();
             if (event == XMLStreamConstants.START_ELEMENT) {
                 String elem = reader.getLocalName();
                 switch (elem) {
-                    case "Id" -> {
-                        if (!inName && !inBirth && !inCitizen && !inAlias) id = readText(reader);
+                    case "Alias", "Citizen", "Address", "Document" -> {
+                        if ("Alias".equals(elem)) alias = new String[4];
+                        if ("Address".equals(elem)) address = new String[5];
+                        if ("Document".equals(elem)) document = new String[3];
+                        if ("Citizen".equals(elem)) {
+                            citizen = null;
+                            citizenCode = null;
+                        }
                     }
-                    case "Type" -> type = readText(reader);
-                    case "Name" -> inName = true;
-                    case "WholeName" -> {
-                        if (inName && !inAlias) wholeName = readText(reader);
-                    }
-                    case "FirstName" -> {
-                        if (inName && !inAlias) firstName = readText(reader);
-                    }
-                    case "MiddleName" -> {
-                        if (inName && !inAlias) middleName = readText(reader);
-                    }
-                    case "LastName" -> {
-                        if (inName && !inAlias) lastName = readText(reader);
-                    }
-                    case "Birth" -> inBirth = true;
-                    case "BirthDate" -> {
-                        if (inBirth) birthDate = readText(reader);
-                    }
-                    case "BirthCountry" -> {
-                        if (inBirth) birthCountry = readText(reader);
-                    }
-                    case "BirthCountryIso2Code" -> {
-                        if (inBirth) birthCountryCode = readText(reader);
-                    }
-                    case "Citizen" -> inCitizen = true;
-                    case "CitizenCountry" -> {
-                        if (inCitizen) nationality = readText(reader);
-                    }
-                    case "Alias" -> {
-                        inAlias = true;
-                        aliasWholeName = null;
-                        aliasFirstName = null;
-                        aliasMiddleName = null;
-                        aliasLastName = null;
-                    }
-                    case "AliasWholeName" -> {
-                        if (inAlias) aliasWholeName = readText(reader);
-                    }
-                    case "AliasFirstName" -> {
-                        if (inAlias) aliasFirstName = readText(reader);
-                    }
-                    case "AliasMiddleName" -> {
-                        if (inAlias) aliasMiddleName = readText(reader);
-                    }
-                    case "AliasLastName" -> {
-                        if (inAlias) aliasLastName = readText(reader);
-                    }
-                    case "ListedOn" -> listedOn = readText(reader);
-                    case "Program" -> program = readText(reader);
-                    case "Remark" -> reason = readText(reader);
-                    case "Link" -> sourceUrl = readText(reader);
+                    case "Id" -> f.id = readText(reader);
+                    case "Type" -> f.type = readText(reader);
+                    case "ListedOn" -> f.listedOn = readText(reader);
+                    case "Program" -> f.program = readText(reader);
+                    case "Remark" -> f.remark = readText(reader);
+                    case "WholeName" -> f.wholeName = readText(reader);
+                    case "FirstName" -> f.firstName = readText(reader);
+                    case "MiddleName" -> f.middleName = readText(reader);
+                    case "LastName" -> f.lastName = readText(reader);
+                    case "AliasWholeName" -> alias[0] = readText(reader);
+                    case "AliasFirstName" -> alias[1] = readText(reader);
+                    case "AliasMiddleName" -> alias[2] = readText(reader);
+                    case "AliasLastName" -> alias[3] = readText(reader);
+                    case "BirthDate" -> f.birthDate = readText(reader);
+                    case "BirthPlace" -> f.birthPlace = readText(reader);
+                    case "BirthCountry" -> f.birthCountry = readText(reader);
+                    case "CitizenCountry" -> citizen = readText(reader);
+                    case "CitizenCountryIso2Code" -> citizenCode = readText(reader);
+                    case "AddressStreet" -> address[0] = readText(reader);
+                    case "AddressCity" -> address[1] = readText(reader);
+                    case "AddressCountryIso2Code" -> address[2] = readText(reader);
+                    case "AddressWhole" -> address[3] = readText(reader);
+                    case "AddressCountry" -> address[4] = readText(reader);
+                    case "DocumentType" -> document[0] = readText(reader);
+                    case "DocumentNumber" -> document[1] = readText(reader);
+                    case "DocumentCountryIso2Code" -> document[2] = readText(reader);
                     default -> {
                         /* skip */
                     }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
-                String elem = reader.getLocalName();
-                switch (elem) {
+                switch (reader.getLocalName()) {
                     case "Entity" -> {
-                        // End of this entity
-                        return buildEntity(
-                                id,
-                                type,
-                                wholeName,
-                                firstName,
-                                middleName,
-                                lastName,
-                                birthDate,
-                                birthCountry,
-                                birthCountryCode,
-                                nationality,
-                                listedOn,
-                                program,
-                                reason,
-                                aliases);
+                        return buildEntity(f);
                     }
-                    case "Name" -> inName = false;
-                    case "Birth" -> inBirth = false;
-                    case "Citizen" -> inCitizen = false;
                     case "Alias" -> {
-                        inAlias = false;
-                        String aliasFullName =
-                                buildFullName(
-                                        aliasWholeName,
-                                        aliasFirstName,
-                                        aliasMiddleName,
-                                        aliasLastName);
-                        if (aliasFullName != null && !aliasFullName.isBlank()) {
-                            aliases.add(
+                        String name = buildFullName(alias[0], alias[1], alias[2], alias[3]);
+                        if (name != null) {
+                            f.aliases.add(
                                     new NameInfo(
-                                            aliasFullName,
-                                            aliasFirstName,
-                                            aliasLastName,
-                                            null,
+                                            name,
+                                            alias[1],
+                                            alias[3],
+                                            alias[2],
                                             null,
                                             NameType.AKA,
                                             null,
                                             null));
+                        }
+                    }
+                    case "Citizen" -> {
+                        String nationality = citizenCode != null ? citizenCode : citizen;
+                        if (nationality != null) f.nationalities.add(nationality);
+                    }
+                    case "Address" -> {
+                        String country = address[2] != null ? address[2] : address[4];
+                        if (address[0] != null || address[1] != null || address[3] != null) {
+                            f.addresses.add(
+                                    new Address(
+                                            address[0],
+                                            address[1],
+                                            null,
+                                            null,
+                                            country,
+                                            address[3]));
+                        }
+                    }
+                    case "Document" -> {
+                        if (document[1] != null) {
+                            f.identifiers.add(
+                                    new Identifier(
+                                            documentType(document[0]),
+                                            document[1],
+                                            document[2],
+                                            document[0]));
                         }
                     }
                     default -> {
@@ -224,65 +281,61 @@ public final class LvFiuProvider extends AbstractListProvider {
         return null;
     }
 
-    private SanctionedEntity buildEntity(
-            String id,
-            String type,
-            String wholeName,
-            String firstName,
-            String middleName,
-            String lastName,
-            String birthDate,
-            String birthCountry,
-            String birthCountryCode,
-            String nationality,
-            String listedOn,
-            String program,
-            String reason,
-            List<NameInfo> aliases) {
+    /**
+     * Latvian document names: {@code Pase} is a passport, {@code Personas apliecība} an ID card.
+     */
+    private static IdentifierType documentType(String type) {
+        if (type == null) return IdentifierType.OTHER;
+        String t = type.toLowerCase(Locale.ROOT);
+        if (t.startsWith("pase")) return IdentifierType.PASSPORT;
+        if (t.contains("apliecība") || t.contains("personas kods")) {
+            return IdentifierType.NATIONAL_ID;
+        }
+        if (t.contains("reģistrācijas")) return IdentifierType.BUSINESS_REGISTRATION;
+        return IdentifierType.OTHER;
+    }
 
-        // fp = natural person, jp = legal person
-        boolean isPerson = type != null && type.equalsIgnoreCase("fp");
+    private SanctionedEntity buildEntity(Fields f) {
+        // FP = natural person (fiziska persona), JP = legal person (juridiska persona)
+        boolean isPerson = f.type != null && f.type.equalsIgnoreCase("fp");
         EntityType entityType = isPerson ? EntityType.INDIVIDUAL : EntityType.ENTITY;
 
-        String fullName = buildFullName(wholeName, firstName, middleName, lastName);
-        if (fullName == null || fullName.isBlank()) return null;
+        String fullName = buildFullName(f.wholeName, f.firstName, f.middleName, f.lastName);
+        if (fullName == null) return null;
 
         NameInfo primaryName =
                 new NameInfo(
-                        fullName, firstName, lastName, null, null, NameType.PRIMARY, null, null);
+                        fullName,
+                        f.firstName,
+                        f.lastName,
+                        f.middleName,
+                        null,
+                        NameType.PRIMARY,
+                        null,
+                        null);
 
         List<LocalDate> datesOfBirth = new ArrayList<>();
-        if (birthDate != null && !birthDate.isBlank()) {
-            LocalDate dob = parseDateSafe(birthDate);
-            if (dob != null) datesOfBirth.add(dob);
-        }
-
-        List<String> nationalities = new ArrayList<>();
-        if (nationality != null && !nationality.isBlank()) nationalities.add(nationality.strip());
+        LocalDate dob = parseDateSafe(f.birthDate);
+        if (dob != null) datesOfBirth.add(dob);
 
         List<String> placesOfBirth = new ArrayList<>();
-        if (birthCountry != null && !birthCountry.isBlank()) {
-            placesOfBirth.add(birthCountry.strip());
-        }
+        String pob = joinNonBlank(f.birthPlace, f.birthCountry);
+        if (pob != null) placesOfBirth.add(pob);
 
         List<SanctionsProgram> programs = new ArrayList<>();
-        if (program != null && !program.isBlank()) {
-            programs.add(new SanctionsProgram(program.strip(), program.strip(), ListSource.LV_FIU));
+        if (f.program != null) {
+            programs.add(new SanctionsProgram(f.program, f.program, ListSource.LV_FIU));
         } else {
             programs.add(
                     new SanctionsProgram(
                             "LV FIU", "Latvia FIU National Sanctions", ListSource.LV_FIU));
         }
 
-        Instant listedDate = null;
-        if (listedOn != null && !listedOn.isBlank()) {
-            LocalDate ld = parseDateSafe(listedOn);
-            if (ld != null) {
-                listedDate = ld.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
-            }
-        }
+        LocalDate listed = parseDateSafe(f.listedOn);
+        Instant listedDate =
+                listed != null ? listed.atStartOfDay(ZoneOffset.UTC).toInstant() : null;
 
-        String entityId = id != null ? id : String.valueOf(fullName.hashCode());
+        String entityId = f.id != null ? f.id : String.valueOf(fullName.hashCode());
         String prefix = isPerson ? "lv-person-" : "lv-org-";
 
         return new SanctionedEntity(
@@ -290,31 +343,34 @@ public final class LvFiuProvider extends AbstractListProvider {
                 entityType,
                 ListSource.LV_FIU,
                 primaryName,
-                aliases,
-                List.of(),
-                List.of(),
-                nationalities,
+                f.aliases,
+                f.addresses,
+                f.identifiers,
+                f.nationalities,
                 List.of(),
                 datesOfBirth,
                 placesOfBirth,
-                reason,
+                f.remark,
                 programs,
                 listedDate,
                 Instant.now());
     }
 
+    private static String joinNonBlank(String a, String b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a + ", " + b;
+    }
+
     private static String buildFullName(
             String wholeName, String firstName, String middleName, String lastName) {
-        if (wholeName != null && !wholeName.isBlank()) return wholeName.strip();
+        if (wholeName != null) return wholeName;
         StringBuilder sb = new StringBuilder();
-        if (firstName != null && !firstName.isBlank()) sb.append(firstName.strip());
-        if (middleName != null && !middleName.isBlank()) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(middleName.strip());
-        }
-        if (lastName != null && !lastName.isBlank()) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(lastName.strip());
+        for (String part : new String[] {firstName, middleName, lastName}) {
+            if (part != null) {
+                if (!sb.isEmpty()) sb.append(' ');
+                sb.append(part);
+            }
         }
         return sb.isEmpty() ? null : sb.toString();
     }
@@ -334,27 +390,18 @@ public final class LvFiuProvider extends AbstractListProvider {
     }
 
     private static LocalDate parseDateSafe(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) return null;
+        if (dateStr == null) return null;
         String cleaned = dateStr.strip();
-        // Try ISO format
         try {
             return LocalDate.parse(cleaned);
         } catch (DateTimeParseException e) {
             /* try next */
         }
-        // Try dd.MM.yyyy. (Latvian format with trailing dot)
+        // Latvian format, often with a trailing dot: 21.04.1964.
         String withoutTrailingDot =
                 cleaned.endsWith(".") ? cleaned.substring(0, cleaned.length() - 1) : cleaned;
         try {
-            return LocalDate.parse(
-                    withoutTrailingDot, java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-        } catch (DateTimeParseException e) {
-            /* try next */
-        }
-        // Try dd/MM/yy
-        try {
-            return LocalDate.parse(
-                    cleaned, java.time.format.DateTimeFormatter.ofPattern("dd/MM/yy"));
+            return LocalDate.parse(withoutTrailingDot, DateTimeFormatter.ofPattern("dd.MM.yyyy"));
         } catch (DateTimeParseException e) {
             return null;
         }
