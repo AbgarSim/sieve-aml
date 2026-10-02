@@ -6,22 +6,31 @@ import dev.sieve.core.dedup.DeduplicationResult;
 import dev.sieve.core.dedup.EntityDeduplicator;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.Identifier;
+import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.match.NameNormalizer;
 import dev.sieve.match.algorithm.JaroWinkler;
+import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,26 +40,32 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Inspired by the nomenklatura framework used by OpenSanctions, this implementation merges
  * entities based on:
+ *
  * <ul>
- *   <li><b>Name similarity</b> — Jaro-Winkler fuzzy matching across primary names and aliases</li>
- *   <li><b>Identifier overlap</b> — exact match on passport numbers, national IDs, etc.</li>
- *   <li><b>Date of birth overlap</b> — matching DOBs provide additional evidence</li>
+ *   <li><b>Name similarity</b> — Jaro-Winkler matching across primary names and aliases, after
+ *       folding diacritics and punctuation, both as written and token-sorted (so "DOE, John" equals
+ *       "John Doe")
+ *   <li><b>Identifier overlap</b> — same type and value ignoring formatting, with no conflicting
+ *       issuing country
+ *   <li><b>Date of birth</b> — a shared DOB adds evidence; DOBs with no year in common are proof of
+ *       different people and veto a name-only merge
  * </ul>
  *
- * <p>Only entities from <em>different</em> list sources are considered for merging. Entities
- * within the same source list are never merged (they are considered distinct by the issuing
- * authority).
+ * <p>Entities within the same source list are never merged, directly or transitively: they are
+ * considered distinct by the issuing authority.
  *
  * <h3>Algorithm</h3>
+ *
  * <ol>
  *   <li><b>Blocking</b> — entities are grouped by (entity type, normalized name prefix) to avoid
- *       O(n²) pairwise comparisons</li>
+ *       O(n²) pairwise comparisons
  *   <li><b>Pairwise scoring</b> — candidate pairs from different list sources are scored using a
- *       weighted combination of name similarity, identifier overlap, and DOB overlap</li>
- *   <li><b>Transitive closure</b> — Union-Find merges transitive matches into clusters (if A≈B
- *       and B≈C, then A, B, and C form one canonical entity)</li>
+ *       weighted combination of name similarity, identifier overlap, and DOB evidence
+ *   <li><b>Constrained clustering</b> — pairs are merged strongest first with Union-Find. A merge
+ *       that would put two entities from one list, or provably different DOBs, into one cluster is
+ *       refused, so a loose transitive chain (A≈B, B≈C) cannot join two distinct people
  *   <li><b>Canonical creation</b> — each cluster is merged into a single {@link CanonicalEntity}
- *       with combined metadata</li>
+ *       with combined metadata
  * </ol>
  */
 public final class SimilarityDeduplicator implements EntityDeduplicator {
@@ -82,64 +97,110 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             return new DeduplicationResult(Map.of(), Map.of(), 0, 0, 0, Duration.ZERO);
         }
 
-        List<SanctionedEntity> entityList =
-                entities instanceof List ? (List<SanctionedEntity>) entities : List.copyOf(entities);
-
+        List<SanctionedEntity> entityList = List.copyOf(entities);
         log.info("Starting entity deduplication [entities={}]", entityList.size());
 
-        // Phase 1: Group by entity type
-        Map<EntityType, List<SanctionedEntity>> byType = groupByType(entityList);
-
-        // Phase 2: Build blocking groups and find matches using Union-Find
-        UnionFind<String> unionFind = new UnionFind<>();
-        Map<String, SanctionedEntity> entityById = new HashMap<>(entityList.size());
-
+        // Clustering addresses entities by position, so two lists reusing one ID can't be fused
+        List<NameProfile> profiles = new ArrayList<>(entityList.size());
         for (SanctionedEntity entity : entityList) {
-            entityById.put(entity.id(), entity);
-            unionFind.makeSet(entity.id());
+            profiles.add(NameProfile.of(entity));
         }
 
-        AtomicInteger pairsCompared = new AtomicInteger();
-        AtomicInteger mergesPerformed = new AtomicInteger();
+        // Phase 1: Blocking + pairwise scoring, collecting every candidate pair above threshold
+        Map<EntityType, List<Integer>> byType = groupByType(entityList);
+        Set<Long> seenPairs = new HashSet<>();
+        List<CandidatePair> candidates = new ArrayList<>();
+        int pairsCompared = 0;
 
-        for (Map.Entry<EntityType, List<SanctionedEntity>> entry : byType.entrySet()) {
-            EntityType type = entry.getKey();
-            List<SanctionedEntity> group = entry.getValue();
-
-            // Phase 2a: Build blocking index
-            Map<String, List<SanctionedEntity>> blocks = buildBlocks(group);
-
+        for (Map.Entry<EntityType, List<Integer>> entry : byType.entrySet()) {
+            Map<String, List<Integer>> blocks = buildBlocks(entry.getValue(), profiles);
             log.debug(
                     "Processing entity type [type={}, entities={}, blocks={}]",
-                    type,
-                    group.size(),
+                    entry.getKey(),
+                    entry.getValue().size(),
                     blocks.size());
 
-            // Phase 2b: Pairwise comparison within each block
-            for (List<SanctionedEntity> block : blocks.values()) {
-                compareBlock(block, unionFind, pairsCompared, mergesPerformed);
+            for (List<Integer> block : blocks.values()) {
+                for (int x = 0; x < block.size(); x++) {
+                    int i = block.get(x);
+                    for (int y = x + 1; y < block.size(); y++) {
+                        int j = block.get(y);
+                        SanctionedEntity a = entityList.get(i);
+                        SanctionedEntity b = entityList.get(j);
+                        // Same-source entities are distinct by the issuing authority
+                        if (a.listSource() == b.listSource()) {
+                            continue;
+                        }
+                        // An entity can share several blocks with another — score each pair once
+                        if (!seenPairs.add(pairKey(i, j))) {
+                            continue;
+                        }
+                        pairsCompared++;
+                        PairEvidence evidence = evaluate(a, profiles.get(i), b, profiles.get(j));
+                        if (evidence.rawScore() >= config.mergeThreshold()) {
+                            candidates.add(
+                                    new CandidatePair(
+                                            Math.min(i, j),
+                                            Math.max(i, j),
+                                            evidence.rawScore(),
+                                            evidence.identifierMatch()));
+                        }
+                    }
+                }
             }
         }
 
-        // Phase 3: Build canonical entities from Union-Find clusters
-        Map<String, List<String>> clusters = unionFind.clusters();
+        // Phase 2: Constrained clustering. Strongest evidence first, so an entity that resembles
+        // several candidates joins the one it matches best; a union is refused when the merged
+        // cluster would hold two entities from one list or provably different dates of birth.
+        candidates.sort(CandidatePair.STRONGEST_FIRST);
+        UnionFind<Integer> unionFind = new UnionFind<>();
+        Map<Integer, ClusterState> clusterStates = new HashMap<>();
+        for (int i = 0; i < entityList.size(); i++) {
+            unionFind.makeSet(i);
+            clusterStates.put(i, ClusterState.of(entityList.get(i)));
+        }
+
+        int rejectedUnions = 0;
+        for (CandidatePair pair : candidates) {
+            int rootA = unionFind.find(pair.first());
+            int rootB = unionFind.find(pair.second());
+            if (rootA == rootB) {
+                continue;
+            }
+            ClusterState stateA = clusterStates.get(rootA);
+            ClusterState stateB = clusterStates.get(rootB);
+            if (!stateA.compatibleWith(stateB, pair.identifierMatch())) {
+                rejectedUnions++;
+                log.trace(
+                        "Merge rejected by cluster constraints [a={}, b={}, score={}]",
+                        entityList.get(pair.first()).id(),
+                        entityList.get(pair.second()).id(),
+                        pair.score());
+                continue;
+            }
+            unionFind.union(rootA, rootB);
+            int newRoot = unionFind.find(rootA);
+            clusterStates.remove(rootA);
+            clusterStates.remove(rootB);
+            clusterStates.put(newRoot, stateA.mergedWith(stateB));
+        }
+
+        // Phase 3: Build canonical entities from clusters, in input order
         Map<String, CanonicalEntity> canonicalEntities = new LinkedHashMap<>();
         Map<String, String> entityToCanonicalId = new HashMap<>();
         int mergedGroups = 0;
         int canonicalCounter = 0;
 
-        for (Map.Entry<String, List<String>> clusterEntry : clusters.entrySet()) {
-            List<String> memberIds = clusterEntry.getValue();
-            List<SanctionedEntity> members = memberIds.stream().map(entityById::get).toList();
+        for (List<Integer> memberIndexes : unionFind.clusters().values()) {
+            List<SanctionedEntity> members = memberIndexes.stream().map(entityList::get).toList();
 
             String canonicalId = "canonical-" + canonicalCounter++;
-            CanonicalEntity canonical = CanonicalEntity.merge(canonicalId, members);
-            canonicalEntities.put(canonicalId, canonical);
+            canonicalEntities.put(canonicalId, CanonicalEntity.merge(canonicalId, members));
 
-            for (String memberId : memberIds) {
-                entityToCanonicalId.put(memberId, canonicalId);
+            for (SanctionedEntity member : members) {
+                entityToCanonicalId.put(member.id(), canonicalId);
             }
-
             if (members.size() > 1) {
                 mergedGroups++;
             }
@@ -157,50 +218,50 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
 
         log.info(
                 "Deduplication complete [source={}, canonical={}, merged={}, eliminated={}, "
-                        + "pairsCompared={}, duration={}ms]",
+                        + "pairsCompared={}, candidatePairs={}, rejectedUnions={}, duration={}ms]",
                 result.totalSourceEntities(),
                 result.totalCanonicalEntities(),
                 result.mergedGroups(),
                 result.duplicatesEliminated(),
-                pairsCompared.get(),
+                pairsCompared,
+                candidates.size(),
+                rejectedUnions,
                 duration.toMillis());
 
         return result;
     }
 
-    private Map<EntityType, List<SanctionedEntity>> groupByType(List<SanctionedEntity> entities) {
-        Map<EntityType, List<SanctionedEntity>> groups = new LinkedHashMap<>();
-        for (SanctionedEntity entity : entities) {
-            groups.computeIfAbsent(entity.entityType(), k -> new ArrayList<>()).add(entity);
+    private static Map<EntityType, List<Integer>> groupByType(List<SanctionedEntity> entities) {
+        Map<EntityType, List<Integer>> groups = new LinkedHashMap<>();
+        for (int i = 0; i < entities.size(); i++) {
+            groups.computeIfAbsent(entities.get(i).entityType(), k -> new ArrayList<>()).add(i);
         }
         return groups;
     }
 
     /**
-     * Builds blocking groups keyed by the first N characters of the normalized primary name.
-     * Each entity may appear in multiple blocks (one per name variant) to handle spelling
-     * differences.
+     * Builds blocking groups keyed by name prefixes. Each entity is placed in one block per
+     * distinct prefix of its name variants (as written and token-sorted) and of its family name, so
+     * reordered and alias spellings still meet in at least one block.
      */
-    private Map<String, List<SanctionedEntity>> buildBlocks(List<SanctionedEntity> entities) {
-        Map<String, List<SanctionedEntity>> blocks = new HashMap<>();
+    private Map<String, List<Integer>> buildBlocks(
+            List<Integer> indexes, List<NameProfile> profiles) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         int prefixLen = config.blockingPrefixLength();
 
-        for (SanctionedEntity entity : entities) {
-            // Block on primary name prefix
-            String normalizedPrimary = NameNormalizer.normalize(entity.primaryName().fullName());
-            addToBlock(blocks, blockKey(normalizedPrimary, prefixLen), entity);
-
-            // Also block on alias prefixes (catches spelling variants)
-            for (NameInfo alias : entity.aliases()) {
-                String normalizedAlias = NameNormalizer.normalize(alias.fullName());
-                addToBlock(blocks, blockKey(normalizedAlias, prefixLen), entity);
+        for (int index : indexes) {
+            Set<String> keys = new HashSet<>();
+            for (String name : profiles.get(index).blockingNames()) {
+                keys.add(blockKey(name, prefixLen));
             }
-
-            // Block on family name prefix if available (handles "LAST, First" vs "First LAST")
-            if (entity.primaryName().familyName() != null) {
-                String normalizedFamily =
-                        NameNormalizer.normalize(entity.primaryName().familyName());
-                addToBlock(blocks, blockKey(normalizedFamily, prefixLen), entity);
+            String family = profiles.get(index).familyName();
+            if (!family.isEmpty()) {
+                keys.add(blockKey(family, prefixLen));
+            }
+            for (String key : keys) {
+                if (!key.isBlank()) {
+                    blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(index);
+                }
             }
         }
         return blocks;
@@ -213,173 +274,304 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
         return normalized.substring(0, prefixLen);
     }
 
-    private static void addToBlock(
-            Map<String, List<SanctionedEntity>> blocks, String key, SanctionedEntity entity) {
-        if (!key.isBlank()) {
-            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(entity);
-        }
-    }
-
-    /**
-     * Compares all cross-source pairs within a block and merges matches.
-     */
-    private void compareBlock(
-            List<SanctionedEntity> block,
-            UnionFind<String> unionFind,
-            AtomicInteger pairsCompared,
-            AtomicInteger mergesPerformed) {
-
-        for (int i = 0; i < block.size(); i++) {
-            SanctionedEntity a = block.get(i);
-            for (int j = i + 1; j < block.size(); j++) {
-                SanctionedEntity b = block.get(j);
-
-                // Only merge across different list sources
-                if (a.listSource() == b.listSource()) {
-                    continue;
-                }
-
-                // Skip if already in the same canonical group
-                if (unionFind.find(a.id()).equals(unionFind.find(b.id()))) {
-                    continue;
-                }
-
-                pairsCompared.incrementAndGet();
-                double score = compositeScore(a, b);
-
-                if (score >= config.mergeThreshold()) {
-                    unionFind.union(a.id(), b.id());
-                    mergesPerformed.incrementAndGet();
-                    log.trace(
-                            "Merged entities [a={} ({}), b={} ({}), score={}]",
-                            a.id(),
-                            a.listSource(),
-                            b.id(),
-                            b.listSource(),
-                            score);
-                }
-            }
-        }
+    private static long pairKey(int i, int j) {
+        int lo = Math.min(i, j);
+        int hi = Math.max(i, j);
+        return ((long) lo << 32) | (hi & 0xffffffffL);
     }
 
     /**
      * Computes a composite similarity score between two entities using multiple signals.
      *
-     * @return composite score in [0.0, 1.0+] (may exceed 1.0 with bonus signals, clamped later)
+     * <p>Name similarity is the base score. A shared identifier or date of birth adds the
+     * configured bonus. Dates of birth that provably differ veto the merge unless an identifier
+     * corroborates it, and an identifier can only rescue a name match that is at least {@link
+     * #MIN_NAME_SIMILARITY_WITH_IDENTIFIER}.
+     *
+     * @return composite score in [0.0, 1.0]
      */
     double compositeScore(SanctionedEntity a, SanctionedEntity b) {
-        // Signal 1: Best name similarity across all name combinations
-        double nameSim = bestNameSimilarity(a, b);
+        return Math.min(evaluate(a, NameProfile.of(a), b, NameProfile.of(b)).rawScore(), 1.0);
+    }
 
-        // Below minimum name threshold — not a match regardless of other signals
-        if (nameSim < config.nameThreshold()) {
-            // Exception: if identifiers match exactly, still consider it
-            if (!hasMatchingIdentifier(a, b)) {
-                return 0.0;
-            }
-            // Identifier match with weak name match — give it a chance
-            nameSim = Math.max(nameSim, 0.5);
+    private PairEvidence evaluate(
+            SanctionedEntity a, NameProfile profileA, SanctionedEntity b, NameProfile profileB) {
+        double nameSim = bestNameSimilarity(profileA, profileB);
+        boolean identifierMatch = hasMatchingIdentifier(a, b);
+        DobEvidence dobEvidence = DobEvidence.between(a.datesOfBirth(), b.datesOfBirth());
+
+        if (nameSim < config.nameThreshold()
+                && !(identifierMatch && nameSim >= MIN_NAME_SIMILARITY_WITH_IDENTIFIER)) {
+            return PairEvidence.NONE;
+        }
+        if (dobEvidence == DobEvidence.CONFLICT && !identifierMatch) {
+            return PairEvidence.NONE;
         }
 
         double score = nameSim;
-
-        // Signal 2: Identifier overlap bonus
-        if (hasMatchingIdentifier(a, b)) {
+        if (identifierMatch) {
             score += config.identifierMatchWeight();
         }
-
-        // Signal 3: Date of birth overlap bonus
-        if (hasMatchingDob(a, b)) {
+        if (dobEvidence == DobEvidence.EXACT) {
             score += config.dobMatchWeight();
         }
-
-        return Math.min(score, 1.0);
+        return new PairEvidence(score, identifierMatch);
     }
 
     /**
-     * Computes the best Jaro-Winkler name similarity across all name combinations of two entities.
+     * Outcome of scoring one pair. The raw score is not clamped to 1.0, so an exact name match that
+     * is also backed by a DOB outranks a bare exact name match during clustering.
      */
-    private static double bestNameSimilarity(SanctionedEntity a, SanctionedEntity b) {
-        List<String> namesA = allNormalizedNames(a);
-        List<String> namesB = allNormalizedNames(b);
+    private record PairEvidence(double rawScore, boolean identifierMatch) {
+        static final PairEvidence NONE = new PairEvidence(0.0, false);
+    }
 
+    /** Best token-aligned similarity across all names of two entities. */
+    private static double bestNameSimilarity(NameProfile a, NameProfile b) {
         double best = 0.0;
-        for (String nameA : namesA) {
-            for (String nameB : namesB) {
-                double sim = JaroWinkler.similarity(nameA, nameB);
+        for (String[] nameA : a.tokenizedNames()) {
+            for (String[] nameB : b.tokenizedNames()) {
+                double sim = tokenAlignedSimilarity(nameA, nameB);
                 if (sim > best) {
                     best = sim;
-                    if (best >= 1.0) return 1.0;
+                    if (best >= 1.0) {
+                        return 1.0;
+                    }
                 }
             }
         }
         return best;
     }
 
-    private static List<String> allNormalizedNames(SanctionedEntity entity) {
-        List<String> names = new ArrayList<>(1 + entity.aliases().size());
-        names.add(NameNormalizer.normalize(entity.primaryName().fullName()));
-
-        // Add family name as standalone (handles "DOE, John" matching "John DOE")
-        if (entity.primaryName().familyName() != null) {
-            String family = NameNormalizer.normalize(entity.primaryName().familyName());
-            String given = entity.primaryName().givenName() != null
-                    ? NameNormalizer.normalize(entity.primaryName().givenName())
-                    : "";
-            if (!family.isEmpty() && !given.isEmpty()) {
-                // Generate both orderings: "family given" and "given family"
-                names.add(family + " " + given);
-                names.add(given + " " + family);
+    /**
+     * Similarity of two tokenized names, independent of token order.
+     *
+     * <p>Tokens are paired greedily, most similar pair first, each token used at most once. The
+     * Jaro-Winkler scores of the pairs are averaged weighted by the lengths of both tokens, and
+     * tokens left without a partner count as zero, so a missing or extra name part lowers the
+     * score. Whole-string Jaro-Winkler is not used: its prefix bonus rates "doe john" vs "doe jane"
+     * at 0.90, which would merge two different people sharing a surname.
+     */
+    static double tokenAlignedSimilarity(String[] tokensA, String[] tokensB) {
+        if (tokensA.length == 0 || tokensB.length == 0) {
+            return 0.0;
+        }
+        double[][] sims = new double[tokensA.length][tokensB.length];
+        int totalLength = 0;
+        for (int i = 0; i < tokensA.length; i++) {
+            totalLength += tokensA[i].length();
+            for (int k = 0; k < tokensB.length; k++) {
+                sims[i][k] = tokenSimilarity(tokensA[i], tokensB[k]);
             }
         }
-
-        for (NameInfo alias : entity.aliases()) {
-            String normalized = NameNormalizer.normalize(alias.fullName());
-            if (!normalized.isEmpty()) {
-                names.add(normalized);
-            }
+        for (String token : tokensB) {
+            totalLength += token.length();
         }
-        return names;
+
+        boolean[] usedA = new boolean[tokensA.length];
+        boolean[] usedB = new boolean[tokensB.length];
+        double weightedSum = 0.0;
+        for (int pairs = Math.min(tokensA.length, tokensB.length); pairs > 0; pairs--) {
+            int bestI = -1;
+            int bestK = -1;
+            for (int i = 0; i < tokensA.length; i++) {
+                if (usedA[i]) {
+                    continue;
+                }
+                for (int k = 0; k < tokensB.length; k++) {
+                    if (!usedB[k] && (bestI < 0 || sims[i][k] > sims[bestI][bestK])) {
+                        bestI = i;
+                        bestK = k;
+                    }
+                }
+            }
+            usedA[bestI] = true;
+            usedB[bestK] = true;
+            weightedSum += sims[bestI][bestK] * (tokensA[bestI].length() + tokensB[bestK].length());
+        }
+        return weightedSum / totalLength;
+    }
+
+    /** Jaro-Winkler between tokens; an initial only half-matches a name with that first letter. */
+    private static double tokenSimilarity(String a, String b) {
+        if (a.length() == 1 || b.length() == 1) {
+            return a.charAt(0) == b.charAt(0) ? INITIAL_MATCH_SIMILARITY : 0.0;
+        }
+        return JaroWinkler.similarity(a, b);
     }
 
     /**
-     * Checks if two entities share any matching identifier (exact value match for the same type).
+     * Checks whether two entities share an identifier: same type, same value ignoring case and
+     * formatting, and no conflicting issuing country when both name one.
      */
     private static boolean hasMatchingIdentifier(SanctionedEntity a, SanctionedEntity b) {
-        if (a.identifiers().isEmpty() || b.identifiers().isEmpty()) {
-            return false;
-        }
-        // Build a set of "type:normalizedValue" for entity A
-        Set<String> aIds = new java.util.HashSet<>();
-        for (Identifier id : a.identifiers()) {
-            aIds.add(identifierKey(id));
-        }
-        for (Identifier id : b.identifiers()) {
-            if (aIds.contains(identifierKey(id))) {
-                return true;
+        for (Identifier idA : a.identifiers()) {
+            String valueA = normalizeIdentifierValue(idA.value());
+            if (valueA.isEmpty()) {
+                continue;
             }
-        }
-        return false;
-    }
-
-    private static String identifierKey(Identifier id) {
-        return id.type() + ":" + id.value().strip().toUpperCase();
-    }
-
-    /**
-     * Checks if two entities share any matching date of birth.
-     */
-    private static boolean hasMatchingDob(SanctionedEntity a, SanctionedEntity b) {
-        if (a.datesOfBirth().isEmpty() || b.datesOfBirth().isEmpty()) {
-            return false;
-        }
-        for (LocalDate dobA : a.datesOfBirth()) {
-            for (LocalDate dobB : b.datesOfBirth()) {
-                if (dobA.equals(dobB)) {
+            for (Identifier idB : b.identifiers()) {
+                if (idA.type() == idB.type()
+                        && valueA.equals(normalizeIdentifierValue(idB.value()))
+                        && compatibleCountries(idA.issuingCountry(), idB.issuingCountry())) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    private static String normalizeIdentifierValue(String value) {
+        return NON_ALPHANUMERIC.matcher(value).replaceAll("").toUpperCase(Locale.ROOT);
+    }
+
+    private static boolean compatibleCountries(String countryA, String countryB) {
+        if (countryA == null || countryA.isBlank() || countryB == null || countryB.isBlank()) {
+            return true;
+        }
+        return countryA.strip().equalsIgnoreCase(countryB.strip());
+    }
+
+    /**
+     * Normalizes a name for deduplication: folds diacritics, lowercases, and turns punctuation into
+     * word breaks, so "MÜLLER-García, José" and "Muller Garcia Jose" compare token for token.
+     */
+    static String normalizeForDedup(String name) {
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        String folded =
+                COMBINING_MARKS
+                        .matcher(Normalizer.normalize(name, Normalizer.Form.NFD))
+                        .replaceAll("");
+        String cleaned =
+                NON_LETTER_OR_DIGIT.matcher(folded.toLowerCase(Locale.ROOT)).replaceAll(" ");
+        return NameNormalizer.normalize(cleaned);
+    }
+
+    private static String sortTokens(String normalized) {
+        String[] tokens = normalized.split(" ");
+        Arrays.sort(tokens);
+        return String.join(" ", tokens);
+    }
+
+    /** Minimum name similarity for a shared identifier to stand in for a strong name match. */
+    static final double MIN_NAME_SIMILARITY_WITH_IDENTIFIER = 0.75;
+
+    /** Similarity of an initial ("j") to a full name token with the same first letter. */
+    private static final double INITIAL_MATCH_SIMILARITY = 0.5;
+
+    private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
+    private static final Pattern NON_LETTER_OR_DIGIT = Pattern.compile("[^\\p{L}\\p{N}]+");
+    private static final Pattern NON_ALPHANUMERIC = Pattern.compile("[^\\p{L}\\p{N}]");
+
+    /**
+     * All comparable name forms of one entity, computed once per deduplication run.
+     *
+     * @param tokenizedNames each distinct normalized name, split into tokens
+     * @param blockingNames each name as written and token-sorted, used only to pick blocks
+     * @param familyName normalized primary family name, or empty
+     */
+    private record NameProfile(
+            List<String[]> tokenizedNames, List<String> blockingNames, String familyName) {
+
+        static NameProfile of(SanctionedEntity entity) {
+            Set<String> names = new LinkedHashSet<>();
+            NameInfo primary = entity.primaryName();
+            addName(names, primary.fullName());
+            if (primary.givenName() != null && primary.familyName() != null) {
+                addName(names, primary.givenName() + " " + primary.familyName());
+            }
+            for (NameInfo alias : entity.aliases()) {
+                addName(names, alias.fullName());
+            }
+
+            List<String[]> tokenized = new ArrayList<>(names.size());
+            Set<String> blocking = new LinkedHashSet<>();
+            for (String name : names) {
+                tokenized.add(name.split(" "));
+                blocking.add(name);
+                blocking.add(sortTokens(name));
+            }
+            return new NameProfile(
+                    List.copyOf(tokenized),
+                    List.copyOf(blocking),
+                    normalizeForDedup(primary.familyName()));
+        }
+
+        private static void addName(Set<String> names, String name) {
+            String normalized = normalizeForDedup(name);
+            if (!normalized.isEmpty()) {
+                names.add(normalized);
+            }
+        }
+    }
+
+    /** A pair of entity positions whose composite score reached the merge threshold. */
+    private record CandidatePair(int first, int second, double score, boolean identifierMatch) {
+
+        static final Comparator<CandidatePair> STRONGEST_FIRST =
+                Comparator.comparingDouble(CandidatePair::score)
+                        .reversed()
+                        .thenComparingInt(CandidatePair::first)
+                        .thenComparingInt(CandidatePair::second);
+    }
+
+    /** What date-of-birth data says about two entities being the same person. */
+    private enum DobEvidence {
+        /** At least one side has no date of birth. */
+        UNKNOWN,
+        /** A date of birth appears on both sides. */
+        EXACT,
+        /** No identical date, but a shared year (year-only DOBs are stored as 1 January). */
+        SAME_YEAR,
+        /** Both sides have dates of birth and no year in common. */
+        CONFLICT;
+
+        static DobEvidence between(Collection<LocalDate> a, Collection<LocalDate> b) {
+            if (a.isEmpty() || b.isEmpty()) {
+                return UNKNOWN;
+            }
+            boolean sameYear = false;
+            for (LocalDate dobA : a) {
+                for (LocalDate dobB : b) {
+                    if (dobA.equals(dobB)) {
+                        return EXACT;
+                    }
+                    sameYear |= dobA.getYear() == dobB.getYear();
+                }
+            }
+            return sameYear ? SAME_YEAR : CONFLICT;
+        }
+    }
+
+    /** Facts about a cluster that every future union must respect. */
+    private record ClusterState(Set<ListSource> sources, Set<LocalDate> datesOfBirth) {
+
+        static ClusterState of(SanctionedEntity entity) {
+            return new ClusterState(
+                    EnumSet.of(entity.listSource()), new HashSet<>(entity.datesOfBirth()));
+        }
+
+        /**
+         * A shared identifier outweighs conflicting dates of birth (lists often disagree on DOB),
+         * but nothing allows one cluster to hold two entities from the same list.
+         */
+        boolean compatibleWith(ClusterState other, boolean identifierMatch) {
+            if (!Collections.disjoint(sources, other.sources)) {
+                return false;
+            }
+            return identifierMatch
+                    || DobEvidence.between(datesOfBirth, other.datesOfBirth)
+                            != DobEvidence.CONFLICT;
+        }
+
+        ClusterState mergedWith(ClusterState other) {
+            Set<ListSource> mergedSources = EnumSet.copyOf(sources);
+            mergedSources.addAll(other.sources);
+            Set<LocalDate> mergedDobs = new HashSet<>(datesOfBirth);
+            mergedDobs.addAll(other.datesOfBirth);
+            return new ClusterState(mergedSources, mergedDobs);
+        }
     }
 }

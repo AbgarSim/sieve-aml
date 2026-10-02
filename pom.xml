@@ -63,6 +63,9 @@
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
         <google-java-format.version>1.24.0</google-java-format.version>
+
+        <!-- JUnit tags skipped by default; override with -Dtest.excludedGroups=none -->
+        <test.excludedGroups>integration</test.excludedGroups>
     </properties>
 
     <dependencyManagement>
@@ -196,6 +199,8 @@
                         <excludes>
                             <exclude>**/*IT.java</exclude>
                         </excludes>
+                        <!-- Tests tagged "integration" hit live government endpoints -->
+                        <excludedGroups>${test.excludedGroups}</excludedGroups>
                     </configuration>
                 </plugin>
 
