@@ -53,6 +53,11 @@ public class ExportCommand implements Runnable {
             }
             System.out.println("],");
             System.out.printf(
+                    "    \"topics\": [%s],%n",
+                    String.join(
+                            ", ",
+                            entity.topics().stream().map(t -> "\"" + t.name() + "\"").toList()));
+            System.out.printf(
                     "    \"programs\": [%s]%n",
                     String.join(
                             ", ",

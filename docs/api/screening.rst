@@ -72,6 +72,7 @@ Screen a name against all loaded sanctions lists.
            "aliases": ["Vladimir PUTIN", "Владимир Путин"],
            "nationalities": ["Russia"],
            "programs": ["RUSSIA-EO14024"],
+           "topics": ["SANCTION"],
            "remarks": "President of the Russian Federation",
            "lastUpdated": "2024-01-15T00:00:00Z"
          },

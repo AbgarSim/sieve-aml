@@ -11,6 +11,7 @@ import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.server.ServerConfig;
@@ -218,7 +219,7 @@ public final class ScreeningHandler {
 
     private Map<String, Object> toMatchMap(MatchResult result) {
         SanctionedEntity entity = result.entity();
-        Map<String, Object> entityMap = new HashMap<>(8);
+        Map<String, Object> entityMap = new HashMap<>(12);
         entityMap.put("id", entity.id());
         entityMap.put("entityType", entity.entityType().name());
         entityMap.put("listSource", entity.listSource().name());
@@ -227,6 +228,7 @@ public final class ScreeningHandler {
         entityMap.put("addresses", entity.addresses().stream().map(this::toAddressMap).toList());
         entityMap.put("nationalities", entity.nationalities());
         entityMap.put("programs", entity.programs().stream().map(SanctionsProgram::code).toList());
+        entityMap.put("topics", entity.topics().stream().map(RiskTopic::name).toList());
         entityMap.put("remarks", entity.remarks());
 
         Map<String, Object> map = new HashMap<>(4);
