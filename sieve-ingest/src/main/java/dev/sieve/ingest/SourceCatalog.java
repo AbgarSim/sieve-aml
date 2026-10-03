@@ -262,6 +262,13 @@ public final class SourceCatalog {
                 "WB",
                 Format.JSON,
                 "https://www.worldbank.org/en/projects-operations/procurement/debarred-firms");
+        put(
+                map,
+                ListSource.WIKIDATA_PEP,
+                "Wikidata",
+                "WD",
+                Format.JSON,
+                "https://www.wikidata.org/");
         return Collections.unmodifiableMap(map);
     }
 

@@ -14,7 +14,7 @@
 
 ## Supported Sanctions Lists
 
-**32 providers** across 23 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
+**33 providers** across 24 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
 
 ### International
 
@@ -52,6 +52,7 @@
 | US FBI Wanted | U.S. Federal Bureau of Investigation — wanted persons (open posters naming a suspect) | JSON | ~500 |
 | EU Most Wanted | Europol / ENFAST — Europe's most wanted fugitives | HTML | ~50 |
 | World Bank Debarred | World Bank Group — firms and individuals debarred from Bank-financed contracts | JSON | ~1,500 |
+| Wikidata PEPs | Wikidata — living holders of national offices (heads of state and government, ministers, members of parliament, judges), current or within 5 years | JSON (SPARQL) | ~78,000 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
 | MD Terror | Moldova — Security and Intelligence Service | XLSX | ~710 |
 
@@ -202,7 +203,7 @@ curl http://localhost:8080/api/v1/health
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 32 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 33 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files

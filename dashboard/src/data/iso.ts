@@ -32,6 +32,7 @@ export function countryName(code: string): string {
   if (c === 'EU') return 'European Union';
   if (c === 'UN') return 'United Nations';
   if (c === 'WB') return 'World Bank Group';
+  if (c === 'WD') return 'Wikidata';
   if (c === 'XK') return 'Kosovo';
   try { return displayNames?.of(c) ?? c; } catch { return c; }
 }

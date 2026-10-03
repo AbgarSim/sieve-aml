@@ -1,0 +1,269 @@
+package dev.sieve.ingest.wikidata;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.ListSource;
+import dev.sieve.core.model.NameStrength;
+import dev.sieve.core.model.RiskTopic;
+import dev.sieve.core.model.SanctionedEntity;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpResponse;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class WikidataPepProviderTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final LocalDate TODAY = LocalDate.of(2026, 10, 3);
+    private static final Clock CLOCK =
+            Clock.fixed(Instant.parse("2026-10-03T00:00:00Z"), ZoneOffset.UTC);
+    private static final String WD = "http://www.wikidata.org/entity/";
+
+    private static final WikidataPepProvider.Office CHANCELLOR =
+            new WikidataPepProvider.Office("Q4970706", "Federal Chancellor of Germany", "DE", 1);
+    private static final WikidataPepProvider.Office MDB =
+            new WikidataPepProvider.Office("Q1939555", "member of the Bundestag", "DE", 2);
+
+    @Test
+    void shouldKeepTermsThatAreCurrentOrEndedRecently() throws Exception {
+        Map<String, WikidataPepProvider.Person> people = new LinkedHashMap<>();
+        List<WikidataPepProvider.Office> offices = List.of(CHANCELLOR, MDB);
+
+        WikidataPepProvider.addTerm(
+                people, holder("Q567", "Q4970706", "2005-11-22", "2021-12-08"), offices, TODAY);
+        WikidataPepProvider.addTerm(
+                people, holder("Q1", "Q1939555", "2009-10-27", "2017-10-24"), offices, TODAY);
+        WikidataPepProvider.addTerm(
+                people, holder("Q2", "Q1939555", "1969-10-20", null), offices, TODAY);
+        WikidataPepProvider.addTerm(
+                people, holder("Q3", "Q1939555", "2021-10-26", null), offices, TODAY);
+        WikidataPepProvider.addTerm(
+                people, holder("Q4", "Q999", "2021-10-26", null), offices, TODAY);
+
+        assertThat(people).containsOnlyKeys("Q567", "Q3");
+        assertThat(people.get("Q567").terms)
+                .singleElement()
+                .satisfies(
+                        t -> {
+                            assertThat(t.office()).isEqualTo(CHANCELLOR);
+                            assertThat(t.end()).isEqualTo(LocalDate.of(2021, 12, 8));
+                        });
+    }
+
+    @Test
+    void shouldPreferEnglishNameAndFallBackToMultilingualLabel() throws Exception {
+        Map<String, WikidataPepProvider.Person> people = new LinkedHashMap<>();
+        people.put("Q567", new WikidataPepProvider.Person("Q567"));
+        people.put("Q3", new WikidataPepProvider.Person("Q3"));
+
+        WikidataPepProvider.describe(
+                people,
+                row(
+                        Map.of(
+                                "person", WD + "Q567",
+                                "mul", "Angela Dorothea Merkel",
+                                "name", "Angela Merkel",
+                                "alias", "Merkel",
+                                "born", "1954-07-17T00:00:00Z",
+                                "citizenship", "DE")));
+        WikidataPepProvider.describe(
+                people, row(Map.of("person", WD + "Q3", "mul", "Erika Mustermann")));
+        WikidataPepProvider.describe(people, row(Map.of("person", WD + "Q99", "name", "Nobody")));
+
+        assertThat(people.get("Q567").name).isEqualTo("Angela Merkel");
+        assertThat(people.get("Q567").aliases).containsExactly("Merkel");
+        assertThat(people.get("Q567").datesOfBirth).containsExactly(LocalDate.of(1954, 7, 17));
+        assertThat(people.get("Q567").citizenships).containsExactly("DE");
+        assertThat(people.get("Q3").name).isEqualTo("Erika Mustermann");
+        assertThat(people).doesNotContainKey("Q99");
+    }
+
+    @Test
+    void shouldBuildPepEntityWithOfficesTiersAndTerms() {
+        WikidataPepProvider.Person person = new WikidataPepProvider.Person("Q567");
+        person.name = "Angela Merkel";
+        person.aliases.add("Merkel");
+        person.aliases.add("Angela Dorothea Merkel");
+        person.aliases.add("angela merkel");
+        person.datesOfBirth.add(LocalDate.of(1954, 7, 17));
+        person.terms.add(
+                new WikidataPepProvider.Term(
+                        CHANCELLOR, LocalDate.of(2005, 11, 22), LocalDate.of(2021, 12, 8)));
+        person.terms.add(new WikidataPepProvider.Term(MDB, null, null));
+
+        SanctionedEntity entity = WikidataPepProvider.toEntity(person);
+
+        assertThat(entity.id()).isEqualTo("wd-Q567");
+        assertThat(entity.entityType()).isEqualTo(EntityType.INDIVIDUAL);
+        assertThat(entity.listSource()).isEqualTo(ListSource.WIKIDATA_PEP);
+        assertThat(entity.topics()).containsExactly(RiskTopic.PEP);
+        assertThat(entity.primaryName().fullName()).isEqualTo("Angela Merkel");
+        assertThat(entity.aliases())
+                .extracting(a -> a.fullName(), a -> a.strength())
+                .containsExactly(
+                        tuple("Merkel", NameStrength.WEAK),
+                        tuple("Angela Dorothea Merkel", NameStrength.STRONG));
+        assertThat(entity.nationalities()).containsExactly("DE");
+        assertThat(entity.datesOfBirth()).containsExactly(LocalDate.of(1954, 7, 17));
+        assertThat(entity.programs())
+                .extracting(p -> p.code(), p -> p.name())
+                .containsExactly(
+                        tuple("Federal Chancellor of Germany", "PEP tier 1"),
+                        tuple("member of the Bundestag", "PEP tier 2"));
+        assertThat(entity.remarks())
+                .isEqualTo(
+                        "Federal Chancellor of Germany (DE, tier 1): 2005-11-22 to 2021-12-08\n"
+                                + "member of the Bundestag (DE, tier 2): start unknown to present\n"
+                                + "Source: https://www.wikidata.org/wiki/Q567");
+    }
+
+    @Test
+    void shouldSkipPeopleWithoutAName() {
+        WikidataPepProvider.Person person = new WikidataPepProvider.Person("Q3");
+        person.terms.add(new WikidataPepProvider.Term(MDB, null, null));
+
+        assertThat(WikidataPepProvider.toEntity(person)).isNull();
+    }
+
+    @Test
+    void shouldReadDatesAndIdsLeniently() {
+        assertThat(WikidataPepProvider.date("1954-07-17T00:00:00Z"))
+                .isEqualTo(LocalDate.of(1954, 7, 17));
+        assertThat(WikidataPepProvider.date("1954-00-00T00:00:00Z")).isNull();
+        assertThat(WikidataPepProvider.date("-0044-03-15T00:00:00Z")).isNull();
+        assertThat(WikidataPepProvider.date(null)).isNull();
+        assertThat(WikidataPepProvider.id(WD + "Q567")).isEqualTo("Q567");
+        assertThat(WikidataPepProvider.id(null)).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldQueryEachCountryAndSkipOneThatFails() throws Exception {
+        HttpClient client = mock(HttpClient.class);
+        HttpResponse<byte[]> countries =
+                response(
+                        200,
+                        bindings(
+                                Map.of("country", WD + "Q183", "iso", "DE"),
+                                Map.of("country", WD + "Q30", "iso", "US"),
+                                Map.of("country", WD + "Q99999")));
+        HttpResponse<byte[]> germanOffices =
+                response(
+                        200,
+                        bindings(
+                                Map.of(
+                                        "office", WD + "Q4970706",
+                                        "class", WD + "Q48352",
+                                        "label", "Federal Chancellor of Germany"),
+                                Map.of(
+                                        "office", WD + "Q4970706",
+                                        "class", WD + "Q2285706",
+                                        "label", "Federal Chancellor of Germany")));
+        HttpResponse<byte[]> germanHolders =
+                response(
+                        200,
+                        bindings(
+                                Map.of(
+                                        "person",
+                                        WD + "Q567",
+                                        "office",
+                                        WD + "Q4970706",
+                                        "start",
+                                        "2005-11-22T00:00:00Z",
+                                        "end",
+                                        "2021-12-08T00:00:00Z")));
+        HttpResponse<byte[]> usOffices = response(400, "bad query".getBytes());
+        HttpResponse<byte[]> people =
+                response(
+                        200,
+                        bindings(
+                                Map.of(
+                                        "person", WD + "Q567",
+                                        "name", "Angela Merkel",
+                                        "citizenship", "DE")));
+        HttpResponse<byte[]> last = response(200, "{}".getBytes());
+        when(client.send(any(), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(countries, germanOffices, germanHolders, usOffices, people, last);
+
+        List<SanctionedEntity> result =
+                new WikidataPepProvider(URI.create("https://query.example/sparql"), client, CLOCK)
+                        .fetch();
+
+        assertThat(result).extracting(SanctionedEntity::id).containsExactly("wd-Q567");
+        assertThat(result.get(0).programs())
+                .singleElement()
+                .satisfies(p -> assertThat(p.name()).isEqualTo("PEP tier 1"));
+    }
+
+    @Test
+    void shouldFailWhenNoHoldersWereFound() {
+        assertThatThrownBy(() -> new WikidataPepProvider().parseResponse("{}".getBytes()))
+                .isInstanceOf(ListIngestionException.class)
+                .hasMessageContaining("no office holders");
+    }
+
+    @Test
+    void shouldLimitHoldersQueryToRecentTermsOfLivingPeople() {
+        String query = WikidataPepProvider.holdersQuery(List.of(CHANCELLOR, MDB), TODAY);
+
+        assertThat(query)
+                .contains("VALUES ?office { wd:Q4970706 wd:Q1939555 }")
+                .contains("FILTER NOT EXISTS { ?person wdt:P570 ?died }")
+                .contains("\"2021-10-03T00:00:00Z\"^^xsd:dateTime");
+    }
+
+    private static JsonNode holder(String person, String office, String start, String end) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put("person", WD + person);
+        fields.put("office", WD + office);
+        if (start != null) {
+            fields.put("start", start + "T00:00:00Z");
+        }
+        if (end != null) {
+            fields.put("end", end + "T00:00:00Z");
+        }
+        return row(fields);
+    }
+
+    private static JsonNode row(Map<String, String> fields) {
+        var node = MAPPER.createObjectNode();
+        fields.forEach((k, v) -> node.putObject(k).put("value", v));
+        return node;
+    }
+
+    @SafeVarargs
+    private static byte[] bindings(Map<String, String>... rows) throws Exception {
+        var root = MAPPER.createObjectNode();
+        var array = root.putObject("results").putArray("bindings");
+        for (Map<String, String> fields : rows) {
+            array.add(row(fields));
+        }
+        return MAPPER.writeValueAsBytes(root);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse<byte[]> response(int status, byte[] body) {
+        HttpResponse<byte[]> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(status);
+        when(response.body()).thenReturn(body);
+        when(response.headers()).thenReturn(HttpHeaders.of(Map.of(), (a, b) -> true));
+        return response;
+    }
+}
