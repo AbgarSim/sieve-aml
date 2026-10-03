@@ -30,6 +30,7 @@ import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
+import dev.sieve.ingest.wikidata.WikidataPepProvider;
 import dev.sieve.ingest.worldbank.WorldBankDebarredProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import java.util.List;
@@ -80,6 +81,7 @@ public final class ProviderRegistry {
                 new InMhaProvider(),
                 new FbiWantedProvider(),
                 new EuMostWantedProvider(),
-                new WorldBankDebarredProvider());
+                new WorldBankDebarredProvider(),
+                new WikidataPepProvider());
     }
 }
