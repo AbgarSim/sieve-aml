@@ -21,6 +21,7 @@ import dev.sieve.ingest.eu.EuConsolidatedProvider;
 import dev.sieve.ingest.eu.EuJournalProvider;
 import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
+import dev.sieve.ingest.europol.EuMostWantedProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaProvider;
@@ -242,6 +243,7 @@ public final class SieveServer {
         providers.add(new ArRepetProvider());
         providers.add(new InMhaProvider());
         providers.add(new FbiWantedProvider());
+        providers.add(new EuMostWantedProvider());
         log.info("Registered {} providers total", providers.size());
 
         return providers;
