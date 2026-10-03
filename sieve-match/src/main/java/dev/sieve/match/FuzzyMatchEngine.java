@@ -17,6 +17,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Compares the screening query against each entity's primary name and all aliases, keeping the
  * best (highest) score per entity. Results below the request's threshold are discarded.
+ *
+ * <p>Matches that cover only part of a name, such as a lone first name, are discounted by {@link
+ * PartialNameMatch}.
  */
 public final class FuzzyMatchEngine implements MatchEngine {
 
@@ -47,6 +50,7 @@ public final class FuzzyMatchEngine implements MatchEngine {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
         String normalizedQuery = NameNormalizer.normalize(request.name());
+        int queryTokenCount = PartialNameMatch.tokenCount(normalizedQuery);
         Collection<SanctionedEntity> candidates =
                 resolveCandidates(request, index, normalizedQuery);
         List<MatchResult> results = new ArrayList<>();
@@ -55,7 +59,8 @@ public final class FuzzyMatchEngine implements MatchEngine {
             if (shouldSkipEntity(request, entity)) {
                 continue;
             }
-            MatchResult result = scoreEntity(normalizedQuery, entity, request.threshold());
+            MatchResult result =
+                    scoreEntity(normalizedQuery, queryTokenCount, entity, request.threshold());
             if (result != null) {
                 results.add(result);
             }
@@ -76,40 +81,36 @@ public final class FuzzyMatchEngine implements MatchEngine {
     }
 
     private MatchResult scoreEntity(
-            String normalizedQuery, SanctionedEntity entity, double threshold) {
+            String normalizedQuery,
+            int queryTokenCount,
+            SanctionedEntity entity,
+            double threshold) {
         NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
 
         double bestScore =
-                JaroWinkler.similarityWithThreshold(
-                        normalizedQuery, cached.primaryName(), threshold);
+                fullNameScore(normalizedQuery, queryTokenCount, cached.primaryName(), threshold);
         String bestField = "primaryName";
 
-        if (bestScore < 1.0) {
-            List<String> aliases = cached.aliases();
-            for (int i = 0; i < aliases.size(); i++) {
-                double aliasScore =
-                        JaroWinkler.similarityWithThreshold(
-                                normalizedQuery, aliases.get(i), threshold);
-                if (aliasScore > bestScore) {
-                    bestScore = aliasScore;
-                    bestField = "alias[" + i + "]";
-                    if (bestScore >= 1.0) break;
-                }
+        List<String> aliases = cached.aliases();
+        for (int i = 0; i < aliases.size() && bestScore < 1.0; i++) {
+            double aliasScore =
+                    fullNameScore(normalizedQuery, queryTokenCount, aliases.get(i), threshold);
+            if (aliasScore > bestScore) {
+                bestScore = aliasScore;
+                bestField = "alias[" + i + "]";
             }
         }
 
-        // Also match against individual name components (familyName, givenName)
-        if (bestScore < 1.0) {
-            List<String> components = cached.nameComponents();
-            for (int i = 0; i < components.size(); i++) {
-                double componentScore =
-                        JaroWinkler.similarityWithThreshold(
-                                normalizedQuery, components.get(i), threshold);
-                if (componentScore > bestScore) {
-                    bestScore = componentScore;
-                    bestField = "nameComponent[" + i + "]";
-                    if (bestScore >= 1.0) break;
-                }
+        // Individual name components (familyName, givenName) only ever match part of a name
+        List<String> components = cached.nameComponents();
+        for (int i = 0; i < components.size() && bestScore < PartialNameMatch.FACTOR; i++) {
+            double componentScore =
+                    PartialNameMatch.discount(
+                            JaroWinkler.similarityWithThreshold(
+                                    normalizedQuery, components.get(i), threshold));
+            if (componentScore > bestScore) {
+                bestScore = componentScore;
+                bestField = "nameComponent[" + i + "]";
             }
         }
 
@@ -117,6 +118,14 @@ public final class FuzzyMatchEngine implements MatchEngine {
             return new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME);
         }
         return null;
+    }
+
+    private static double fullNameScore(
+            String normalizedQuery, int queryTokenCount, String name, double threshold) {
+        double score = JaroWinkler.similarityWithThreshold(normalizedQuery, name, threshold);
+        return PartialNameMatch.isLoneToken(queryTokenCount, name)
+                ? PartialNameMatch.discount(score)
+                : score;
     }
 
     private Collection<SanctionedEntity> resolveCandidates(

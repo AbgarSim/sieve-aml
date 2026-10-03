@@ -25,7 +25,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Compares phonetic codes of the query against phonetic codes of each entity's names. If any
  * code combination matches, the entity is returned with a fixed score of 0.95 (phonetic matches are
- * high-confidence but not exact).
+ * high-confidence but not exact). Matches that cover only part of a name, such as a lone first
+ * name, are discounted by {@link PartialNameMatch} and dropped when they fall below the request
+ * threshold.
  *
  * <p>This engine is designed to be used alongside {@link FuzzyMatchEngine} inside a {@link
  * CompositeMatchEngine}, where the highest score per entity wins.
@@ -40,6 +42,10 @@ public final class PhoneticMatchEngine implements MatchEngine {
      * to reflect high confidence.
      */
     private static final double PHONETIC_MATCH_SCORE = 0.95;
+
+    /** Score assigned to phonetic matches that cover only part of a name. */
+    private static final double PARTIAL_MATCH_SCORE =
+            PartialNameMatch.discount(PHONETIC_MATCH_SCORE);
 
     private final NormalizedNameCache nameCache;
     private final NgramIndex ngramIndex;
@@ -68,6 +74,7 @@ public final class PhoneticMatchEngine implements MatchEngine {
         String normalizedQuery = NameNormalizer.normalize(request.name());
         String[] queryTokens = normalizedQuery.split("\\s+");
         DoubleMetaphone.PhoneticCode[] queryCodes = encodeTokens(queryTokens);
+        int queryTokenCount = PartialNameMatch.tokenCount(normalizedQuery);
 
         Collection<SanctionedEntity> entities = resolveEntities(request, index);
         List<MatchResult> results = new ArrayList<>();
@@ -78,11 +85,9 @@ public final class PhoneticMatchEngine implements MatchEngine {
                 continue;
             }
 
-            String matchedField = findPhoneticMatch(entity, queryCodes);
-            if (matchedField != null) {
-                results.add(
-                        new MatchResult(
-                                entity, PHONETIC_MATCH_SCORE, matchedField, ALGORITHM_NAME));
+            MatchResult result = findPhoneticMatch(entity, queryCodes, queryTokenCount);
+            if (result != null && result.score() >= request.threshold()) {
+                results.add(result);
             }
         }
 
@@ -96,33 +101,50 @@ public final class PhoneticMatchEngine implements MatchEngine {
     }
 
     /**
-     * Finds a phonetic match between the query codes and the entity's names.
+     * Finds the best phonetic match between the query codes and the entity's names.
      *
-     * @return the matched field name, or {@code null} if no match
+     * <p>A full-name match scores {@link #PHONETIC_MATCH_SCORE}; a match that covers only part of a
+     * name (a single name component, or a single-token query against a longer name) is discounted
+     * by {@link PartialNameMatch}.
+     *
+     * @return the best match, or {@code null} if no name matches
      */
-    private String findPhoneticMatch(
-            SanctionedEntity entity, DoubleMetaphone.PhoneticCode[] queryCodes) {
+    private MatchResult findPhoneticMatch(
+            SanctionedEntity entity,
+            DoubleMetaphone.PhoneticCode[] queryCodes,
+            int queryTokenCount) {
         NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+        double bestScore = 0.0;
+        String bestField = null;
 
-        if (matchesTokens(cached.primaryName(), queryCodes)) {
-            return "primaryName";
-        }
-
-        List<String> aliases = cached.aliases();
-        for (int i = 0; i < aliases.size(); i++) {
-            if (matchesTokens(aliases.get(i), queryCodes)) {
-                return "alias[" + i + "]";
+        List<String> fullNames = new ArrayList<>(cached.aliases().size() + 1);
+        fullNames.add(cached.primaryName());
+        fullNames.addAll(cached.aliases());
+        for (int i = 0; i < fullNames.size() && bestScore < PHONETIC_MATCH_SCORE; i++) {
+            String name = fullNames.get(i);
+            if (matchesTokens(name, queryCodes)) {
+                double score =
+                        PartialNameMatch.isLoneToken(queryTokenCount, name)
+                                ? PARTIAL_MATCH_SCORE
+                                : PHONETIC_MATCH_SCORE;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestField = i == 0 ? "primaryName" : "alias[" + (i - 1) + "]";
+                }
             }
         }
 
         List<String> components = cached.nameComponents();
-        for (int i = 0; i < components.size(); i++) {
+        for (int i = 0; i < components.size() && bestScore < PARTIAL_MATCH_SCORE; i++) {
             if (matchesTokens(components.get(i), queryCodes)) {
-                return "nameComponent[" + i + "]";
+                bestScore = PARTIAL_MATCH_SCORE;
+                bestField = "nameComponent[" + i + "]";
             }
         }
 
-        return null;
+        return bestField == null
+                ? null
+                : new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME);
     }
 
     /**

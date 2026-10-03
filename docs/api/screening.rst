@@ -109,7 +109,9 @@ Screen a name against all loaded sanctions lists.
      - Match confidence score (0.0–1.0)
    * - ``results[].matchedField``
      - string
-     - Which field matched (``primaryName`` or ``alias[N]``)
+     - Which field matched (``primaryName``, ``alias[N]`` or ``nameComponent[N]``). A match on a
+       single name component, or a one-word query against a longer name, covers only part of the
+       name and its score is multiplied by 0.75
    * - ``results[].matchAlgorithm``
      - string
      - Algorithm used: ``EXACT`` or ``JARO_WINKLER``
