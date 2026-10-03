@@ -234,6 +234,13 @@ public final class SourceCatalog {
                 "AR",
                 Format.JSON,
                 "https://repet.jus.gob.ar/");
+        put(
+                map,
+                ListSource.IN_MHA,
+                "Ministry of Home Affairs",
+                "IN",
+                Format.HTML,
+                "https://www.mha.gov.in/en/page/individual-terrorists-under-uapa");
         return Collections.unmodifiableMap(map);
     }
 
