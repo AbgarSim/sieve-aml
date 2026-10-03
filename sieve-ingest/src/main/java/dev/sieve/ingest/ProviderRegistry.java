@@ -11,6 +11,7 @@ import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
+import dev.sieve.ingest.in.InMhaProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
 import dev.sieve.ingest.mc.McFundFreezingProvider;
@@ -72,6 +73,7 @@ public final class ProviderRegistry {
                 new QaNctcProvider(),
                 new ZaFicProvider(),
                 new LvFiuProvider(),
-                new ArRepetProvider());
+                new ArRepetProvider(),
+                new InMhaProvider());
     }
 }
