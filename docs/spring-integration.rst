@@ -89,7 +89,8 @@ Request / Response Examples
          "primaryName": "PUTIN, Vladimir Vladimirovich",
          "aliases": [],
          "addresses": [{"city": "Moscow", "country": "RU"}],
-         "programs": ["UKRAINE-EO13661"]
+         "programs": ["UKRAINE-EO13661"],
+         "topics": ["SANCTION"]
        },
        "score": 0.92,
        "matchedField": "primaryName",
