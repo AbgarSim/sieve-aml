@@ -43,13 +43,35 @@ class PhoneticMatchEngineTest {
     }
 
     @Test
-    void shouldMatchSingleTokenAgainstComponents() {
+    void shouldScoreSingleTokenMatchAsPartialWhenNameHasMoreTokens() {
         index.addAll(List.of(createEntity("1", "SCHMIDT, Hans", "Hans", "SCHMIDT")));
 
-        ScreeningRequest request = ScreeningRequest.of("Smith", 0.80);
+        ScreeningRequest request = ScreeningRequest.of("Smith", 0.50);
         List<MatchResult> results = engine.screen(request, index);
 
-        assertThat(results).isNotEmpty();
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isLessThan(0.80);
+    }
+
+    @Test
+    void shouldNotReturnLoneFirstNameAtDefaultThreshold() {
+        index.addAll(List.of(createEntity("1", "PUTIN, Vladimir", "Vladimir", "PUTIN")));
+
+        ScreeningRequest request = ScreeningRequest.of("Wladimir", 0.80);
+        List<MatchResult> results = engine.screen(request, index);
+
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    void shouldKeepFullScoreWhenSingleTokenNameMatches() {
+        index.addAll(List.of(createEntity("1", "Usama", null, null)));
+
+        ScreeningRequest request = ScreeningRequest.of("Osama", 0.80);
+        List<MatchResult> results = engine.screen(request, index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isEqualTo(0.95);
     }
 
     private static SanctionedEntity createEntity(

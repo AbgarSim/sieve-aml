@@ -119,6 +119,65 @@ class FuzzyMatchEngineTest {
         assertThat(engine.screen(ScreeningRequest.of("SMITH, Anna", 0.90), index)).hasSize(1);
     }
 
+    @Test
+    void shouldNotReturnLoneFirstNameAtDefaultThreshold() {
+        index.add(
+                createPerson(
+                        "1",
+                        "PUTIN, Vladimir Vladimirovich",
+                        "Vladimir Vladimirovich",
+                        "PUTIN",
+                        List.of("Vladimir Putin")));
+
+        List<MatchResult> results = engine.screen(ScreeningRequest.of("Vladimir", 0.80), index);
+
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    void shouldDiscountLoneTokenMatchWhenThresholdIsLowered() {
+        index.add(
+                createPerson(
+                        "1",
+                        "PUTIN, Vladimir Vladimirovich",
+                        "Vladimir Vladimirovich",
+                        "PUTIN",
+                        List.of("Vladimir Putin")));
+
+        List<MatchResult> results = engine.screen(ScreeningRequest.of("Vladimir", 0.50), index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isLessThanOrEqualTo(PartialNameMatch.FACTOR);
+    }
+
+    @Test
+    void shouldScoreFullNameMatchAsPerfectWhenEntityHasComponents() {
+        index.add(
+                createPerson(
+                        "1",
+                        "PUTIN, Vladimir Vladimirovich",
+                        "Vladimir Vladimirovich",
+                        "PUTIN",
+                        List.of("Vladimir Putin")));
+
+        List<MatchResult> results =
+                engine.screen(ScreeningRequest.of("Vladimir Putin", 0.80), index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isEqualTo(1.0);
+        assertThat(results.getFirst().matchedField()).isEqualTo("alias[0]");
+    }
+
+    @Test
+    void shouldNotDiscountSingleTokenQueryWhenNameIsSingleToken() {
+        index.add(createEntity("1", "HAMAS", List.of()));
+
+        List<MatchResult> results = engine.screen(ScreeningRequest.of("Hamas", 0.80), index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isEqualTo(1.0);
+    }
+
     private static SanctionedEntity createEntity(String id, String name, List<String> aliases) {
         NameInfo primaryName =
                 new NameInfo(
@@ -152,6 +211,46 @@ class FuzzyMatchEngineTest {
                 ListSource.OFAC_SDN,
                 primaryName,
                 aliasNames,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
+    }
+
+    private static SanctionedEntity createPerson(
+            String id, String fullName, String givenName, String familyName, List<String> aliases) {
+        return new SanctionedEntity(
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                new NameInfo(
+                        fullName,
+                        givenName,
+                        familyName,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
+                        ScriptType.LATIN),
+                aliases.stream()
+                        .map(
+                                a ->
+                                        new NameInfo(
+                                                a,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                NameType.AKA,
+                                                NameStrength.STRONG,
+                                                ScriptType.LATIN))
+                        .toList(),
                 null,
                 null,
                 null,

@@ -136,6 +136,38 @@ class ExactMatchEngineTest {
         assertThat(results).isEmpty();
     }
 
+    @Test
+    void shouldScoreNameComponentMatchAsPartial() {
+        index.add(
+                createPerson(
+                        "1",
+                        "PUTIN, Vladimir Vladimirovich",
+                        "Vladimir Vladimirovich",
+                        "PUTIN",
+                        List.of("Vladimir Putin")));
+
+        List<MatchResult> results = engine.screen(ScreeningRequest.of("Putin", 0.50), index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isEqualTo(PartialNameMatch.FACTOR);
+        assertThat(results.getFirst().matchedField()).startsWith("nameComponent");
+    }
+
+    @Test
+    void shouldNotReturnNameComponentMatchAtDefaultThreshold() {
+        index.add(
+                createPerson(
+                        "1",
+                        "PUTIN, Vladimir Vladimirovich",
+                        "Vladimir Vladimirovich",
+                        "PUTIN",
+                        List.of("Vladimir Putin")));
+
+        assertThat(engine.screen(ScreeningRequest.of("Putin", 0.80), index)).isEmpty();
+        assertThat(engine.screen(ScreeningRequest.of("Vladimir Vladimirovich", 0.80), index))
+                .isEmpty();
+    }
+
     private static SanctionedEntity createEntity(String id, String name, List<String> aliases) {
         return createEntity(id, name, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, aliases);
     }
@@ -178,6 +210,46 @@ class ExactMatchEngineTest {
                 source,
                 primaryName,
                 aliasNames,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Instant.now());
+    }
+
+    private static SanctionedEntity createPerson(
+            String id, String fullName, String givenName, String familyName, List<String> aliases) {
+        return new SanctionedEntity(
+                id,
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                new NameInfo(
+                        fullName,
+                        givenName,
+                        familyName,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
+                        ScriptType.LATIN),
+                aliases.stream()
+                        .map(
+                                a ->
+                                        new NameInfo(
+                                                a,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                NameType.AKA,
+                                                NameStrength.STRONG,
+                                                ScriptType.LATIN))
+                        .toList(),
                 null,
                 null,
                 null,
