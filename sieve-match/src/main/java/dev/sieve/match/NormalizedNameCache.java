@@ -19,14 +19,14 @@ import org.slf4j.LoggerFactory;
  * for every entity on every query. This cache pre-computes normalized forms once when entities are
  * loaded and serves them on subsequent lookups, eliminating redundant work.
  *
- * <p>Thread-safe. Automatically rebuilds when the index size changes (indicating new data).
+ * <p>Thread-safe. Automatically rebuilds when the index content version changes.
  */
 public final class NormalizedNameCache {
 
     private static final Logger log = LoggerFactory.getLogger(NormalizedNameCache.class);
 
     private volatile Map<String, NormalizedEntry> cache = Map.of();
-    private volatile int lastKnownSize = -1;
+    private volatile long lastKnownVersion = -1;
     private final AtomicBoolean rebuilding = new AtomicBoolean(false);
 
     /**
@@ -43,14 +43,13 @@ public final class NormalizedNameCache {
     /**
      * Ensures the cache is built and up-to-date for the given index.
      *
-     * <p>If the index size has changed since the last build, the cache is rebuilt. This method
+     * <p>If the index content has changed since the last build, the cache is rebuilt. This method
      * should be called once at the start of each screening operation.
      *
      * @param index the entity index to cache names for
      */
     public void ensureBuilt(EntityIndex index) {
-        int currentSize = index.size();
-        if (currentSize != lastKnownSize) {
+        if (index.version() != lastKnownVersion) {
             if (rebuilding.compareAndSet(false, true)) {
                 try {
                     rebuild(index);
@@ -75,14 +74,15 @@ public final class NormalizedNameCache {
 
     /** Clears the cache, forcing a full rebuild on the next {@link #ensureBuilt} call. */
     public void invalidate() {
-        lastKnownSize = -1;
+        lastKnownVersion = -1;
     }
 
     private void rebuild(EntityIndex index) {
-        int currentSize = index.size();
-        if (currentSize == lastKnownSize) {
+        long currentVersion = index.version();
+        if (currentVersion == lastKnownVersion) {
             return;
         }
+        int currentSize = index.size();
 
         // Build a completely new map — old map stays live for concurrent readers
         HashMap<String, NormalizedEntry> newCache = HashMap.newHashMap(currentSize);
@@ -92,7 +92,7 @@ public final class NormalizedNameCache {
 
         // Atomic swap — readers instantly see the new snapshot
         cache = Map.copyOf(newCache);
-        lastKnownSize = currentSize;
+        lastKnownVersion = currentVersion;
         log.info("Normalized name cache rebuilt [entries={}]", newCache.size());
     }
 

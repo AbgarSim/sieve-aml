@@ -110,6 +110,10 @@ POST /api/v1/lists/refresh
 
 Triggers an immediate re-ingestion of all enabled sanctions list sources.
 
+Each successful source replaces its previous entities: entries the source no longer lists are
+removed from the index and counted in ``removedCount``. If a source returns no entities while the
+index still holds some, the previous entities are kept and the source is reported as ``FAILED``.
+
 **Request**
 
 .. code-block:: http
@@ -128,11 +132,13 @@ Triggers an immediate re-ingestion of all enabled sanctions list sources.
        "OFAC_SDN": {
          "status": "SUCCESS",
          "entityCount": 12847,
+         "removedCount": 3,
          "durationMs": 3200
        },
        "EU_CONSOLIDATED": {
          "status": "SKIPPED",
          "entityCount": 0,
+         "removedCount": 0,
          "durationMs": 0
        }
      }

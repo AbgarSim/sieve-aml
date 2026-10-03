@@ -14,10 +14,13 @@ import dev.sieve.core.model.SanctionsProgram;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +38,7 @@ public class JpaEntityIndex implements EntityIndex {
 
     private final SanctionedEntityRepository repository;
     private final ObjectMapper objectMapper;
+    private final AtomicLong version = new AtomicLong();
 
     public JpaEntityIndex(SanctionedEntityRepository repository, ObjectMapper objectMapper) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
@@ -47,6 +51,7 @@ public class JpaEntityIndex implements EntityIndex {
         Objects.requireNonNull(entities, "entities must not be null");
         List<SanctionedEntityRow> rows = entities.stream().map(this::toRow).toList();
         repository.saveAll(rows);
+        version.incrementAndGet();
         log.debug(
                 "Added {} entities to PostgreSQL index [total={}]",
                 entities.size(),
@@ -58,6 +63,7 @@ public class JpaEntityIndex implements EntityIndex {
     public void add(SanctionedEntity entity) {
         Objects.requireNonNull(entity, "entity must not be null");
         repository.save(toRow(entity));
+        version.incrementAndGet();
         log.debug(
                 "Added entity to PostgreSQL index [id={}, source={}, total={}]",
                 entity.id(),
@@ -67,9 +73,42 @@ public class JpaEntityIndex implements EntityIndex {
 
     @Override
     @Transactional
+    public Set<String> replaceSource(ListSource source, Collection<SanctionedEntity> entities) {
+        Objects.requireNonNull(source, "source must not be null");
+        Objects.requireNonNull(entities, "entities must not be null");
+        Set<String> incomingIds = HashSet.newHashSet(entities.size());
+        for (SanctionedEntity entity : entities) {
+            if (entity.listSource() != source) {
+                throw new IllegalArgumentException(
+                        "Entity " + entity.id() + " belongs to " + entity.listSource());
+            }
+            incomingIds.add(entity.id());
+        }
+
+        Set<String> removed = new HashSet<>(repository.findIdsByListSource(source.name()));
+        removed.removeAll(incomingIds);
+        repository.saveAll(entities.stream().map(this::toRow).toList());
+        repository.deleteAllById(removed);
+        version.incrementAndGet();
+        log.info(
+                "Replaced source in PostgreSQL index [source={}, entities={}, removed={}]",
+                source,
+                incomingIds.size(),
+                removed.size());
+        return Set.copyOf(removed);
+    }
+
+    @Override
+    @Transactional
     public void clear() {
         repository.deleteAllInBatch();
+        version.incrementAndGet();
         log.info("PostgreSQL index cleared");
+    }
+
+    @Override
+    public long version() {
+        return version.get();
     }
 
     @Override
