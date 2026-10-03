@@ -1,0 +1,13 @@
+{"total": 5, "page": 1, "items": [
+  {"uid": "aaa111", "title": "JOHN QUINCY EXAMPLE", "person_classification": "Main", "status": "na",
+   "poster_classification": "ten", "subjects": ["Ten Most Wanted Fugitives"],
+   "aliases": ["\"The Example\"", "Johnny Example", "J. Q. Example"],
+   "dates_of_birth_used": ["May 15, 1976", "1977"], "nationality": "Venezuelan", "place_of_birth": "Venezuela",
+   "description": "Conspiracy to Commit Bank Fraud; Money Laundering",
+   "url": "https://www.fbi.gov/wanted/topten/john-quincy-example",
+   "publication": "2026-02-17T11:44:00", "modified": "2026-10-02T20:55:45+00:00"},
+  {"uid": "bbb222", "title": "CAUGHT SAMPLE", "person_classification": "Main", "status": "captured",
+   "poster_classification": "default", "subjects": ["Violent Crime - Murders"]},
+  {"uid": "ccc333", "title": "MISSING SAMPLE", "person_classification": "Main", "status": "na",
+   "poster_classification": "missing", "subjects": ["Kidnappings and Missing Persons"]}
+]}

@@ -241,6 +241,13 @@ public final class SourceCatalog {
                 "IN",
                 Format.HTML,
                 "https://www.mha.gov.in/en/page/individual-terrorists-under-uapa");
+        put(
+                map,
+                ListSource.US_FBI_WANTED,
+                "U.S. Federal Bureau of Investigation",
+                "US",
+                Format.JSON,
+                "https://www.fbi.gov/wanted");
         return Collections.unmodifiableMap(map);
     }
 

@@ -25,6 +25,7 @@ import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.ua.UaNsdcProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
+import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
@@ -74,6 +75,7 @@ public final class ProviderRegistry {
                 new ZaFicProvider(),
                 new LvFiuProvider(),
                 new ArRepetProvider(),
-                new InMhaProvider());
+                new InMhaProvider(),
+                new FbiWantedProvider());
     }
 }

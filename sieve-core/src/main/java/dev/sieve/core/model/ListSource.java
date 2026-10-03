@@ -95,7 +95,10 @@ public enum ListSource {
     AR_REPET("AR RePET"),
 
     /** India Ministry of Home Affairs individual terrorists under UAPA. */
-    IN_MHA("IN MHA");
+    IN_MHA("IN MHA"),
+
+    /** U.S. Federal Bureau of Investigation wanted persons. */
+    US_FBI_WANTED("US FBI Wanted");
 
     private final String displayName;
 
