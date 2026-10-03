@@ -33,6 +33,7 @@ import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
+import dev.sieve.ingest.wikidata.WikidataPepProvider;
 import dev.sieve.ingest.worldbank.WorldBankDebarredProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import java.util.List;
@@ -467,5 +468,15 @@ class ProviderIntegrationTest {
         log.info("World Bank Debarred: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.WB_DEBARRED);
+    }
+
+    @Test
+    void wikidataPep_shouldFetchAndParseEntities() throws Exception {
+        var provider = new WikidataPepProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("Wikidata PEPs: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.WIKIDATA_PEP);
     }
 }

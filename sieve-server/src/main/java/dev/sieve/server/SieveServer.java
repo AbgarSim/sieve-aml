@@ -41,6 +41,7 @@ import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
+import dev.sieve.ingest.wikidata.WikidataPepProvider;
 import dev.sieve.ingest.worldbank.WorldBankDebarredProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import dev.sieve.match.CompositeMatchEngine;
@@ -246,6 +247,7 @@ public final class SieveServer {
         providers.add(new FbiWantedProvider());
         providers.add(new EuMostWantedProvider());
         providers.add(new WorldBankDebarredProvider());
+        providers.add(new WikidataPepProvider());
         log.info("Registered {} providers total", providers.size());
 
         return providers;
