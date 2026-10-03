@@ -1,0 +1,7 @@
+[
+  {"DATAID":"6900002","VERSIONNUM":"1","FIRST_NAME":"EXAMPLE BRIGADES (EB)","UN_LIST_TYPE":"Al-Qaida","REFERENCE_NUMBER":"QDe.999",
+   "LISTED_ON":"23\/09\/2014","NAME_ORIGINAL_SCRIPT":"","COMMENTS1":"An example armed group.","LIST_TYPE":"","DELISTED_ON":"",
+   "ENTITY_ADDRESS":[{"STREET":"","CITY":"","STATE_PROVINCE":"","ZIP_CODE":"","COUNTRY":"","NOTE":""}],
+   "ENTITY_ALIAS":[{"QUALITY":"a.k.a.","ALIAS_NAME":"Example Brigades"},{"QUALITY":"f.k.a.","ALIAS_NAME":"Old Example Battalions"}],
+   "LAST_DAY_UPDATED":[{"VALUE":"30\/10\/2023"}]}
+]

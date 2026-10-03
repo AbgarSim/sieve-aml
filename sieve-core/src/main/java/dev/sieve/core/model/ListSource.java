@@ -89,7 +89,10 @@ public enum ListSource {
     ZA_FIC("ZA FIC"),
 
     /** Latvia FIU (Finanšu izlūkošanas dienests) national sanctions. */
-    LV_FIU("LV FIU");
+    LV_FIU("LV FIU"),
+
+    /** Argentina RePET (Registro Público de Personas y Entidades vinculadas a actos de Terrorismo). */
+    AR_REPET("AR RePET");
 
     private final String displayName;
 
