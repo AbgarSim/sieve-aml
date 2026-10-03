@@ -14,7 +14,7 @@
 
 ## Supported Sanctions Lists
 
-**28 providers** across 21 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
+**29 providers** across 22 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
 
 ### International
 
@@ -48,6 +48,7 @@
 | PL MSWiA | Poland — Ministry of Interior and Administration | HTML | ~560 |
 | LV FIU | Latvia — Financial Intelligence Unit | XML | ~160 |
 | AR RePET | Argentina — Ministry of Justice terrorism registry (RePET) | JSON | ~700 |
+| IN MHA | India — Ministry of Home Affairs individual terrorists under UAPA | HTML | ~60 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
 | MD Terror | Moldova — Security and Intelligence Service | XLSX | ~710 |
 
@@ -198,7 +199,7 @@ curl http://localhost:8080/api/v1/health
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 28 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 29 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files

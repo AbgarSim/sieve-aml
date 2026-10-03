@@ -15,6 +15,7 @@ import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
+import dev.sieve.ingest.in.InMhaProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
 import dev.sieve.ingest.mc.McFundFreezingProvider;
@@ -423,5 +424,15 @@ class ProviderIntegrationTest {
         log.info("AR RePET: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.AR_REPET);
+    }
+
+    @Test
+    void inMha_shouldFetchAndParseEntities() throws Exception {
+        var provider = new InMhaProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("IN MHA: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.IN_MHA);
     }
 }
