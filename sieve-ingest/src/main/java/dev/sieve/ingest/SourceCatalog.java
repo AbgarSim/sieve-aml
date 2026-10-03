@@ -227,6 +227,13 @@ public final class SourceCatalog {
                 "LV",
                 Format.XML,
                 "https://sankcijas.fid.gov.lv");
+        put(
+                map,
+                ListSource.AR_REPET,
+                "Ministry of Justice (RePET)",
+                "AR",
+                Format.JSON,
+                "https://repet.jus.gob.ar/");
         return Collections.unmodifiableMap(map);
     }
 
