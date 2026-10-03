@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.IngestionOrchestrator;
@@ -148,7 +149,7 @@ public final class ListHandler {
     }
 
     private static Map<String, Object> toEntityMap(SanctionedEntity entity) {
-        Map<String, Object> map = new HashMap<>(8);
+        Map<String, Object> map = new HashMap<>(10);
         map.put("id", entity.id());
         map.put("entityType", entity.entityType().name());
         map.put("listSource", entity.listSource().name());
@@ -156,6 +157,7 @@ public final class ListHandler {
         map.put("aliases", entity.aliases().stream().map(NameInfo::fullName).toList());
         map.put("nationalities", entity.nationalities());
         map.put("programs", entity.programs().stream().map(SanctionsProgram::code).toList());
+        map.put("topics", entity.topics().stream().map(RiskTopic::name).toList());
         map.put("remarks", entity.remarks());
         map.put("lastUpdated", entity.lastUpdated());
         return map;

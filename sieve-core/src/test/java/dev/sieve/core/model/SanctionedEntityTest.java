@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SanctionedEntityTest {
@@ -150,5 +151,88 @@ class SanctionedEntityTest {
         nationalities.add("FR");
         assertThat(entity.nationalities()).hasSize(2);
         assertThat(entity.nationalities()).containsExactly("US", "UK");
+    }
+
+    @Test
+    void shouldDefaultToSanctionTopicWhenCreatedFromSanctionsList() {
+        SanctionedEntity entity = minimalEntity();
+
+        assertThat(entity.topics()).containsExactly(RiskTopic.SANCTION);
+        assertThat(entity.hasTopic(RiskTopic.SANCTION)).isTrue();
+        assertThat(entity.hasTopic(RiskTopic.PEP)).isFalse();
+        assertThat(entity.relations()).isEmpty();
+    }
+
+    @Test
+    void shouldKeepTopicsAndRelationsWhenGivenExplicitly() {
+        Relation spouse = new Relation(RelationType.FAMILY, "un-2", "spouse", null, null, null);
+
+        SanctionedEntity entity =
+                withTopicsAndRelations(Set.of(RiskTopic.PEP, RiskTopic.SANCTION), List.of(spouse));
+
+        assertThat(entity.topics()).containsExactly(RiskTopic.SANCTION, RiskTopic.PEP);
+        assertThat(entity.relations()).containsExactly(spouse);
+    }
+
+    @Test
+    void shouldUseEmptyTopicsAndRelationsWhenNull() {
+        SanctionedEntity entity = withTopicsAndRelations(null, null);
+
+        assertThat(entity.topics()).isEmpty();
+        assertThat(entity.relations()).isEmpty();
+    }
+
+    @Test
+    void shouldMakeTopicsAndRelationsUnmodifiable() {
+        SanctionedEntity entity =
+                withTopicsAndRelations(
+                        Set.of(RiskTopic.PEP),
+                        List.of(Relation.of(RelationType.ASSOCIATE, "uk-1")));
+
+        assertThatThrownBy(() -> entity.topics().add(RiskTopic.CRIME))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> entity.relations().clear())
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    private static SanctionedEntity minimalEntity() {
+        return new SanctionedEntity(
+                "1",
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                PRIMARY_NAME,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private static SanctionedEntity withTopicsAndRelations(
+            Set<RiskTopic> topics, List<Relation> relations) {
+        return new SanctionedEntity(
+                "1",
+                EntityType.INDIVIDUAL,
+                ListSource.OFAC_SDN,
+                PRIMARY_NAME,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                topics,
+                relations);
     }
 }

@@ -14,6 +14,7 @@ import java.util.List;
  * @param aliases list of alternative names
  * @param nationalities known nationalities
  * @param programs sanctions programs the entity is listed under
+ * @param topics why the entity is of interest (SANCTION, PEP, DEBARMENT and so on)
  * @param remarks free-text remarks
  * @param lastUpdated last modification timestamp
  */
@@ -27,5 +28,6 @@ public record EntityDto(
         @Schema(description = "Known addresses") List<AddressDto> addresses,
         @Schema(description = "Known nationalities") List<String> nationalities,
         @Schema(description = "Sanctions programs") List<String> programs,
+        @Schema(description = "Risk topics", example = "[\"SANCTION\"]") List<String> topics,
         @Schema(description = "Remarks") String remarks,
         @Schema(description = "Last updated timestamp") Instant lastUpdated) {}
