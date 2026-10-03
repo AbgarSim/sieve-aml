@@ -248,6 +248,13 @@ public final class SourceCatalog {
                 "US",
                 Format.JSON,
                 "https://www.fbi.gov/wanted");
+        put(
+                map,
+                ListSource.EU_MOST_WANTED,
+                "Europol (ENFAST)",
+                "EU",
+                Format.HTML,
+                "https://eumostwanted.eu/");
         return Collections.unmodifiableMap(map);
     }
 
