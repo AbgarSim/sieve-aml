@@ -61,6 +61,20 @@ public final class SourceCatalog {
                 "https://www.trade.gov/consolidated-screening-list");
         put(
                 map,
+                ListSource.US_BIS_ENTITY,
+                "U.S. Department of Commerce, Bureau of Industry and Security",
+                "US",
+                Format.JSON,
+                "https://www.bis.gov/regulations/ear/744#supplement-4-744");
+        put(
+                map,
+                ListSource.US_BIS_MEU,
+                "U.S. Department of Commerce, Bureau of Industry and Security",
+                "US",
+                Format.JSON,
+                "https://www.bis.gov/regulations/ear/744#supplement-7-744");
+        put(
+                map,
                 ListSource.EU_CONSOLIDATED,
                 "European Commission",
                 "EU",

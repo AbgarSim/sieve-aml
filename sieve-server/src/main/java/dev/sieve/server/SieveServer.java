@@ -34,6 +34,8 @@ import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
+import dev.sieve.ingest.ustrade.BisEntityListProvider;
+import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import dev.sieve.match.CompositeMatchEngine;
@@ -214,6 +216,8 @@ public final class SieveServer {
         // Always-on providers (no feature flag needed)
         providers.add(new OfacNonSdnProvider());
         providers.add(new UsTradeCslProvider());
+        providers.add(new BisEntityListProvider());
+        providers.add(new BisMilitaryEndUserProvider());
         providers.add(new EuSanctionsMapProvider());
         providers.add(new EuTravelBansProvider());
         providers.add(new EuJournalProvider());

@@ -16,6 +16,8 @@ class ListSourceTest {
         "OFAC_SDN, OFAC SDN",
         "OFAC_NONSDN, OFAC Non-SDN",
         "US_TRADE_CSL, US Trade CSL",
+        "US_BIS_ENTITY, US BIS Entity List",
+        "US_BIS_MEU, US BIS MEU",
         "EU_CONSOLIDATED, EU Consolidated",
         "EU_SANCTIONS_MAP, EU Sanctions Map",
         "EU_TRAVEL_BANS, EU Travel Bans",
@@ -76,6 +78,6 @@ class ListSourceTest {
 
     @Test
     void shouldHaveExpectedValues() {
-        assertThat(ListSource.values()).hasSize(25);
+        assertThat(ListSource.values()).hasSize(27);
     }
 }

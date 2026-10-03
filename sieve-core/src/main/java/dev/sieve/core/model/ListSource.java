@@ -19,6 +19,12 @@ public enum ListSource {
     /** U.S. Trade Consolidated Screening List. */
     US_TRADE_CSL("US Trade CSL"),
 
+    /** U.S. Bureau of Industry and Security Entity List. */
+    US_BIS_ENTITY("US BIS Entity List"),
+
+    /** U.S. Bureau of Industry and Security Military End-User List. */
+    US_BIS_MEU("US BIS MEU"),
+
     /** European Union Consolidated List of sanctions targets. */
     EU_CONSOLIDATED("EU Consolidated"),
 
