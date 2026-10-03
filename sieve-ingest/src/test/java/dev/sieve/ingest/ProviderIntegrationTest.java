@@ -28,6 +28,7 @@ import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
+import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
@@ -434,5 +435,15 @@ class ProviderIntegrationTest {
         log.info("IN MHA: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.IN_MHA);
+    }
+
+    @Test
+    void fbiWanted_shouldFetchAndParseEntities() throws Exception {
+        var provider = new FbiWantedProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("US FBI Wanted: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.US_FBI_WANTED);
     }
 }

@@ -36,6 +36,7 @@ import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
+import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
@@ -240,6 +241,7 @@ public final class SieveServer {
         providers.add(new LvFiuProvider());
         providers.add(new ArRepetProvider());
         providers.add(new InMhaProvider());
+        providers.add(new FbiWantedProvider());
         log.info("Registered {} providers total", providers.size());
 
         return providers;
