@@ -91,14 +91,19 @@ public enum ListSource {
     /** Latvia FIU (Finanšu izlūkošanas dienests) national sanctions. */
     LV_FIU("LV FIU"),
 
-    /** Argentina RePET (Registro Público de Personas y Entidades vinculadas a actos de Terrorismo). */
+    /**
+     * Argentina RePET (Registro Público de Personas y Entidades vinculadas a actos de Terrorismo).
+     */
     AR_REPET("AR RePET"),
 
     /** India Ministry of Home Affairs individual terrorists under UAPA. */
     IN_MHA("IN MHA"),
 
     /** U.S. Federal Bureau of Investigation wanted persons. */
-    US_FBI_WANTED("US FBI Wanted");
+    US_FBI_WANTED("US FBI Wanted"),
+
+    /** Europe's most wanted fugitives, published through Europol. */
+    EU_MOST_WANTED("EU Most Wanted");
 
     private final String displayName;
 
