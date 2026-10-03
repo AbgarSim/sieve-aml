@@ -30,6 +30,7 @@ import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
+import dev.sieve.ingest.worldbank.WorldBankDebarredProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import java.util.List;
 
@@ -78,6 +79,7 @@ public final class ProviderRegistry {
                 new ArRepetProvider(),
                 new InMhaProvider(),
                 new FbiWantedProvider(),
-                new EuMostWantedProvider());
+                new EuMostWantedProvider(),
+                new WorldBankDebarredProvider());
     }
 }

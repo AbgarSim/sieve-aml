@@ -255,6 +255,13 @@ public final class SourceCatalog {
                 "EU",
                 Format.HTML,
                 "https://eumostwanted.eu/");
+        put(
+                map,
+                ListSource.WB_DEBARRED,
+                "World Bank Group",
+                "WB",
+                Format.JSON,
+                "https://www.worldbank.org/en/projects-operations/procurement/debarred-firms");
         return Collections.unmodifiableMap(map);
     }
 
