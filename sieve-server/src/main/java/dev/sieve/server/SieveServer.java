@@ -12,6 +12,7 @@ import dev.sieve.core.match.MatchEngine;
 import dev.sieve.ingest.IngestionOrchestrator;
 import dev.sieve.ingest.IngestionReport;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.ar.ArRepetProvider;
 import dev.sieve.ingest.au.AuDfatProvider;
 import dev.sieve.ingest.be.BeFodProvider;
 import dev.sieve.ingest.ca.CanadaConsolidatedProvider;
@@ -236,6 +237,7 @@ public final class SieveServer {
         providers.add(new QaNctcProvider());
         providers.add(new ZaFicProvider());
         providers.add(new LvFiuProvider());
+        providers.add(new ArRepetProvider());
         log.info("Registered {} providers total", providers.size());
 
         return providers;
