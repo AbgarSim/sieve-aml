@@ -34,6 +34,7 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - India MHA (`IN_MHA`, ids `in-mha-`): individual terrorists designated under the Fourth Schedule of India's Unlawful Activities (Prevention) Act, read from the ministry's web page
 - US FBI Wanted (`US_FBI_WANTED`, ids `fbi-`): people on open FBI wanted posters from the FBI's public API, tagged `WANTED`; missing-person, victim, kidnapping, unidentified-person, information-request and closed posters are left out
 - EU Most Wanted (`EU_MOST_WANTED`, ids `eu-mw-`): fugitives EU member states publish through Europol's most wanted site, tagged `WANTED`, with the crime, requesting country and case state, plus date of birth and nationality from each poster page; solved cases are left out
+- World Bank Debarred (`WB_DEBARRED`, ids `wb-`): firms and individuals the World Bank Group has debarred, tagged `DEBARMENT`, with address, grounds and ineligibility period; the Bank has no download, so the list is read from the API behind its debarred-firms page using the key that page publishes, and debarments that have ended are left out
 
 ### Changed
 - Entity ids from OFAC SDN, UN, UK HMT and EU Consolidated now carry a source prefix (`ofac-sdn-`, `un-`, `uk-`, `eu-`), like every other source, so ids from different lists cannot collide
