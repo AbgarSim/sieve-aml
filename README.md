@@ -14,7 +14,7 @@
 
 ## Supported Sanctions Lists
 
-**30 providers** across 22 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
+**31 providers** across 22 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
 
 ### International
 
@@ -50,6 +50,7 @@
 | AR RePET | Argentina — Ministry of Justice terrorism registry (RePET) | JSON | ~700 |
 | IN MHA | India — Ministry of Home Affairs individual terrorists under UAPA | HTML | ~60 |
 | US FBI Wanted | U.S. Federal Bureau of Investigation — wanted persons (open posters naming a suspect) | JSON | ~500 |
+| EU Most Wanted | Europol / ENFAST — Europe's most wanted fugitives | HTML | ~50 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
 | MD Terror | Moldova — Security and Intelligence Service | XLSX | ~710 |
 
@@ -200,7 +201,7 @@ curl http://localhost:8080/api/v1/health
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 30 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 31 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files
