@@ -67,9 +67,8 @@ class ListControllerTest {
 
         mockMvc.perform(get("/api/v1/lists"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.lists[8].source").value("UK_HMT"))
-                .andExpect(jsonPath("$.lists[8].status").value("FAILED"))
-                .andExpect(jsonPath("$.lists[8].error").value("HTTP 403"));
+                .andExpect(jsonPath("$.lists[?(@.source == 'UK_HMT')].status").value("FAILED"))
+                .andExpect(jsonPath("$.lists[?(@.source == 'UK_HMT')].error").value("HTTP 403"));
     }
 
     @Test

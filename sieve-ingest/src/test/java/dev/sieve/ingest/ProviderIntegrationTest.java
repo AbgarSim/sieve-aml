@@ -15,19 +15,21 @@ import dev.sieve.ingest.eu.EuTravelBansProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
+import dev.sieve.ingest.lv.LvFiuProvider;
 import dev.sieve.ingest.mc.McFundFreezingProvider;
 import dev.sieve.ingest.md.MdTerrorProvider;
 import dev.sieve.ingest.nz.NzRussiaProvider;
 import dev.sieve.ingest.ofac.OfacNonSdnProvider;
 import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.pl.PlMswiaProvider;
+import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
+import dev.sieve.ingest.ustrade.BisEntityListProvider;
+import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
-import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
-import dev.sieve.ingest.lv.LvFiuProvider;
 import java.util.List;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
@@ -40,18 +42,20 @@ import org.slf4j.LoggerFactory;
 /**
  * Integration tests that verify real HTTP connections and parsing for each sanctions list provider.
  *
- * <p>These tests hit live government endpoints and require network access, so the build skips
- * the {@code integration} tag by default. Run them with:
+ * <p>These tests hit live government endpoints and require network access, so the build skips the
+ * {@code integration} tag by default. Run them with:
+ *
  * <pre>
  *   mvn test -pl sieve-ingest -am -Dgroups=integration -Dtest.excludedGroups=none
  * </pre>
  *
  * <p>Each test verifies:
+ *
  * <ul>
- *   <li>HTTP connection succeeds (no timeouts, no TLS errors, correct status code)</li>
- *   <li>Response body is non-empty and parseable</li>
- *   <li>At least one entity is produced</li>
- *   <li>Entities have valid primary names and correct list source</li>
+ *   <li>HTTP connection succeeds (no timeouts, no TLS errors, correct status code)
+ *   <li>Response body is non-empty and parseable
+ *   <li>At least one entity is produced
+ *   <li>Entities have valid primary names and correct list source
  * </ul>
  *
  * <p>Tests run in parallel since each provider fetches from an independent endpoint.
@@ -97,6 +101,26 @@ class ProviderIntegrationTest {
         log.info("US Trade CSL: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.US_TRADE_CSL);
+    }
+
+    @Test
+    void bisEntityList_shouldFetchAndParseEntities() throws Exception {
+        var provider = new BisEntityListProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("US BIS Entity List: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.US_BIS_ENTITY);
+    }
+
+    @Test
+    void bisMilitaryEndUser_shouldFetchAndParseEntities() throws Exception {
+        var provider = new BisMilitaryEndUserProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("US BIS MEU: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.US_BIS_MEU);
     }
 
     // ── EU Consolidated ─────────────────────────────────────────────────────
@@ -371,17 +395,16 @@ class ProviderIntegrationTest {
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /**
-     * Asserts invariants that should hold for every entity from every provider:
-     * correct list source, non-null primary name with non-blank full name, non-null id.
+     * Asserts invariants that should hold for every entity from every provider: correct list
+     * source, non-null primary name with non-blank full name, non-null id.
      */
-    private static void assertCommonInvariants(List<SanctionedEntity> entities, ListSource expectedSource) {
+    private static void assertCommonInvariants(
+            List<SanctionedEntity> entities, ListSource expectedSource) {
         for (SanctionedEntity entity : entities) {
             assertThat(entity.listSource())
                     .as("listSource for entity %s", entity.id())
                     .isEqualTo(expectedSource);
-            assertThat(entity.id())
-                    .as("id must not be null")
-                    .isNotNull();
+            assertThat(entity.id()).as("id must not be null").isNotNull();
             assertThat(entity.primaryName())
                     .as("primaryName for entity %s", entity.id())
                     .isNotNull();

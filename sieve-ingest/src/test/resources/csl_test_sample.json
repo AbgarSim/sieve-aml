@@ -1,0 +1,45 @@
+{
+  "total": 3,
+  "results": [
+    {
+      "id": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4",
+      "source": "Entity List (EL) - Bureau of Industry and Security",
+      "name": "Example Electronics Trading Co., Ltd.",
+      "alt_names": null,
+      "addresses": [
+        {"address": "127-128, Times Center, Saddar Road", "city": "Peshawar", "state": "", "postal_code": "", "country": "PK"}
+      ],
+      "federal_register_notice": "76 FR 71867",
+      "start_date": "2011-11-21",
+      "license_policy": "Presumption of denial.",
+      "license_requirement": "For all items subject to the EAR. (See §744.11 of the EAR).",
+      "remarks": "",
+      "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-4-744"
+    },
+    {
+      "id": "7c2a9f0e41b3d8a6c5e1f4b2a9d0c3e8f7b6a5d4c3b2a1f0e9d8c7b6",
+      "source": "Military End User (MEU) List - Bureau of Industry and Security",
+      "name": "Example Aero Engine Research Institute",
+      "alt_names": ["Example Engine Institute"],
+      "addresses": [
+        {"address": "No. 7 Xueqing Road, Haidian District", "city": "Beijing", "state": null, "postal_code": "", "country": "CN"}
+      ],
+      "federal_register_notice": "85 FR 83799",
+      "start_date": "2020-12-23",
+      "license_policy": "Presumption of denial.",
+      "license_requirement": "For items listed in supplement no. 2 to part 744 of the EAR.",
+      "remarks": null
+    },
+    {
+      "id": "36",
+      "entity_number": "36",
+      "source": "Specially Designated Nationals (SDN) - Treasury Department",
+      "type": "Entity",
+      "name": "AEROCARIBBEAN AIRLINES",
+      "alt_names": ["AERO-CARIBBEAN"],
+      "programs": ["CUBA"],
+      "addresses": [{"address": null, "city": "Havana", "state": null, "postal_code": null, "country": "CU"}],
+      "remarks": null
+    }
+  ]
+}

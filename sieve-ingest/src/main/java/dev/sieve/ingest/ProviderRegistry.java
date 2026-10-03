@@ -23,6 +23,8 @@ import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.ua.UaNsdcProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
+import dev.sieve.ingest.ustrade.BisEntityListProvider;
+import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import java.util.List;
@@ -45,6 +47,8 @@ public final class ProviderRegistry {
                 new OfacSdnProvider(),
                 new OfacNonSdnProvider(),
                 new UsTradeCslProvider(),
+                new BisEntityListProvider(),
+                new BisMilitaryEndUserProvider(),
                 new EuConsolidatedProvider(),
                 new EuSanctionsMapProvider(),
                 new EuTravelBansProvider(),
