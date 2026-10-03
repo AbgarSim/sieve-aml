@@ -106,7 +106,10 @@ public enum ListSource {
     EU_MOST_WANTED("EU Most Wanted"),
 
     /** World Bank Group debarred firms and individuals. */
-    WB_DEBARRED("World Bank Debarred");
+    WB_DEBARRED("World Bank Debarred"),
+
+    /** Politically exposed persons from Wikidata. */
+    WIKIDATA_PEP("Wikidata PEPs");
 
     private final String displayName;
 

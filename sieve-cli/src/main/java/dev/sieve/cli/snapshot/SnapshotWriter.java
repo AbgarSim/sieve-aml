@@ -9,6 +9,7 @@ import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.stats.CountryStats;
@@ -52,6 +53,12 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <p>An entity's key is {@code SOURCE/id}, because raw ids repeat across lists.
+ *
+ * <p>Politically exposed persons and their relatives or close associates are never written as
+ * records or index entries: the public dashboard shows how many there are, not who they are. They
+ * appear in their list's row of {@code sources.json}, in the history and as {@code pepEntities} in
+ * the overview, but stay out of the headline totals, the country map and the top programs, which
+ * describe the sanctions-style lists.
  */
 public final class SnapshotWriter {
 
@@ -105,13 +112,17 @@ public final class SnapshotWriter {
         Instant now = clock.instant();
 
         List<SanctionedEntity> all = fetched.stream().flatMap(f -> f.entities().stream()).toList();
-        DatasetStats stats = aggregator.aggregate(all);
+        DatasetStats everything = aggregator.aggregate(all);
+        DatasetStats stats =
+                aggregator.aggregate(all.stream().filter(SnapshotWriter::isPublic).toList());
+        int restricted = everything.totalEntities() - stats.totalEntities();
 
-        writeJson(outDir.resolve("overview.json"), overview(stats, fetched, now, commit));
-        writeJson(outDir.resolve("sources.json"), sources(stats, fetched, now));
+        writeJson(
+                outDir.resolve("overview.json"), overview(stats, restricted, fetched, now, commit));
+        writeJson(outDir.resolve("sources.json"), sources(everything, fetched, now));
         writeJson(outDir.resolve("countries.json"), countries(stats, now));
         writeJson(outDir.resolve("search-index.json"), writeEntities(fetched, outDir, now));
-        writeHistory(outDir.resolve("history.json"), stats, now);
+        writeHistory(outDir.resolve("history.json"), stats, everything, now);
 
         log.info(
                 "Snapshot written [dir={}, entities={}, countries={}]",
@@ -122,7 +133,11 @@ public final class SnapshotWriter {
     }
 
     private Map<String, Object> overview(
-            DatasetStats stats, List<FetchedSource> fetched, Instant now, Optional<String> commit) {
+            DatasetStats stats,
+            int restricted,
+            List<FetchedSource> fetched,
+            Instant now,
+            Optional<String> commit) {
         long loaded =
                 fetched.stream().filter(f -> f.status() == FetchedSource.Status.LOADED).count();
         long sumMs = fetched.stream().mapToLong(f -> f.duration().toMillis()).sum();
@@ -132,6 +147,7 @@ public final class SnapshotWriter {
         commit.ifPresent(c -> map.put("commit", c));
         map.put("totalEntities", stats.totalEntities());
         map.put("totalNames", stats.totalNames());
+        map.put("pepEntities", restricted);
         map.put("sourcesTotal", ListSource.values().length);
         map.put("sourcesLoaded", loaded);
         map.put("countries", stats.byCountry().size());
@@ -221,15 +237,16 @@ public final class SnapshotWriter {
         List<Map<String, Object>> index = new ArrayList<>();
 
         for (FetchedSource source : fetched) {
-            if (source.entities().isEmpty()) {
+            List<SanctionedEntity> sorted =
+                    source.entities().stream()
+                            .filter(SnapshotWriter::isPublic)
+                            .sorted(Comparator.comparing(SanctionedEntity::id))
+                            .toList();
+            if (sorted.isEmpty()) {
                 continue;
             }
             Path sourceDir = entitiesDir.resolve(source.source().name());
             Files.createDirectories(sourceDir);
-            List<SanctionedEntity> sorted =
-                    source.entities().stream()
-                            .sorted(Comparator.comparing(SanctionedEntity::id))
-                            .toList();
             for (int shard = 0; shard * shardSize < sorted.size(); shard++) {
                 List<SanctionedEntity> page =
                         sorted.subList(
@@ -246,6 +263,11 @@ public final class SnapshotWriter {
         map.put("shardSize", shardSize);
         map.put("entries", index);
         return map;
+    }
+
+    /** Whether an entity's record may be published; PEP and RCA records are counted only. */
+    static boolean isPublic(SanctionedEntity entity) {
+        return !entity.topics().contains(RiskTopic.PEP) && !entity.topics().contains(RiskTopic.RCA);
     }
 
     private Map<String, Object> indexEntry(SanctionedEntity entity, int shard) {
@@ -267,7 +289,8 @@ public final class SnapshotWriter {
         return entry;
     }
 
-    private void writeHistory(Path file, DatasetStats stats, Instant now) throws IOException {
+    private void writeHistory(Path file, DatasetStats stats, DatasetStats everything, Instant now)
+            throws IOException {
         List<Map<String, Object>> rows = new ArrayList<>();
         if (Files.exists(file)) {
             rows.addAll(mapper.readValue(file.toFile(), new TypeReference<>() {}));
@@ -276,7 +299,7 @@ public final class SnapshotWriter {
         rows.removeIf(row -> today.equals(row.get("date")));
 
         Map<String, Integer> bySource = new TreeMap<>();
-        stats.bySource().forEach((source, s) -> bySource.put(source.name(), s.entities()));
+        everything.bySource().forEach((source, s) -> bySource.put(source.name(), s.entities()));
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("date", today);
         row.put("totalEntities", stats.totalEntities());

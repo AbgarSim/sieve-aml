@@ -11,6 +11,7 @@ import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.ListMetadata;
@@ -20,8 +21,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -95,6 +98,63 @@ class SnapshotWriterTest {
                 .isEqualTo("https://example.test/OFAC_SDN");
         assertThat(row(sources, "OFAC_SDN").get("completeness").get("withNationality").asInt())
                 .isEqualTo(1);
+    }
+
+    @Test
+    void shouldCountPepsWithoutPublishingTheirRecords() throws IOException {
+        SanctionedEntity pep =
+                new SanctionedEntity(
+                        "wd-Q1",
+                        EntityType.INDIVIDUAL,
+                        ListSource.WIKIDATA_PEP,
+                        new NameInfo(
+                                "Jane Minister",
+                                null,
+                                null,
+                                null,
+                                null,
+                                NameType.PRIMARY,
+                                null,
+                                null),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of("DE"),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(
+                                new SanctionsProgram(
+                                        "Minister", "PEP tier 1", ListSource.WIKIDATA_PEP)),
+                        null,
+                        NOW,
+                        Set.of(RiskTopic.PEP),
+                        List.of());
+        List<FetchedSource> fetched = new ArrayList<>(fetch(Set.of()));
+        fetched.removeIf(f -> f.source() == ListSource.WIKIDATA_PEP);
+        fetched.add(
+                new FetchedSource(
+                        ListSource.WIKIDATA_PEP,
+                        FetchedSource.Status.LOADED,
+                        List.of(pep),
+                        Optional.empty(),
+                        Duration.ZERO,
+                        Optional.empty()));
+        write(fetched, NOW);
+
+        JsonNode overview = read("overview.json");
+        assertThat(overview.get("totalEntities").asInt()).isEqualTo(3);
+        assertThat(overview.get("pepEntities").asInt()).isEqualTo(1);
+        assertThat(read("countries.json").get("countries").has("DE")).isFalse();
+        assertThat(read("history.json").get(0).get("bySource").get("WIKIDATA_PEP").asInt())
+                .isEqualTo(1);
+        assertThat(row(read("sources.json").get("sources"), "WIKIDATA_PEP").get("entities").asInt())
+                .isEqualTo(1);
+        assertThat(Files.exists(out.resolve("entities/WIKIDATA_PEP"))).isFalse();
+        assertThat(read("search-index.json").get("entries"))
+                .extracting(e -> e.get("s").asText())
+                .doesNotContain("WIKIDATA_PEP");
     }
 
     @Test
