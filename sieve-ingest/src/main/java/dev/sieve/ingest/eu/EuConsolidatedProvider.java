@@ -277,7 +277,7 @@ public final class EuConsolidatedProvider implements ListProvider {
         String euRefNumber = attr(reader, "euReferenceNumber");
         String logicalId = attr(reader, "logicalId");
         String entityId =
-                (euRefNumber != null && !euRefNumber.isBlank()) ? euRefNumber : "EU-" + logicalId;
+                "eu-" + ((euRefNumber != null && !euRefNumber.isBlank()) ? euRefNumber : logicalId);
 
         EntityParseContext ctx = new EntityParseContext();
         parseEntityElements(reader, ctx);

@@ -123,9 +123,10 @@ public final class ListHandler {
                             report.results()
                                     .forEach(
                                             (source, result) -> {
-                                                Map<String, Object> r = new HashMap<>(4);
+                                                Map<String, Object> r = new HashMap<>(5);
                                                 r.put("status", result.status().name());
                                                 r.put("entityCount", result.entityCount());
+                                                r.put("removedCount", result.removedCount());
                                                 r.put("durationMs", result.duration().toMillis());
                                                 r.put("error", result.error().orElse(null));
                                                 results.put(source.name(), r);

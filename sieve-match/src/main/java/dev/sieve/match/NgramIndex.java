@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * collected by trigram overlap, and only entities sharing a minimum fraction of trigrams are
  * returned. This typically reduces the candidate set from tens of thousands to tens of entities.
  *
- * <p>Thread-safe. Automatically rebuilds when the underlying index size changes.
+ * <p>Thread-safe. Automatically rebuilds when the underlying index content version changes.
  */
 public final class NgramIndex {
 
@@ -45,7 +45,7 @@ public final class NgramIndex {
     /** entity ID → entity (for fast lookup after candidate selection) */
     private volatile Map<String, SanctionedEntity> entityById = Map.of();
 
-    private volatile int lastKnownSize = -1;
+    private volatile long lastKnownVersion = -1;
     private final AtomicBoolean rebuilding = new AtomicBoolean(false);
 
     /**
@@ -58,8 +58,7 @@ public final class NgramIndex {
      * @param nameCache the pre-normalized name cache (must already be built)
      */
     public void ensureBuilt(EntityIndex index, NormalizedNameCache nameCache) {
-        int currentSize = index.size();
-        if (currentSize != lastKnownSize) {
+        if (index.version() != lastKnownVersion) {
             if (rebuilding.compareAndSet(false, true)) {
                 try {
                     rebuild(index, nameCache);
@@ -129,10 +128,11 @@ public final class NgramIndex {
     }
 
     private void rebuild(EntityIndex index, NormalizedNameCache nameCache) {
-        int currentSize = index.size();
-        if (currentSize == lastKnownSize) {
+        long currentVersion = index.version();
+        if (currentVersion == lastKnownVersion) {
             return;
         }
+        int currentSize = index.size();
 
         // Build entirely new structures — old volatile refs stay live for concurrent readers
         HashMap<String, List<String>> newTrigramMap = new HashMap<>();
@@ -143,7 +143,7 @@ public final class NgramIndex {
         // Atomic swap — both volatile refs update together
         trigramToEntityIds = newTrigramMap;
         entityById = newEntityById;
-        lastKnownSize = currentSize;
+        lastKnownVersion = currentVersion;
 
         log.info(
                 "N-gram index rebuilt [entities={}, uniqueTrigrams={}]",

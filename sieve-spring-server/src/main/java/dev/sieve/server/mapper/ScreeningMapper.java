@@ -184,6 +184,7 @@ public class ScreeningMapper {
         return new ProviderResultDto(
                 result.status().name(),
                 result.entityCount(),
+                result.removedCount(),
                 result.duration().toMillis(),
                 result.error().orElse(null));
     }

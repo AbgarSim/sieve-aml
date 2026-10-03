@@ -370,7 +370,10 @@ public final class UkHmtProvider implements ListProvider {
                 regimes.stream().map(r -> new SanctionsProgram(r, r, ListSource.UK_HMT)).toList();
 
         String entityId =
-                primary.ukSanctionsListRef != null ? primary.ukSanctionsListRef : "UK-" + groupId;
+                "uk-"
+                        + (primary.ukSanctionsListRef != null
+                                ? primary.ukSanctionsListRef
+                                : "group-" + groupId);
 
         return new SanctionedEntity(
                 entityId,

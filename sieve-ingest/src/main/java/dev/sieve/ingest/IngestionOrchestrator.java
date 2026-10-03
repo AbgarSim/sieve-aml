@@ -1,5 +1,6 @@
 package dev.sieve.ingest;
 
+import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.SanctionedEntity;
@@ -103,13 +104,16 @@ public final class IngestionOrchestrator {
                                 Instant providerStart = Instant.now();
                                 try {
                                     List<SanctionedEntity> entities = provider.fetch();
-                                    index.addAll(entities);
+                                    int removed = replaceSource(index, source, entities);
                                     Duration providerDuration =
                                             Duration.between(providerStart, Instant.now());
 
                                     ProviderResult success =
                                             ProviderResult.success(
-                                                    source, entities.size(), providerDuration);
+                                                    source,
+                                                    entities.size(),
+                                                    removed,
+                                                    providerDuration);
                                     results.put(source, success);
                                     lastResults.put(source, success);
                                     ListMetadata metadata = provider.metadata();
@@ -119,9 +123,10 @@ public final class IngestionOrchestrator {
                                     totalEntities.addAndGet(entities.size());
 
                                     log.info(
-                                            "Provider complete [source={}, entities={}, duration={}ms]",
+                                            "Provider complete [source={}, entities={}, removed={}, duration={}ms]",
                                             source,
                                             entities.size(),
+                                            removed,
                                             providerDuration.toMillis());
 
                                 } catch (Exception e) {
@@ -205,5 +210,26 @@ public final class IngestionOrchestrator {
             return "FAILED";
         }
         return entityCount > 0 ? "LOADED" : "EMPTY";
+    }
+
+    /**
+     * Replaces a source's entities in the index, keeping the old set if the fetch came back empty.
+     *
+     * @return the number of entities removed because the source no longer lists them
+     * @throws ListIngestionException if the fetch was empty while the index still holds entities
+     */
+    private static int replaceSource(
+            EntityIndex index, ListSource source, List<SanctionedEntity> entities)
+            throws ListIngestionException {
+        if (entities.isEmpty() && !index.findBySource(source).isEmpty()) {
+            throw new ListIngestionException(
+                    source.displayName() + " returned no entities; keeping the previous list",
+                    source);
+        }
+        Set<String> removed = index.replaceSource(source, entities);
+        if (!removed.isEmpty()) {
+            log.debug("Delisted entities removed [source={}, ids={}]", source, removed);
+        }
+        return removed.size();
     }
 }
