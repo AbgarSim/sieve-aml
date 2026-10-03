@@ -13,6 +13,7 @@ import dev.sieve.ingest.eu.EuConsolidatedProvider;
 import dev.sieve.ingest.eu.EuJournalProvider;
 import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
+import dev.sieve.ingest.europol.EuMostWantedProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaProvider;
@@ -445,5 +446,15 @@ class ProviderIntegrationTest {
         log.info("US FBI Wanted: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.US_FBI_WANTED);
+    }
+
+    @Test
+    void euMostWanted_shouldFetchAndParseEntities() throws Exception {
+        var provider = new EuMostWantedProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("EU Most Wanted: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.EU_MOST_WANTED);
     }
 }
