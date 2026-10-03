@@ -40,7 +40,8 @@ class ListSourceTest {
         "QA_NCTC, QA NCTC",
         "ZA_FIC, ZA FIC",
         "LV_FIU, LV FIU",
-        "AR_REPET, AR RePET"
+        "AR_REPET, AR RePET",
+        "IN_MHA, IN MHA"
     })
     void shouldReturnCorrectDisplayName(String enumName, String expectedDisplay) {
         ListSource source = ListSource.valueOf(enumName);
@@ -79,6 +80,6 @@ class ListSourceTest {
 
     @Test
     void shouldHaveExpectedValues() {
-        assertThat(ListSource.values()).hasSize(28);
+        assertThat(ListSource.values()).hasSize(29);
     }
 }

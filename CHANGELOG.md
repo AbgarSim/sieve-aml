@@ -31,6 +31,7 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - Risk topics (`RiskTopic`: sanction, sanction-linked, export control, debarment, PEP, relative or close associate, crime, wanted, state-owned) and relations between entities (`Relation`, `RelationType`) on `SanctionedEntity`; entries from today's sanctions lists carry the `SANCTION` topic, and API responses and exports list each entity's `topics`
 - US BIS Entity List (`US_BIS_ENTITY`, ids `bis-el-`) and Military End-User List (`US_BIS_MEU`, ids `bis-meu-`) as their own sources, split out of the Consolidated Screening List and tagged `EXPORT_CONTROL`; their licence requirement, licence policy and Federal Register notice are kept in remarks
 - Argentina RePET (`AR_REPET`, ids `ar-person-` and `ar-entity-`): the Ministry of Justice terrorism registry, read from its people and entities JSON files
+- India MHA (`IN_MHA`, ids `in-mha-`): individual terrorists designated under the Fourth Schedule of India's Unlawful Activities (Prevention) Act, read from the ministry's web page
 
 ### Changed
 - Entity ids from OFAC SDN, UN, UK HMT and EU Consolidated now carry a source prefix (`ofac-sdn-`, `un-`, `uk-`, `eu-`), like every other source, so ids from different lists cannot collide

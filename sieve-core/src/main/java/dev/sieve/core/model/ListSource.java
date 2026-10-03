@@ -92,7 +92,10 @@ public enum ListSource {
     LV_FIU("LV FIU"),
 
     /** Argentina RePET (Registro Público de Personas y Entidades vinculadas a actos de Terrorismo). */
-    AR_REPET("AR RePET");
+    AR_REPET("AR RePET"),
+
+    /** India Ministry of Home Affairs individual terrorists under UAPA. */
+    IN_MHA("IN MHA");
 
     private final String displayName;
 
