@@ -1,5 +1,6 @@
 package dev.sieve.ingest;
 
+import dev.sieve.ingest.ar.ArRepetProvider;
 import dev.sieve.ingest.au.AuDfatProvider;
 import dev.sieve.ingest.be.BeFodProvider;
 import dev.sieve.ingest.ca.CanadaConsolidatedProvider;
@@ -70,6 +71,7 @@ public final class ProviderRegistry {
                 new UaNsdcProvider(),
                 new QaNctcProvider(),
                 new ZaFicProvider(),
-                new LvFiuProvider());
+                new LvFiuProvider(),
+                new ArRepetProvider());
     }
 }

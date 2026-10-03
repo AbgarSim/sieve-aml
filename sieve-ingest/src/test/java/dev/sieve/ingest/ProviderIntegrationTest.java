@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.SanctionedEntity;
+import dev.sieve.ingest.ar.ArRepetProvider;
 import dev.sieve.ingest.au.AuDfatProvider;
 import dev.sieve.ingest.be.BeFodProvider;
 import dev.sieve.ingest.ca.CanadaConsolidatedProvider;
@@ -412,5 +413,15 @@ class ProviderIntegrationTest {
                     .as("fullName for entity %s", entity.id())
                     .isNotBlank();
         }
+    }
+
+    @Test
+    void arRepet_shouldFetchAndParseEntities() throws Exception {
+        var provider = new ArRepetProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("AR RePET: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.AR_REPET);
     }
 }
