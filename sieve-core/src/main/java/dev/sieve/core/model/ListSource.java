@@ -103,7 +103,10 @@ public enum ListSource {
     US_FBI_WANTED("US FBI Wanted"),
 
     /** Europe's most wanted fugitives, published through Europol. */
-    EU_MOST_WANTED("EU Most Wanted");
+    EU_MOST_WANTED("EU Most Wanted"),
+
+    /** World Bank Group debarred firms and individuals. */
+    WB_DEBARRED("World Bank Debarred");
 
     private final String displayName;
 

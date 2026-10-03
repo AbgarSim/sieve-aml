@@ -33,6 +33,7 @@ import dev.sieve.ingest.usfbi.FbiWantedProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
+import dev.sieve.ingest.worldbank.WorldBankDebarredProvider;
 import dev.sieve.ingest.za.ZaFicProvider;
 import java.util.List;
 import org.junit.jupiter.api.Disabled;
@@ -456,5 +457,15 @@ class ProviderIntegrationTest {
         log.info("EU Most Wanted: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.EU_MOST_WANTED);
+    }
+
+    @Test
+    void worldBankDebarred_shouldFetchAndParseEntities() throws Exception {
+        var provider = new WorldBankDebarredProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("World Bank Debarred: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.WB_DEBARRED);
     }
 }
