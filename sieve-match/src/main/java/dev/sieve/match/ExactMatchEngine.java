@@ -16,12 +16,14 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Names are normalized by lowercasing, trimming, and collapsing whitespace before comparison.
  * Checks the entity's primary name and all aliases. Produces a score of 1.0 for exact matches and
- * 0.0 otherwise.
+ * 0.0 otherwise. An exact match on a single name component (given or family name) is a partial
+ * match and scores {@link PartialNameMatch#FACTOR}.
  */
 public final class ExactMatchEngine implements MatchEngine {
 
     private static final Logger log = LoggerFactory.getLogger(ExactMatchEngine.class);
     private static final String ALGORITHM_NAME = "EXACT";
+    private static final double COMPONENT_SCORE = PartialNameMatch.discount(1.0);
 
     private final NormalizedNameCache nameCache;
     private final NgramIndex ngramIndex;
@@ -74,13 +76,17 @@ public final class ExactMatchEngine implements MatchEngine {
                 }
             }
 
-            if (!matched) {
+            // A name component only ever matches part of a name, so it scores as a partial match
+            if (!matched && COMPONENT_SCORE >= request.threshold()) {
                 List<String> components = cached.nameComponents();
                 for (int i = 0; i < components.size(); i++) {
                     if (normalizedQuery.equals(components.get(i))) {
                         results.add(
                                 new MatchResult(
-                                        entity, 1.0, "nameComponent[" + i + "]", ALGORITHM_NAME));
+                                        entity,
+                                        COMPONENT_SCORE,
+                                        "nameComponent[" + i + "]",
+                                        ALGORITHM_NAME));
                         break;
                     }
                 }

@@ -34,3 +34,4 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - Entity ids from OFAC SDN, UN, UK HMT and EU Consolidated now carry a source prefix (`ofac-sdn-`, `un-`, `uk-`, `eu-`), like every other source, so ids from different lists cannot collide
 - A list refresh now replaces that source's entities, so entries the source has delisted are removed instead of staying until restart; refresh results report a `removedCount`, and an empty fetch keeps the previous entities and reports the source as failed
 - Name caches and the n-gram index rebuild whenever the index content changes, not only when its size changes
+- A match that covers only part of a listed name (a lone first or family name, or a one-word query against a longer name) is discounted by 0.75 in the exact, fuzzy and phonetic engines, so it no longer scores 1.0 and falls below the default 0.80 threshold
