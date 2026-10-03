@@ -134,6 +134,39 @@ class IngestionOrchestratorTest {
         assertThat(report.totalDuration().toMillis()).isGreaterThanOrEqualTo(0);
     }
 
+    @Test
+    void shouldRemoveDelistedEntitiesWhenSourceIsRefreshed() throws Exception {
+        ListProvider ofac = mockProvider(ListSource.OFAC_SDN, 3);
+        ListProvider eu = mockProvider(ListSource.EU_CONSOLIDATED, 2);
+        List<SanctionedEntity> firstFetch = ofac.fetch();
+        IngestionOrchestrator orchestrator = new IngestionOrchestrator(List.of(ofac, eu));
+        EntityIndex index = new InMemoryEntityIndex();
+        orchestrator.ingest(index);
+
+        when(ofac.fetch()).thenReturn(firstFetch.subList(0, 2));
+        IngestionReport report = orchestrator.ingest(index);
+
+        assertThat(report.results().get(ListSource.OFAC_SDN).removedCount()).isEqualTo(1);
+        assertThat(index.findById("OFAC_SDN-3")).isEmpty();
+        assertThat(index.findBySource(ListSource.OFAC_SDN)).hasSize(2);
+        assertThat(index.findBySource(ListSource.EU_CONSOLIDATED)).hasSize(2);
+    }
+
+    @Test
+    void shouldKeepPreviousEntitiesWhenRefreshReturnsNothing() throws Exception {
+        ListProvider ofac = mockProvider(ListSource.OFAC_SDN, 3);
+        IngestionOrchestrator orchestrator = new IngestionOrchestrator(List.of(ofac));
+        EntityIndex index = new InMemoryEntityIndex();
+        orchestrator.ingest(index);
+
+        when(ofac.fetch()).thenReturn(List.of());
+        IngestionReport report = orchestrator.ingest(index);
+
+        assertThat(report.results().get(ListSource.OFAC_SDN).status())
+                .isEqualTo(ProviderResult.Status.FAILED);
+        assertThat(index.findBySource(ListSource.OFAC_SDN)).hasSize(3);
+    }
+
     private ListProvider mockProvider(ListSource source, int entityCount) {
         ListProvider provider = mock(ListProvider.class);
         when(provider.source()).thenReturn(source);

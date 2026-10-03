@@ -107,6 +107,18 @@ class FuzzyMatchEngineTest {
         assertThat(results).hasSize(1);
     }
 
+    @Test
+    void shouldStopMatchingDelistedEntityWhenSourceIsReplacedAtSameSize() {
+        index.add(createEntity("1", "DOE, John", List.of()));
+        assertThat(engine.screen(ScreeningRequest.of("DOE, John", 0.90), index)).hasSize(1);
+
+        index.replaceSource(
+                ListSource.OFAC_SDN, List.of(createEntity("2", "SMITH, Anna", List.of())));
+
+        assertThat(engine.screen(ScreeningRequest.of("DOE, John", 0.90), index)).isEmpty();
+        assertThat(engine.screen(ScreeningRequest.of("SMITH, Anna", 0.90), index)).hasSize(1);
+    }
+
     private static SanctionedEntity createEntity(String id, String name, List<String> aliases) {
         NameInfo primaryName =
                 new NameInfo(

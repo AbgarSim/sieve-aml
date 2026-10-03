@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  *
  * @param status outcome status (SUCCESS, FAILED, SKIPPED)
  * @param entityCount number of entities loaded
+ * @param removedCount number of entities removed because the source no longer lists them
  * @param durationMs time taken in milliseconds
  * @param error error message if failed, {@code null} otherwise
  */
@@ -14,5 +15,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ProviderResultDto(
         @Schema(description = "Outcome status", example = "SUCCESS") String status,
         @Schema(description = "Entities loaded", example = "12543") int entityCount,
+        @Schema(
+                        description = "Entities removed because the source no longer lists them",
+                        example = "3")
+                int removedCount,
         @Schema(description = "Duration in milliseconds", example = "3200") long durationMs,
         @Schema(description = "Error message if failed", nullable = true) String error) {}

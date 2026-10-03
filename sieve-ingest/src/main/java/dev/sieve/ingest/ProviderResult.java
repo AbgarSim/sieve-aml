@@ -11,6 +11,7 @@ import java.util.Optional;
  * @param source the list source that was fetched
  * @param status whether the fetch succeeded, failed, or was skipped
  * @param entityCount number of entities parsed (zero if failed or skipped)
+ * @param removedCount number of entities removed because the source no longer lists them
  * @param duration time taken for this provider's fetch
  * @param error the error if the fetch failed, empty otherwise
  */
@@ -18,6 +19,7 @@ public record ProviderResult(
         ListSource source,
         Status status,
         int entityCount,
+        int removedCount,
         Duration duration,
         Optional<String> error) {
 
@@ -52,7 +54,22 @@ public record ProviderResult(
      * @return a success result
      */
     public static ProviderResult success(ListSource source, int entityCount, Duration duration) {
-        return new ProviderResult(source, Status.SUCCESS, entityCount, duration, Optional.empty());
+        return success(source, entityCount, 0, duration);
+    }
+
+    /**
+     * Creates a successful result for a refresh that removed delisted entities.
+     *
+     * @param source the list source
+     * @param entityCount number of entities loaded
+     * @param removedCount number of entities removed because the source no longer lists them
+     * @param duration time taken
+     * @return a success result
+     */
+    public static ProviderResult success(
+            ListSource source, int entityCount, int removedCount, Duration duration) {
+        return new ProviderResult(
+                source, Status.SUCCESS, entityCount, removedCount, duration, Optional.empty());
     }
 
     /**
@@ -64,7 +81,7 @@ public record ProviderResult(
      * @return a failure result
      */
     public static ProviderResult failed(ListSource source, Duration duration, String errorMessage) {
-        return new ProviderResult(source, Status.FAILED, 0, duration, Optional.of(errorMessage));
+        return new ProviderResult(source, Status.FAILED, 0, 0, duration, Optional.of(errorMessage));
     }
 
     /**
@@ -74,6 +91,6 @@ public record ProviderResult(
      * @return a skipped result with zero duration
      */
     public static ProviderResult skipped(ListSource source) {
-        return new ProviderResult(source, Status.SKIPPED, 0, Duration.ZERO, Optional.empty());
+        return new ProviderResult(source, Status.SKIPPED, 0, 0, Duration.ZERO, Optional.empty());
     }
 }
