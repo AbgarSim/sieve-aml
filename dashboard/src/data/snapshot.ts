@@ -74,7 +74,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
 }
 
 const REGION: Record<string, string> = {
-  US: 'North America', CA: 'North America', UN: 'International',
+  US: 'North America', CA: 'North America', UN: 'International', WB: 'International',
   AU: 'Asia-Pacific', NZ: 'Asia-Pacific', JP: 'Asia-Pacific',
   TR: 'Middle East & Africa', IL: 'Middle East & Africa', QA: 'Middle East & Africa', ZA: 'Middle East & Africa',
 };

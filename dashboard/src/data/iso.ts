@@ -31,6 +31,7 @@ export function countryName(code: string): string {
   const c = code.toUpperCase();
   if (c === 'EU') return 'European Union';
   if (c === 'UN') return 'United Nations';
+  if (c === 'WB') return 'World Bank Group';
   if (c === 'XK') return 'Kosovo';
   try { return displayNames?.of(c) ?? c; } catch { return c; }
 }
