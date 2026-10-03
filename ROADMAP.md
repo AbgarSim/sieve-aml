@@ -72,7 +72,7 @@ ownership data are stored with provenance; the dashboard shows counts by risk to
 Make a hit mean something: screen on the whole profile, say why it matched, and measure accuracy on
 a labelled test set.
 
-- [ ] 2.1 Fewer false positives: a lone first name no longer scores 1.0, and the name cache and
+- [x] 2.1 Fewer false positives: a lone first name no longer scores 1.0, and the name cache and
   n-gram index rebuild after every refresh.
 - [ ] 2.2 Name normalisation: accent folding, punctuation, transliteration from Cyrillic, Arabic,
   Chinese and other scripts, and company legal forms (LLC, OOO, GmbH) that no longer drive a match.
