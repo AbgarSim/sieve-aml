@@ -4,6 +4,7 @@ import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.SanctionedEntity;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Abstraction over a store of {@link SanctionedEntity} instances.
@@ -27,8 +28,30 @@ public interface EntityIndex {
      */
     void add(SanctionedEntity entity);
 
+    /**
+     * Replaces every entity from one source with the given entities.
+     *
+     * <p>Entities of {@code source} that are not in {@code entities} are removed, so a list refresh
+     * drops entries the source has delisted.
+     *
+     * @param source the list source being refreshed, must not be {@code null}
+     * @param entities the source's complete current entities, all from {@code source}
+     * @return the ids that were removed, never {@code null}
+     * @throws IllegalArgumentException if an entity belongs to another source
+     */
+    Set<String> replaceSource(ListSource source, Collection<SanctionedEntity> entities);
+
     /** Removes all entities from the index. */
     void clear();
+
+    /**
+     * Returns a number that changes whenever the index content changes.
+     *
+     * <p>Caches derived from the index compare it to decide when to rebuild.
+     *
+     * @return the current content version
+     */
+    long version();
 
     /**
      * Returns the total number of entities in the index.

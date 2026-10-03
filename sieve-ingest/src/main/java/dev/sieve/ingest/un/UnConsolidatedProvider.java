@@ -370,7 +370,7 @@ public final class UnConsolidatedProvider implements ListProvider {
                                                 ScriptType.LATIN))
                         .toList();
 
-        String entityId = referenceNumber != null ? referenceNumber : "UN-" + dataId;
+        String entityId = "un-" + (referenceNumber != null ? referenceNumber : dataId);
         List<SanctionsProgram> programs =
                 unListType != null
                         ? List.of(
@@ -472,7 +472,7 @@ public final class UnConsolidatedProvider implements ListProvider {
                                                 ScriptType.LATIN))
                         .toList();
 
-        String entityId = referenceNumber != null ? referenceNumber : "UN-" + dataId;
+        String entityId = "un-" + (referenceNumber != null ? referenceNumber : dataId);
         List<SanctionsProgram> programs =
                 unListType != null
                         ? List.of(

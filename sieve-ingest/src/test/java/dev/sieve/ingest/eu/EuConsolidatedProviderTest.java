@@ -40,7 +40,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParsePrimaryNameFromEnglishAlias() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
 
         assertThat(ivanov.primaryName().fullName()).isEqualTo("Sergei Petrovich Ivanov");
         assertThat(ivanov.primaryName().givenName()).isEqualTo("Sergei");
@@ -54,7 +54,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldCollectAliasesIncludingNonLatin() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
 
         // 2 aliases: Cyrillic + French
         assertThat(ivanov.aliases()).hasSize(2);
@@ -71,13 +71,13 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseEntityTypeIndividual() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.entityType()).isEqualTo(EntityType.INDIVIDUAL);
     }
 
     @Test
     void shouldParseAddress() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
 
         assertThat(ivanov.addresses()).hasSize(1);
         assertThat(ivanov.addresses().get(0).street()).isEqualTo("Ulitsa Lenina 5");
@@ -88,7 +88,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParsePassportIdentifier() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
 
         assertThat(ivanov.identifiers()).hasSize(1);
         assertThat(ivanov.identifiers().get(0).type()).isEqualTo(IdentifierType.PASSPORT);
@@ -98,13 +98,13 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseCitizenship() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.citizenships()).containsExactly("RUSSIA");
     }
 
     @Test
     void shouldParseDateOfBirthFromFullDate() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
 
         assertThat(ivanov.datesOfBirth()).hasSize(1);
         assertThat(ivanov.datesOfBirth().get(0).getYear()).isEqualTo(1970);
@@ -114,26 +114,26 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParsePlaceOfBirth() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.placesOfBirth()).contains("Moscow");
     }
 
     @Test
     void shouldParseRemarks() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.remarks()).isEqualTo("Test individual entry for unit testing.");
     }
 
     @Test
     void shouldParseSanctionsProgram() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.programs()).hasSize(1);
         assertThat(ivanov.programs().get(0).code()).isEqualTo("RUS");
     }
 
     @Test
     void shouldParseListedDate() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "EU.10.42");
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.listedDate()).isNotNull();
     }
 
@@ -141,7 +141,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseEntityTypeEnterprise() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "EU.20.15");
+        SanctionedEntity acme = findById(loadEntities(), "eu-EU.20.15");
 
         assertThat(acme.entityType()).isEqualTo(EntityType.ENTITY);
         assertThat(acme.primaryName().fullName()).isEqualTo("Acme Trading GmbH");
@@ -149,7 +149,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseBusinessRegistrationIdentifier() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "EU.20.15");
+        SanctionedEntity acme = findById(loadEntities(), "eu-EU.20.15");
 
         assertThat(acme.identifiers()).hasSize(1);
         assertThat(acme.identifiers().get(0).type())
@@ -159,7 +159,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseMultiplePrograms() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "EU.20.15");
+        SanctionedEntity acme = findById(loadEntities(), "eu-EU.20.15");
         assertThat(acme.programs()).hasSize(2);
         assertThat(acme.programs().stream().map(p -> p.code()).toList())
                 .containsExactlyInAnyOrder("RUS", "CRIMEA");
@@ -167,7 +167,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseEnterpriseAlias() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "EU.20.15");
+        SanctionedEntity acme = findById(loadEntities(), "eu-EU.20.15");
         assertThat(acme.aliases()).hasSize(1);
         assertThat(acme.aliases().get(0).fullName()).isEqualTo("Acme Handel GmbH");
     }
@@ -176,7 +176,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseYearOnlyDatesOfBirth() throws IOException {
-        SanctionedEntity ahmed = findById(loadEntities(), "EU.30.77");
+        SanctionedEntity ahmed = findById(loadEntities(), "eu-EU.30.77");
 
         assertThat(ahmed.datesOfBirth()).hasSize(2);
         assertThat(ahmed.datesOfBirth().get(0).getYear()).isEqualTo(1965);
@@ -185,7 +185,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseMultipleCitizenships() throws IOException {
-        SanctionedEntity ahmed = findById(loadEntities(), "EU.30.77");
+        SanctionedEntity ahmed = findById(loadEntities(), "eu-EU.30.77");
         assertThat(ahmed.citizenships()).containsExactly("IRAQ", "JORDAN");
     }
 
@@ -193,7 +193,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseWholeNameOnly() throws IOException {
-        SanctionedEntity mahmoud = findById(loadEntities(), "EU.40.10");
+        SanctionedEntity mahmoud = findById(loadEntities(), "eu-EU.40.10");
 
         assertThat(mahmoud.primaryName().fullName()).isEqualTo("Abdel Hamid Mahmoud");
         assertThat(mahmoud.primaryName().title()).isEqualTo("Col");
@@ -201,7 +201,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParseNationalIdIdentifier() throws IOException {
-        SanctionedEntity mahmoud = findById(loadEntities(), "EU.40.10");
+        SanctionedEntity mahmoud = findById(loadEntities(), "eu-EU.40.10");
 
         assertThat(mahmoud.identifiers()).hasSize(1);
         assertThat(mahmoud.identifiers().get(0).type()).isEqualTo(IdentifierType.NATIONAL_ID);
@@ -213,7 +213,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldFallbackToLogicalIdWhenNoEuRefNumber() throws IOException {
-        SanctionedEntity korea = findById(loadEntities(), "EU-500");
+        SanctionedEntity korea = findById(loadEntities(), "eu-500");
 
         assertThat(korea.primaryName().fullName()).isEqualTo("Korea Mining Corp");
         assertThat(korea.entityType()).isEqualTo(EntityType.ENTITY);
@@ -221,7 +221,7 @@ class EuConsolidatedProviderTest {
 
     @Test
     void shouldParsePoBoxAddress() throws IOException {
-        SanctionedEntity korea = findById(loadEntities(), "EU-500");
+        SanctionedEntity korea = findById(loadEntities(), "eu-500");
 
         assertThat(korea.addresses()).hasSize(1);
         assertThat(korea.addresses().get(0).street()).isEqualTo("P.O. Box 999");

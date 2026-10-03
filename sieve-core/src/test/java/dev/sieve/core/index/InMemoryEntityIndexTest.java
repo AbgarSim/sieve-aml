@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.BeforeEach;
@@ -179,6 +180,62 @@ class InMemoryEntityIndexTest {
 
         assertThat(index.size()).isEqualTo(1);
         assertThat(index.findById("1").get().entityType()).isEqualTo(EntityType.ENTITY);
+    }
+
+    @Test
+    void shouldMoveIdToNewSourceWhenIdIsReusedAcrossSources() {
+        index.add(createEntity("42", EntityType.INDIVIDUAL, ListSource.OFAC_SDN));
+        index.add(createEntity("42", EntityType.INDIVIDUAL, ListSource.UN_CONSOLIDATED));
+
+        assertThat(index.size()).isEqualTo(1);
+        assertThat(index.findBySource(ListSource.OFAC_SDN)).isEmpty();
+        assertThat(index.findBySource(ListSource.UN_CONSOLIDATED)).hasSize(1);
+    }
+
+    @Test
+    void shouldRemoveMissingEntitiesWhenReplacingSource() {
+        index.addAll(
+                List.of(
+                        createEntity("ofac-1", EntityType.INDIVIDUAL, ListSource.OFAC_SDN),
+                        createEntity("ofac-2", EntityType.INDIVIDUAL, ListSource.OFAC_SDN),
+                        createEntity("un-1", EntityType.INDIVIDUAL, ListSource.UN_CONSOLIDATED)));
+
+        Set<String> removed =
+                index.replaceSource(
+                        ListSource.OFAC_SDN,
+                        List.of(
+                                createEntity("ofac-1", EntityType.INDIVIDUAL, ListSource.OFAC_SDN),
+                                createEntity("ofac-3", EntityType.ENTITY, ListSource.OFAC_SDN)));
+
+        assertThat(removed).containsExactly("ofac-2");
+        assertThat(index.findById("ofac-2")).isEmpty();
+        assertThat(index.findBySource(ListSource.OFAC_SDN))
+                .extracting(SanctionedEntity::id)
+                .containsExactlyInAnyOrder("ofac-1", "ofac-3");
+        assertThat(index.findById("un-1")).isPresent();
+    }
+
+    @Test
+    void shouldChangeVersionWhenContentChangesAtSameSize() {
+        index.add(createEntity("ofac-1", EntityType.INDIVIDUAL, ListSource.OFAC_SDN));
+        long before = index.version();
+
+        index.replaceSource(
+                ListSource.OFAC_SDN,
+                List.of(createEntity("ofac-2", EntityType.INDIVIDUAL, ListSource.OFAC_SDN)));
+
+        assertThat(index.size()).isEqualTo(1);
+        assertThat(index.version()).isNotEqualTo(before);
+    }
+
+    @Test
+    void shouldRejectEntityFromAnotherSourceWhenReplacingSource() {
+        SanctionedEntity unEntity =
+                createEntity("un-1", EntityType.INDIVIDUAL, ListSource.UN_CONSOLIDATED);
+
+        assertThatThrownBy(() -> index.replaceSource(ListSource.OFAC_SDN, List.of(unEntity)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(index.size()).isZero();
     }
 
     private static SanctionedEntity createEntity(String id, EntityType type, ListSource source) {

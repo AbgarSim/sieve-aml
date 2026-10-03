@@ -83,7 +83,7 @@ Request / Response Examples
      "screenedAt": "2026-03-19T15:30:00Z",
      "results": [{
        "entity": {
-         "id": "36360",
+         "id": "ofac-sdn-36360",
          "entityType": "INDIVIDUAL",
          "listSource": "OFAC_SDN",
          "primaryName": "PUTIN, Vladimir Vladimirovich",

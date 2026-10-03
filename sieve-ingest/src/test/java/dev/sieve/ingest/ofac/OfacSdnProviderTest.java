@@ -43,7 +43,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.entityType()).isEqualTo(EntityType.INDIVIDUAL);
         assertThat(john.listSource()).isEqualTo(ListSource.OFAC_SDN);
@@ -60,7 +63,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.aliases()).hasSize(2);
         assertThat(john.aliases().get(0).fullName()).isEqualTo("DOE, Johnny");
@@ -77,7 +83,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.programs()).hasSize(2);
         assertThat(john.programs().get(0).code()).isEqualTo("SDGT");
@@ -90,7 +99,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.addresses()).hasSize(1);
         assertThat(john.addresses().get(0).street()).isEqualTo("123 Main Street");
@@ -104,7 +116,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.identifiers()).hasSize(1);
         assertThat(john.identifiers().get(0).type()).isEqualTo(IdentifierType.PASSPORT);
@@ -118,7 +133,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.datesOfBirth()).hasSize(1);
         assertThat(john.datesOfBirth().get(0).getYear()).isEqualTo(1980);
@@ -132,7 +150,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity john =
-                entities.stream().filter(e -> "1001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-1001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(john.nationalities()).containsExactly("US");
     }
@@ -143,12 +164,18 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity acme =
-                entities.stream().filter(e -> "2001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-2001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(acme.entityType()).isEqualTo(EntityType.ENTITY);
         assertThat(acme.primaryName().fullName()).isEqualTo("ACME HOLDINGS LTD");
 
         SanctionedEntity vessel =
-                entities.stream().filter(e -> "3001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-3001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(vessel.entityType()).isEqualTo(EntityType.VESSEL);
     }
 
@@ -158,7 +185,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity vessel =
-                entities.stream().filter(e -> "3001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-3001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(vessel.identifiers()).hasSize(1);
         assertThat(vessel.identifiers().get(0).type()).isEqualTo(IdentifierType.IMO_NUMBER);
@@ -171,7 +201,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity maria =
-                entities.stream().filter(e -> "4001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-4001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(maria.primaryName().title()).isEqualTo("Dr.");
     }
@@ -182,7 +215,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity ahmed =
-                entities.stream().filter(e -> "5001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-5001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(ahmed.aliases()).hasSize(2);
         assertThat(ahmed.aliases().get(1).nameType()).isEqualTo(NameType.FKA);
@@ -194,7 +230,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity maria =
-                entities.stream().filter(e -> "4001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-4001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(maria.citizenships()).containsExactly("MX");
     }
@@ -205,7 +244,10 @@ class OfacSdnProviderTest {
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
         SanctionedEntity maria =
-                entities.stream().filter(e -> "4001".equals(e.id())).findFirst().orElseThrow();
+                entities.stream()
+                        .filter(e -> "ofac-sdn-4001".equals(e.id()))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(maria.placesOfBirth()).containsExactly("Mexico City");
     }
