@@ -28,6 +28,7 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - Picocli CLI with `fetch`, `screen`, `stats`, and `export` commands
 - Comprehensive test suite with JUnit 5, AssertJ, Mockito, and parameterized tests
 - OFAC SDN test sample XML for offline testing
+- Risk topics (`RiskTopic`: sanction, sanction-linked, export control, debarment, PEP, relative or close associate, crime, wanted, state-owned) and relations between entities (`Relation`, `RelationType`) on `SanctionedEntity`; entries from today's sanctions lists carry the `SANCTION` topic, and API responses and exports list each entity's `topics`
 
 ### Changed
 - Entity ids from OFAC SDN, UN, UK HMT and EU Consolidated now carry a source prefix (`ofac-sdn-`, `un-`, `uk-`, `eu-`), like every other source, so ids from different lists cannot collide

@@ -56,6 +56,7 @@ Sample output:
        "listSource": "OFAC_SDN",
        "primaryName": "PUTIN, Vladimir Vladimirovich",
        "aliases": ["Vladimir PUTIN"],
+       "topics": ["SANCTION"],
        "programs": ["RUSSIA-EO14024"]
      }
    ]

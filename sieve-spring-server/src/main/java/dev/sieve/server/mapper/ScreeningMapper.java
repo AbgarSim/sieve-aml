@@ -7,6 +7,7 @@ import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.IngestionReport;
@@ -100,6 +101,7 @@ public class ScreeningMapper {
                 addresses,
                 entity.nationalities(),
                 programs,
+                entity.topics().stream().map(RiskTopic::name).toList(),
                 entity.remarks(),
                 entity.lastUpdated());
     }
