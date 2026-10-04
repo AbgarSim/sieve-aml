@@ -8,6 +8,8 @@ import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
@@ -28,6 +30,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,7 +45,7 @@ import java.util.stream.Collectors;
 
 /**
  * Fetches politically exposed persons from Wikidata: living people who hold, or recently held, a
- * national public office.
+ * national public office, and their relatives and close associates.
  *
  * <p>Offices are the positions whose jurisdiction ({@code P1001}) is a sovereign state and that are
  * a kind of head of state, head of government, minister, central bank governor, chief of defence or
@@ -54,14 +57,21 @@ import java.util.stream.Collectors;
  * that began more than {@link #STALE_TERM_YEARS} years ago are treated as unrecorded ends and left
  * out.
  *
+ * <p>The living people Wikidata links to a holder through the {@link #KIN_PROPERTIES family and
+ * associate properties} (spouses and partners, children, parents, siblings, other relatives and
+ * business partners) are tagged {@link RiskTopic#RCA}, with a {@link Relation} to each holder they
+ * are linked to; a relative who holds an office is both. Programs and remarks name each office and
+ * each link.
+ *
  * <p>The query service limits each query to a minute and each client to a few queries at once, so
  * the work is split into small queries that run {@link #PARALLEL_QUERIES} at a time: one query
  * lists the countries, one query per {@linkplain #EXTRA_CLASSES smaller class} finds its offices
  * everywhere and one finds the {@linkplain #REGIONAL_HEADS_QUERY regional heads}, then each country
- * gets one query for its other offices and queries for their holders, and the people found are
- * described in batches. A query that keeps failing is skipped and logged rather than failing the
- * whole list; a throttled one waits as long as the service asks. Every entity is tagged {@link
- * RiskTopic#PEP} with id {@code wd-<item id>}.
+ * gets one query for its other offices and queries for their holders, the holders' relatives are
+ * found in batches, and everyone found is described in batches. A query that fails is retried a few
+ * times, a country whose queries keep failing is tried once more in smaller batches, and what still
+ * fails is skipped and logged rather than failing the whole list; a throttled query waits as long
+ * as the service asks. Every entity has id {@code wd-<item id>}.
  *
  * @see <a href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">Wikidata Query
  *     Service</a>
@@ -76,6 +86,12 @@ public final class WikidataPepProvider extends AbstractListProvider {
     static final int STALE_TERM_YEARS = 40;
     static final int PERSON_BATCH = 400;
     static final int OFFICE_BATCH = 300;
+
+    /** PEPs per relatives query; it stays quick up to a thousand. */
+    static final int KIN_BATCH = 1000;
+
+    /** Offices per holders query when a country's queries failed at {@link #OFFICE_BATCH}. */
+    static final int SMALL_OFFICE_BATCH = 50;
 
     /** Queries in flight at once; the query service allows a client five. */
     static final int PARALLEL_QUERIES = 4;
@@ -169,6 +185,37 @@ public final class WikidataPepProvider extends AbstractListProvider {
     /** One holder's term in an office. */
     record Term(Office office, LocalDate start, LocalDate end) {}
 
+    /** A link from a relative or associate to the PEP they are linked to, as Wikidata words it. */
+    record Kin(String pepId, RelationType type, String role) {}
+
+    /**
+     * A Wikidata property linking people, with the linked person's role towards the PEP when the
+     * PEP is the statement's subject ({@code role}) and when the PEP is its object ({@code
+     * reverseRole}).
+     */
+    record KinProperty(RelationType type, String role, String reverseRole) {}
+
+    /** The family and associate properties followed from every PEP, by property id. */
+    static final Map<String, KinProperty> KIN_PROPERTIES = kinProperties();
+
+    private static Map<String, KinProperty> kinProperties() {
+        Map<String, KinProperty> properties = new LinkedHashMap<>();
+        properties.put("P26", new KinProperty(RelationType.FAMILY, "spouse", "spouse"));
+        properties.put("P451", new KinProperty(RelationType.FAMILY, "partner", "partner"));
+        properties.put("P40", new KinProperty(RelationType.FAMILY, "child", "parent"));
+        properties.put("P22", new KinProperty(RelationType.FAMILY, "parent", "child")); // father
+        properties.put("P25", new KinProperty(RelationType.FAMILY, "parent", "child")); // mother
+        properties.put("P3373", new KinProperty(RelationType.FAMILY, "sibling", "sibling"));
+        properties.put("P1038", new KinProperty(RelationType.FAMILY, "relative", "relative"));
+        properties.put(
+                "P1327",
+                new KinProperty(
+                        RelationType.ASSOCIATE,
+                        "business partner",
+                        "business partner")); // partner in business or sport
+        return Collections.unmodifiableMap(properties);
+    }
+
     /** A person and everything known about them. */
     static final class Person {
         final String id;
@@ -177,6 +224,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
         final Set<String> aliases = new LinkedHashSet<>();
         final Set<LocalDate> datesOfBirth = new LinkedHashSet<>();
         final Set<String> citizenships = new LinkedHashSet<>();
+        final Set<Kin> kin = new LinkedHashSet<>();
 
         Person(String id) {
             this.id = id;
@@ -230,6 +278,23 @@ public final class WikidataPepProvider extends AbstractListProvider {
                     "Wikidata PEPs: found office holders [countries={}, people={}, seconds={}]",
                     countries.size(),
                     found.size(),
+                    Duration.between(started, Instant.now()).toSeconds());
+
+            List<String> peps = new ArrayList<>(found.keySet());
+            Deque<Future<List<JsonNode>>> kinBatches = new ArrayDeque<>();
+            for (int i = 0; i < peps.size(); i += KIN_BATCH) {
+                List<String> batch = peps.subList(i, Math.min(i + KIN_BATCH, peps.size()));
+                kinBatches.add(pool.submit(() -> select(client, kinQuery(batch))));
+            }
+            while (!kinBatches.isEmpty()) {
+                List<JsonNode> rows = await(kinBatches.poll(), "a batch of relatives");
+                if (rows != null) {
+                    rows.forEach(row -> addKin(found, row));
+                }
+            }
+            log.info(
+                    "Wikidata PEPs: found relatives and associates [people={}, seconds={}]",
+                    found.size() - peps.size(),
                     Duration.between(started, Instant.now()).toSeconds());
 
             List<String> ids = new ArrayList<>(found.keySet());
@@ -374,7 +439,9 @@ public final class WikidataPepProvider extends AbstractListProvider {
 
     /**
      * One country's offices, from the extra classes already known and the {@link #OFFICE_CLASSES},
-     * and the terms of their holders, keyed by person.
+     * and the terms of their holders, keyed by person. A country whose queries keep failing, which
+     * happens when the service is slow and a query with many offices runs out of time, is tried
+     * once more in {@linkplain #SMALL_OFFICE_BATCH smaller batches} before it is given up on.
      */
     private Map<String, List<Term>> holders(
             HttpClient client,
@@ -383,13 +450,32 @@ public final class WikidataPepProvider extends AbstractListProvider {
             Map<String, Office> extras,
             LocalDate today)
             throws IOException, InterruptedException {
+        try {
+            return holders(client, countryId, iso, extras, today, OFFICE_BATCH);
+        } catch (IOException e) {
+            log.info(
+                    "Wikidata PEPs: trying country {} again in smaller batches [error={}]",
+                    iso,
+                    e.getMessage());
+            return holders(client, countryId, iso, extras, today, SMALL_OFFICE_BATCH);
+        }
+    }
+
+    private Map<String, List<Term>> holders(
+            HttpClient client,
+            String countryId,
+            String iso,
+            Map<String, Office> extras,
+            LocalDate today,
+            int batchSize)
+            throws IOException, InterruptedException {
         Map<String, Office> byId = new LinkedHashMap<>();
         extras.values().forEach(o -> keep(byId, o));
         offices(client, countryId, iso).forEach(o -> keep(byId, o));
         List<Office> offices = new ArrayList<>(byId.values());
         Map<String, List<Term>> terms = new LinkedHashMap<>();
-        for (int i = 0; i < offices.size(); i += OFFICE_BATCH) {
-            List<Office> batch = offices.subList(i, Math.min(i + OFFICE_BATCH, offices.size()));
+        for (int i = 0; i < offices.size(); i += batchSize) {
+            List<Office> batch = offices.subList(i, Math.min(i + batchSize, offices.size()));
             for (JsonNode row : select(client, holdersQuery(batch, today))) {
                 addTerm(terms, row, batch, today);
             }
@@ -436,6 +522,42 @@ public final class WikidataPepProvider extends AbstractListProvider {
                 + " FILTER(!BOUND(?end) || ?end >= \""
                 + today.minusYears(YEARS_AFTER_OFFICE)
                 + "T00:00:00Z\"^^xsd:dateTime) }";
+    }
+
+    /**
+     * The living people linked to any of the given PEPs by a {@link #KIN_PROPERTIES kin property},
+     * in either direction: {@code reverse} is true when the PEP is the statement's object. Left to
+     * itself, the query service's optimizer starts this query from the millions of humans and runs
+     * out of time, so the hint keeps the written order, which starts from the PEPs and takes a
+     * second or two for a thousand of them.
+     */
+    static String kinQuery(List<String> peps) {
+        String values = peps.stream().map(i -> "wd:" + i).collect(Collectors.joining(" "));
+        String properties =
+                KIN_PROPERTIES.keySet().stream()
+                        .map(p -> "wdt:" + p)
+                        .collect(Collectors.joining(" "));
+        return "SELECT ?pep ?prop ?kin ?reverse WHERE { hint:Query hint:optimizer \"None\" ."
+                + " VALUES ?pep { "
+                + values
+                + " } VALUES ?prop { "
+                + properties
+                + " } { ?pep ?prop ?kin . BIND(false AS ?reverse) }"
+                + " UNION { ?kin ?prop ?pep . BIND(true AS ?reverse) }"
+                + " ?kin wdt:P31 wd:Q5 . FILTER NOT EXISTS { ?kin wdt:P570 ?died } }";
+    }
+
+    /** Records one row of {@link #kinQuery} on the linked person, adding them when new. */
+    static void addKin(Map<String, Person> people, JsonNode row) {
+        String pep = id(value(row, "pep"));
+        String kin = id(value(row, "kin"));
+        KinProperty property = KIN_PROPERTIES.get(id(value(row, "prop")));
+        if (pep == null || kin == null || property == null || kin.equals(pep)) {
+            return;
+        }
+        boolean reverse = "true".equals(value(row, "reverse"));
+        String role = reverse ? property.reverseRole() : property.role();
+        people.computeIfAbsent(kin, Person::new).kin.add(new Kin(pep, property.type(), role));
     }
 
     static String peopleQuery(List<String> ids) {
@@ -504,7 +626,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
         }
         List<SanctionedEntity> entities = new ArrayList<>();
         for (Person person : people.values()) {
-            SanctionedEntity entity = toEntity(person);
+            SanctionedEntity entity = toEntity(person, people);
             if (entity != null) {
                 entities.add(entity);
             }
@@ -512,8 +634,16 @@ public final class WikidataPepProvider extends AbstractListProvider {
         return entities;
     }
 
-    static SanctionedEntity toEntity(Person person) {
-        if (person.name == null || person.name.isBlank() || person.terms.isEmpty()) {
+    /**
+     * Builds the entity for a person, or {@code null} when they have no name, or neither an office
+     * nor a link to a named office holder. Links to PEPs who turned out to have no name or no
+     * office are dropped, so every relation points at an entity in the list.
+     */
+    static SanctionedEntity toEntity(Person person, Map<String, Person> people) {
+        List<Kin> kin = person.kin.stream().filter(k -> isPep(people.get(k.pepId()))).toList();
+        if (person.name == null
+                || person.name.isBlank()
+                || (person.terms.isEmpty() && kin.isEmpty())) {
             return null;
         }
         NameInfo primary =
@@ -539,7 +669,10 @@ public final class WikidataPepProvider extends AbstractListProvider {
         Map<String, SanctionsProgram> programs = new LinkedHashMap<>();
         StringJoiner remarks = new StringJoiner("\n");
         Set<String> countries = new LinkedHashSet<>(person.citizenships);
+        Set<RiskTopic> topics = EnumSet.noneOf(RiskTopic.class);
+        List<Relation> relations = new ArrayList<>();
         for (Term term : person.terms) {
+            topics.add(RiskTopic.PEP);
             Office office = term.office();
             programs.putIfAbsent(
                     office.id(),
@@ -557,6 +690,32 @@ public final class WikidataPepProvider extends AbstractListProvider {
                             + (term.end() == null ? "present" : term.end()));
             if (person.citizenships.isEmpty()) {
                 countries.add(office.country());
+            }
+        }
+        for (Kin link : kin) {
+            Person pep = people.get(link.pepId());
+            int tier = tier(pep);
+            topics.add(RiskTopic.RCA);
+            programs.putIfAbsent(
+                    link.role() + " " + link.pepId(),
+                    new SanctionsProgram(
+                            link.role() + " of " + pep.name,
+                            "RCA tier " + tier,
+                            ListSource.WIKIDATA_PEP));
+            remarks.add(
+                    Character.toUpperCase(link.role().charAt(0))
+                            + link.role().substring(1)
+                            + " of "
+                            + pep.name
+                            + " (PEP tier "
+                            + tier
+                            + ", "
+                            + link.pepId()
+                            + ")");
+            relations.add(
+                    new Relation(link.type(), "wd-" + link.pepId(), link.role(), null, null, null));
+            if (person.citizenships.isEmpty()) {
+                countries.addAll(countries(pep));
             }
         }
         remarks.add("Source: https://www.wikidata.org/wiki/" + person.id);
@@ -577,14 +736,37 @@ public final class WikidataPepProvider extends AbstractListProvider {
                 new ArrayList<>(programs.values()),
                 null,
                 Instant.now(),
-                Set.of(RiskTopic.PEP),
-                List.of());
+                topics,
+                relations);
+    }
+
+    /** Whether a person will be published as a PEP: named, with at least one office. */
+    static boolean isPep(Person person) {
+        return person != null
+                && person.name != null
+                && !person.name.isBlank()
+                && !person.terms.isEmpty();
+    }
+
+    /** The highest (lowest-numbered) tier among a PEP's offices. */
+    static int tier(Person pep) {
+        return pep.terms.stream().mapToInt(t -> t.office().tier()).min().orElse(2);
+    }
+
+    /** A person's citizenships, or the countries of their offices when none is recorded. */
+    static Set<String> countries(Person person) {
+        if (!person.citizenships.isEmpty()) {
+            return person.citizenships;
+        }
+        Set<String> countries = new LinkedHashSet<>();
+        person.terms.forEach(t -> countries.add(t.office().country()));
+        return countries;
     }
 
     /**
-     * Runs a query and returns its result rows. A server error is retried a few times and being
-     * throttled waits as long as the service asks, up to {@link #THROTTLE_WAITS} times; any other
-     * failure is thrown at once.
+     * Runs a query and returns its result rows. A server error or a dropped connection is retried a
+     * few times and being throttled waits as long as the service asks, up to {@link
+     * #THROTTLE_WAITS} times; any other failure is thrown at once.
      */
     private List<JsonNode> select(HttpClient client, String query)
             throws IOException, InterruptedException {
@@ -598,8 +780,17 @@ public final class WikidataPepProvider extends AbstractListProvider {
         int failures = 0;
         int waits = 0;
         while (true) {
-            HttpResponse<byte[]> response =
-                    client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> response;
+            try {
+                response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            } catch (IOException e) {
+                // a dropped connection or a cancelled stream: again at once, then after a pause
+                if (++failures >= ATTEMPTS) {
+                    throw e;
+                }
+                Thread.sleep(Duration.ofSeconds(5L * (failures - 1)));
+                continue;
+            }
             int status = response.statusCode();
             if (status == 200) {
                 List<JsonNode> rows = new ArrayList<>();

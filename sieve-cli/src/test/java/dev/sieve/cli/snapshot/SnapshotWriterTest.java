@@ -11,6 +11,8 @@ import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
@@ -131,13 +133,44 @@ class SnapshotWriterTest {
                         NOW,
                         Set.of(RiskTopic.PEP),
                         List.of());
+        SanctionedEntity relative =
+                new SanctionedEntity(
+                        "wd-Q2",
+                        EntityType.INDIVIDUAL,
+                        ListSource.WIKIDATA_PEP,
+                        new NameInfo(
+                                "John Minister",
+                                null,
+                                null,
+                                null,
+                                null,
+                                NameType.PRIMARY,
+                                null,
+                                null),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of("DE"),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(
+                                new SanctionsProgram(
+                                        "spouse of Jane Minister",
+                                        "RCA tier 1",
+                                        ListSource.WIKIDATA_PEP)),
+                        null,
+                        NOW,
+                        Set.of(RiskTopic.RCA),
+                        List.of(Relation.of(RelationType.FAMILY, "wd-Q1")));
         List<FetchedSource> fetched = new ArrayList<>(fetch(Set.of()));
         fetched.removeIf(f -> f.source() == ListSource.WIKIDATA_PEP);
         fetched.add(
                 new FetchedSource(
                         ListSource.WIKIDATA_PEP,
                         FetchedSource.Status.LOADED,
-                        List.of(pep),
+                        List.of(pep, relative),
                         Optional.empty(),
                         Duration.ZERO,
                         Optional.empty()));
@@ -146,14 +179,16 @@ class SnapshotWriterTest {
         JsonNode overview = read("overview.json");
         assertThat(overview.get("totalEntities").asInt()).isEqualTo(3);
         assertThat(overview.get("byTopic").get("PEP").asInt()).isEqualTo(1);
+        assertThat(overview.get("byTopic").get("RCA").asInt()).isEqualTo(1);
         assertThat(overview.get("byTopic").get("SANCTION").asInt()).isEqualTo(3);
         assertThat(read("countries.json").get("countries").has("DE")).isFalse();
         assertThat(read("history.json").get(0).get("bySource").get("WIKIDATA_PEP").asInt())
-                .isEqualTo(1);
+                .isEqualTo(2);
         JsonNode pepRow = row(read("sources.json").get("sources"), "WIKIDATA_PEP");
-        assertThat(pepRow.get("entities").asInt()).isEqualTo(1);
+        assertThat(pepRow.get("entities").asInt()).isEqualTo(2);
         assertThat(pepRow.get("published").asInt()).isZero();
         assertThat(pepRow.get("byTopic").get("PEP").asInt()).isEqualTo(1);
+        assertThat(pepRow.get("byTopic").get("RCA").asInt()).isEqualTo(1);
         assertThat(row(read("sources.json").get("sources"), "OFAC_SDN").get("published").asInt())
                 .isEqualTo(2);
         assertThat(Files.exists(out.resolve("entities/WIKIDATA_PEP"))).isFalse();
