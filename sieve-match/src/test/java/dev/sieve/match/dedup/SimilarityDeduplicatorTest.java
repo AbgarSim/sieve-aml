@@ -199,6 +199,58 @@ class SimilarityDeduplicatorTest {
     }
 
     @Test
+    void shouldMeetSpellingVariantsOfACommonNameWithinTheirBirthYear() {
+        // A block of "Mohammed ..." too large to compare in full falls back to exact spellings,
+        // which "Mohamed" is not; the birth year narrows it to a block the variants can meet in
+        List<SanctionedEntity> entities = new ArrayList<>();
+        for (int i = 0; i < SimilarityDeduplicator.MAX_BLOCK_SIZE + 5; i++) {
+            entities.add(
+                    person(
+                            "ofac-" + i,
+                            "Mohammed Person" + i,
+                            ListSource.OFAC_SDN,
+                            LocalDate.of(1950 + i % 50, 1, 1)));
+        }
+        entities.add(
+                person(
+                        "eu-1",
+                        "Mohamed Person7",
+                        ListSource.EU_CONSOLIDATED,
+                        LocalDate.of(1957, 1, 1)));
+
+        DeduplicationResult result = deduplicator.deduplicate(entities);
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(entities.size() - 1);
+        assertThat(result.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(result.entityToCanonicalId().get("ofac-7"));
+    }
+
+    @Test
+    void shouldMeetOnASharedIdentifierWhateverTheNames() {
+        // No name part of these two starts alike, so only the passport brings them together
+        SanctionedEntity ofac =
+                entityWithPassport("ofac-1", "Qasem Soleimani", ListSource.OFAC_SDN, "K 1234567");
+        SanctionedEntity eu =
+                entityWithPassport(
+                        "eu-1", "Ghasem Suleymani", ListSource.EU_CONSOLIDATED, "K1234567");
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, eu));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldNotMatchOnNamesWithoutLetters() {
+        // A stray row number parsed as a name is the same "18" on every list
+        SanctionedEntity ofac = unstructured("ofac-1", "18", ListSource.OFAC_SDN);
+        SanctionedEntity eu = unstructured("eu-1", "18", ListSource.EU_CONSOLIDATED);
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, eu));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(2);
+    }
+
+    @Test
     void shouldNotMergeDifferentFirstNamesSharingSurname() {
         // Whole-string Jaro-Winkler rates "doe john" vs "doe jane" at 0.90
         SanctionedEntity ofac = entity("ofac-1", "DOE, John", ListSource.OFAC_SDN);
