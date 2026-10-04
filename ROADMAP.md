@@ -39,7 +39,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
 
 - [ ] 1.6 Keep fields providers already read: gender, deceased, listing reasons, vessel flag and
   tonnage.
-- [ ] 1.7 Crypto wallets from OFAC's digital currency addresses, as their own entity kind linked to
+- [x] 1.7 Crypto wallets from OFAC's digital currency addresses, as their own entity kind linked to
   the owner.
 - [ ] 1.8 Relations already in the lists: OFAC "linked to", UN and EU associated entities, vessel
   owners and operators.

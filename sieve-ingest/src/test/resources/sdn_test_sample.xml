@@ -87,6 +87,26 @@
         <idType>Legal Entity Number</idType>
         <idNumber>549300LCJ1UJXHYBWI24</idNumber>
       </id>
+      <id>
+        <uid>2003</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>1TestWa11etAddressXBTEXAMPLE</idNumber>
+      </id>
+      <id>
+        <uid>2004</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x1234567890abcdef1234567890abcdef12345678</idNumber>
+      </id>
+      <id>
+        <uid>2005</uid>
+        <idType>Digital Currency Address - USDT</idType>
+        <idNumber>0x1234567890abcdef1234567890abcdef12345678</idNumber>
+      </id>
+      <id>
+        <uid>2006</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>1TestWa11etAddressXBTEXAMPLE</idNumber>
+      </id>
     </idList>
   </sdnEntry>
 
