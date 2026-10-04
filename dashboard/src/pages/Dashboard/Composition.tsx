@@ -5,13 +5,18 @@ import { Icon, TYPE_ICON } from '../../lib/icons';
 import { SIEVE, TYPE_LABEL, TYPES, topicLabel, topicNoun, type EntityType } from '../../data/snapshot';
 import { fmt } from '../../lib/format';
 
-export const TCOL: Record<EntityType, string> = { individual: 'var(--map-1)', entity: 'var(--accent)', vessel: 'var(--amber)', aircraft: 'var(--red)' };
+export const TCOL: Record<EntityType, string> = {
+  individual: 'var(--map-1)', entity: 'var(--accent)', company: '#3A9E9F', organization: '#8E72CF',
+  vessel: 'var(--amber)', aircraft: 'var(--red)', wallet: 'var(--green)', security: 'var(--muted)',
+};
 
 export function Composition() {
   const D = SIEVE;
   const srt = D.sources.filter(s => !s.countsOnly).sort((a, b) => b.entities - a.entities), smax = srt[0]?.entities || 1;
   const counted = D.sources.filter(s => s.countsOnly);
   const tot = D.byType, tsum = TYPES.reduce((a, t) => a + tot[t], 0) || 1;
+  // Kinds no list uses yet stay out of the mix; individuals and entities always show.
+  const shown = TYPES.filter(t => tot[t] > 0 || t === 'individual' || t === 'entity');
   const topics = D.byTopic, tmax = topics[0]?.[1] || 1;
   const progs = D.programs.slice(0, 8);
   return (
@@ -27,9 +32,9 @@ export function Composition() {
         <div className="card">
           <div className="card-h"><h3>Entity type mix</h3></div>
           <div className="card-b">
-            <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2, marginBottom: 14 }}>{TYPES.map(t => <i key={t} style={{ width: `${(tot[t] / tsum) * 100}%`, background: TCOL[t] }} />)}</div>
+            <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2, marginBottom: 14 }}>{shown.map(t => <i key={t} style={{ width: `${(tot[t] / tsum) * 100}%`, background: TCOL[t] }} />)}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '8px 16px' }}>
-              {TYPES.map(t => (
+              {shown.map(t => (
                 <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                   <i style={{ width: 8, height: 8, borderRadius: 2, background: TCOL[t] }} /><Icon name={TYPE_ICON[t]} size={14} style={{ color: 'var(--muted)' }} />
                   <span style={{ flex: 1 }}>{TYPE_LABEL[t]}</span><span className="num">{fmt(tot[t])}</span><span className="num muted xs" style={{ width: 38, textAlign: 'right' }}>{((tot[t] / tsum) * 100).toFixed(1)}%</span>

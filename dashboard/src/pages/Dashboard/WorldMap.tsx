@@ -11,7 +11,7 @@ import { HBar } from '../../components/HBar';
 import { SlideOver } from '../../components/SlideOver';
 import { Chip, StatusDot } from '../../components/Badges';
 import { Icon } from '../../lib/icons';
-import { SIEVE, TYPE_LABEL, TYPES, type Country } from '../../data/snapshot';
+import { SIEVE, TYPE_LABEL, TYPES, type Country, type EntityType } from '../../data/snapshot';
 import { ISO_NUMERIC, UNNUMBERED_FEATURES, countryName } from '../../data/iso';
 import { TCOL } from './Composition';
 import { cssVar, fmt } from '../../lib/format';
@@ -23,7 +23,7 @@ type TypeF = 'all' | 'individual' | 'entity' | 'vessel' | 'aircraft';
 type F = Feature<Geometry, { name?: string }> & { id: string };
 
 const ISO_BY_NUMERIC = Object.fromEntries(Object.entries(ISO_NUMERIC).map(([a, n]) => [n, a]));
-const NONE = { individual: 0, entity: 0, vessel: 0, aircraft: 0 };
+const NONE = Object.fromEntries(TYPES.map(t => [t, 0])) as Record<EntityType, number>;
 /** The snapshot row of a map feature, or an empty row for a country no list links to. */
 const countryOf = (f: F): Country | undefined => {
   const c = SIEVE.countryByNum[f.id]; if (c) return c;
@@ -189,7 +189,8 @@ function Tooltip({ tip, tab, sources }: { tip: { x: number; y: number; c: Countr
 function CountryPanel({ c, v, sources, basis, type }: { c: Country; v: number; sources: Set<string>; basis: Basis; type: TypeF }) {
   const D = SIEVE;
   const src = Object.entries(c.bySource).filter(([id]) => sources.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 10), smax = src[0]?.[1] || 1;
-  const tmax = Math.max(1, ...TYPES.map(t => c.byType[t]));
+  const types = TYPES.filter(t => c.byType[t] > 0 || t === 'individual' || t === 'entity');
+  const tmax = Math.max(1, ...types.map(t => c.byType[t]));
   const K = ({ l, v }: { l: string; v: string }) => <div className="card kpi"><div className="l">{l}</div><div className="v num" style={{ fontSize: 22 }}>{v}</div></div>;
   return (
     <>
@@ -197,7 +198,7 @@ function CountryPanel({ c, v, sources, basis, type }: { c: Country; v: number; s
         <K l="Shown on map" v={fmt(v)} /><K l="Share of all entities" v={((c.total / (D.totalEntities || 1)) * 100).toFixed(1) + '%'} /><K l="By nationality" v={fmt(c.nationality)} /><K l="By address" v={fmt(c.address)} />
       </div>
       <div className="so-sec"><h4>Per source</h4>{src.map(([id, n]) => <HBar key={id} label={<><Flag cc={D.byId[id]?.cc} />{D.byId[id]?.name ?? id}</>} pct={(n / smax) * 100} value={fmt(n)} />)}{!src.length && <span className="muted small">No selected source lists this country.</span>}</div>
-      <div className="so-sec"><h4>Entity types</h4>{TYPES.map(t => <HBar key={t} label={<><i style={{ width: 8, height: 8, borderRadius: 2, background: TCOL[t], display: 'inline-block' }} />{TYPE_LABEL[t]}</>} pct={(c.byType[t] / tmax) * 100} value={fmt(c.byType[t])} />)}</div>
+      <div className="so-sec"><h4>Entity types</h4>{types.map(t => <HBar key={t} label={<><i style={{ width: 8, height: 8, borderRadius: 2, background: TCOL[t], display: 'inline-block' }} />{TYPE_LABEL[t]}</>} pct={(c.byType[t] / tmax) * 100} value={fmt(c.byType[t])} />)}</div>
       <div className="so-sec"><h4>Basis</h4><span className="small muted">Counted by {basis === 'both' ? 'nationality or address' : basis}{type !== 'all' && `, ${TYPE_LABEL[type].toLowerCase()}s only`}. An entity linked to several countries counts once for each.</span></div>
     </>
   );

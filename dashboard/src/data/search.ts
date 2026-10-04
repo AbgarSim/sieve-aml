@@ -3,7 +3,7 @@ import { fetchJson, RAW_TYPE, type EntityType } from './snapshot';
 import type { RawEntity, RawIndex, RawIndexEntry } from './raw';
 import { jaroWinkler as jw, normalize as norm, tokens } from '../lib/jw';
 
-const T: Record<RawIndexEntry['t'], EntityType> = { I: 'individual', E: 'entity', V: 'vessel', A: 'aircraft' };
+const T: Record<RawIndexEntry['t'], EntityType> = { I: 'individual', E: 'entity', C: 'company', O: 'organization', V: 'vessel', A: 'aircraft', W: 'wallet', S: 'security' };
 
 export interface Entry { key: string; source: string; id: string; name: string; aliases: string[]; type: EntityType; countries: string[]; programs: string[]; shard: number }
 
