@@ -9,6 +9,9 @@ import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
@@ -32,8 +35,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.StringJoiner;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
@@ -46,6 +53,15 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing of the potentially large SDN
  * XML file. Supports HTTP ETag-based delta detection to avoid unnecessary re-downloads.
+ *
+ * <p>Every digital currency address an entry lists (OFAC's identifier types {@code Digital Currency
+ * Address - XBT}, {@code Digital Currency Address - ETH} and so on) stays on the entry as a {@link
+ * IdentifierType#CRYPTO_ADDRESS} identifier whose remarks hold the currency code, and also becomes
+ * a {@link EntityType#CRYPTO_WALLET} entity of its own with id {@code
+ * ofac-sdn-<uid>-wallet-<address>}: named by the address, with an identifier per currency the
+ * address is listed under, the holder's programs and a remark naming the holder. The holder carries
+ * an {@link RelationType#OWNERSHIP} relation to each of its wallets and each wallet a {@link
+ * RelationType#LINKED} relation back, both with the role {@value #WALLET_HOLDER_ROLE}.
  *
  * @see <a
  *     href="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML">OFAC
@@ -62,6 +78,15 @@ public final class OfacSdnProvider implements ListProvider {
 
     private static final DateTimeFormatter OFAC_DATE_FORMAT =
             DateTimeFormatter.ofPattern("MM/dd/yyyy");
+
+    /** Start of OFAC's identifier types for digital currency addresses; the currency follows. */
+    static final String DIGITAL_CURRENCY_TYPE = "digital currency address";
+
+    /** Joins a holder's id and a digital currency address into the wallet entity's id. */
+    static final String WALLET_ID_INFIX = "-wallet-";
+
+    /** Role on the relations between a holder and its wallets, in both directions. */
+    static final String WALLET_HOLDER_ROLE = "holder";
 
     private final URI sourceUri;
     private final HttpClient httpClient;
@@ -237,10 +262,7 @@ public final class OfacSdnProvider implements ListProvider {
                 int event = reader.next();
                 if (event == XMLStreamConstants.START_ELEMENT
                         && "sdnEntry".equals(reader.getLocalName())) {
-                    SanctionedEntity entity = parseSdnEntry(reader);
-                    if (entity != null) {
-                        entities.add(entity);
-                    }
+                    entities.addAll(parseSdnEntry(reader));
                 }
             }
 
@@ -256,7 +278,11 @@ public final class OfacSdnProvider implements ListProvider {
         return entities;
     }
 
-    private SanctionedEntity parseSdnEntry(XMLStreamReader reader) throws XMLStreamException {
+    /**
+     * Parses one {@code sdnEntry}: the entry itself followed by a wallet entity per digital
+     * currency address it lists, or nothing when the entry has no uid or name.
+     */
+    private List<SanctionedEntity> parseSdnEntry(XMLStreamReader reader) throws XMLStreamException {
         String uid = null;
         String firstName = null;
         String lastName = null;
@@ -304,9 +330,10 @@ public final class OfacSdnProvider implements ListProvider {
 
         if (uid == null || lastName == null) {
             log.debug("Skipping SDN entry with missing uid or lastName");
-            return null;
+            return List.of();
         }
 
+        String id = "ofac-sdn-" + uid;
         String fullName = buildFullName(firstName, lastName);
         EntityType entityType = mapSdnType(sdnType);
         NameInfo primaryName =
@@ -320,22 +347,131 @@ public final class OfacSdnProvider implements ListProvider {
                         NameStrength.STRONG,
                         ScriptType.LATIN);
 
+        Map<String, List<Identifier>> wallets = digitalCurrencyAddresses(identifiers);
+        List<Relation> relations = new ArrayList<>();
+        for (String address : wallets.keySet()) {
+            relations.add(
+                    new Relation(
+                            RelationType.OWNERSHIP,
+                            id + WALLET_ID_INFIX + address,
+                            WALLET_HOLDER_ROLE,
+                            null,
+                            null,
+                            null));
+        }
+        SanctionedEntity holder =
+                new SanctionedEntity(
+                        id,
+                        entityType,
+                        ListSource.OFAC_SDN,
+                        primaryName,
+                        aliases,
+                        addresses,
+                        identifiers,
+                        nationalities,
+                        citizenships,
+                        datesOfBirth,
+                        placesOfBirth,
+                        remarks,
+                        programs,
+                        null,
+                        Instant.now(),
+                        Set.of(RiskTopic.SANCTION),
+                        relations);
+
+        List<SanctionedEntity> entities = new ArrayList<>();
+        entities.add(holder);
+        wallets.forEach((address, ids) -> entities.add(wallet(holder, address, ids)));
+        return entities;
+    }
+
+    /**
+     * Groups the digital currency addresses among an entry's identifiers by address, in list order.
+     * OFAC lists an address once per currency it holds, so one address can carry several entries;
+     * the few it repeats under the same currency are kept once.
+     */
+    static Map<String, List<Identifier>> digitalCurrencyAddresses(List<Identifier> identifiers) {
+        Map<String, List<Identifier>> byAddress = new LinkedHashMap<>();
+        for (Identifier identifier : identifiers) {
+            if (identifier.type() == IdentifierType.CRYPTO_ADDRESS) {
+                List<Identifier> ids =
+                        byAddress.computeIfAbsent(identifier.value(), a -> new ArrayList<>());
+                if (!ids.contains(identifier)) {
+                    ids.add(identifier);
+                }
+            }
+        }
+        return byAddress;
+    }
+
+    /**
+     * Builds the wallet entity for one of a holder's digital currency addresses: named by the
+     * address, with the holder's identifiers for that address (one per currency), the holder's
+     * programs, a remark naming the holder and a relation back to it.
+     */
+    static SanctionedEntity wallet(
+            SanctionedEntity holder, String address, List<Identifier> identifiers) {
+        StringJoiner currencies = new StringJoiner(", ", " (", ")");
+        currencies.setEmptyValue("");
+        for (Identifier identifier : identifiers) {
+            if (identifier.remarks() != null) {
+                currencies.add(identifier.remarks());
+            }
+        }
+        String remarks =
+                "Digital currency address"
+                        + currencies
+                        + " held by "
+                        + holder.primaryName().fullName()
+                        + " ("
+                        + holder.id()
+                        + ")";
         return new SanctionedEntity(
-                "ofac-sdn-" + uid,
-                entityType,
+                holder.id() + WALLET_ID_INFIX + address,
+                EntityType.CRYPTO_WALLET,
                 ListSource.OFAC_SDN,
-                primaryName,
-                aliases,
-                addresses,
+                new NameInfo(
+                        address,
+                        null,
+                        null,
+                        null,
+                        null,
+                        NameType.PRIMARY,
+                        NameStrength.STRONG,
+                        ScriptType.LATIN),
+                List.of(),
+                List.of(),
                 identifiers,
-                nationalities,
-                citizenships,
-                datesOfBirth,
-                placesOfBirth,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
                 remarks,
-                programs,
+                holder.programs(),
                 null,
-                Instant.now());
+                holder.lastUpdated(),
+                Set.of(RiskTopic.SANCTION),
+                List.of(
+                        new Relation(
+                                RelationType.LINKED,
+                                holder.id(),
+                                WALLET_HOLDER_ROLE,
+                                null,
+                                null,
+                                null)));
+    }
+
+    /**
+     * Returns the currency code at the end of a digital currency identifier type, such as {@code
+     * XBT} from {@code Digital Currency Address - XBT}, or {@code null} when there is none.
+     */
+    static String currency(String idType) {
+        int dash = idType.lastIndexOf('-');
+        if (dash < 0) {
+            return null;
+        }
+        String code = idType.substring(dash + 1).strip();
+        return code.isEmpty() ? null : code;
     }
 
     private List<SanctionsProgram> parseProgramList(XMLStreamReader reader)
@@ -506,7 +642,8 @@ public final class OfacSdnProvider implements ListProvider {
         }
 
         IdentifierType type = mapIdType(idType);
-        return new Identifier(type, idNumber.strip(), idCountry, null);
+        String remarks = type == IdentifierType.CRYPTO_ADDRESS ? currency(idType) : null;
+        return new Identifier(type, idNumber.strip(), idCountry, remarks);
     }
 
     private List<String> parseNationalityList(XMLStreamReader reader) throws XMLStreamException {
@@ -672,7 +809,9 @@ public final class OfacSdnProvider implements ListProvider {
             return IdentifierType.OTHER;
         }
         String normalized = idType.strip().toLowerCase();
-        if (normalized.contains("passport")) {
+        if (normalized.startsWith(DIGITAL_CURRENCY_TYPE)) {
+            return IdentifierType.CRYPTO_ADDRESS;
+        } else if (normalized.contains("passport")) {
             return IdentifierType.PASSPORT;
         } else if (normalized.contains("national") || normalized.contains("cedula")) {
             return IdentifierType.NATIONAL_ID;

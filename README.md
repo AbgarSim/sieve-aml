@@ -26,7 +26,7 @@
 
 | Provider | Source | Format | Entities |
 |----------|--------|--------|----------|
-| OFAC SDN | U.S. Treasury — Specially Designated Nationals | XML | ~12,000 |
+| OFAC SDN | U.S. Treasury — Specially Designated Nationals; every digital currency address an entry lists is also a crypto wallet entity of its own, linked to its holder | XML | ~20,500 (incl. ~1,050 wallets) |
 | OFAC Non-SDN | U.S. Treasury — Non-SDN Consolidated | XML | ~600 |
 | US Trade CSL | U.S. Commerce Dept — Consolidated Screening List | JSON | ~12,500 |
 | US BIS Entity List | U.S. Commerce Dept — Bureau of Industry and Security Entity List (from the CSL) | JSON | ~3,400 |

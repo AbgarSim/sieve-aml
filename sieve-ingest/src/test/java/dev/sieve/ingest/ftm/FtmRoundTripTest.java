@@ -167,6 +167,68 @@ class FtmRoundTripTest {
     }
 
     @Test
+    void shouldWriteAWalletWithItsCurrenciesAndReadItBack() throws IOException {
+        String address = "0x1234567890abcdef1234567890abcdef12345678";
+        SanctionedEntity wallet =
+                new SanctionedEntity(
+                        "ofac-sdn-1-wallet-" + address,
+                        EntityType.CRYPTO_WALLET,
+                        ListSource.OFAC_SDN,
+                        new NameInfo(
+                                address,
+                                null,
+                                null,
+                                null,
+                                null,
+                                NameType.PRIMARY,
+                                NameStrength.STRONG,
+                                null),
+                        List.of(),
+                        List.of(),
+                        List.of(
+                                new Identifier(IdentifierType.CRYPTO_ADDRESS, address, null, "ETH"),
+                                new Identifier(
+                                        IdentifierType.CRYPTO_ADDRESS, address, null, "USDT")),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        "Digital currency address (ETH, USDT) held by DOE, John (ofac-sdn-1)",
+                        List.of(new SanctionsProgram("CYBER2", null, ListSource.OFAC_SDN)),
+                        null,
+                        null,
+                        Set.of(RiskTopic.SANCTION),
+                        List.of(
+                                new Relation(
+                                        RelationType.LINKED,
+                                        "ofac-sdn-1",
+                                        "holder",
+                                        null,
+                                        null,
+                                        null)));
+
+        String json = writer.writeToString(List.of(wallet));
+        JsonNode node = lines(json).getFirst();
+        JsonNode properties = node.get("properties");
+        assertThat(node.get("schema").asText()).isEqualTo("CryptoWallet");
+        assertThat(properties.get("publicKey"))
+                .extracting(JsonNode::asText)
+                .containsExactly(address);
+        assertThat(properties.get("currency"))
+                .extracting(JsonNode::asText)
+                .containsExactly("ETH", "USDT");
+
+        SanctionedEntity back =
+                read(json).stream().filter(e -> e.id().equals(wallet.id())).findFirst().get();
+        assertThat(back.entityType()).isEqualTo(EntityType.CRYPTO_WALLET);
+        assertThat(back.primaryName().fullName()).isEqualTo(address);
+        assertThat(back.identifiers())
+                .containsExactly(
+                        new Identifier(IdentifierType.CRYPTO_ADDRESS, address, null, null));
+        assertThat(back.relations()).containsExactlyElementsOf(wallet.relations());
+    }
+
+    @Test
     void shouldCarryFirstAndLastSeenThroughTheFormat() throws IOException {
         Instant seen = Instant.parse("2026-10-04T12:00:00Z");
         SanctionedEntity stamped =

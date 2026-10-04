@@ -8,6 +8,9 @@ import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
+import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +38,81 @@ class OfacSdnProviderTest {
         byte[] xmlContent = loadTestResource("sdn_test_sample.xml");
         List<SanctionedEntity> entities = provider.parseXml(xmlContent);
 
-        assertThat(entities).hasSize(5);
+        // five entries, and two wallets for ACME's digital currency addresses
+        assertThat(entities).hasSize(7);
+    }
+
+    @Test
+    void shouldEmitDigitalCurrencyAddressesAsWalletsLinkedToTheirHolder() throws IOException {
+        byte[] xmlContent = loadTestResource("sdn_test_sample.xml");
+        List<SanctionedEntity> entities = provider.parseXml(xmlContent);
+        String xbt = "1TestWa11etAddressXBTEXAMPLE";
+        String eth = "0x1234567890abcdef1234567890abcdef12345678";
+        String xbtWallet = "ofac-sdn-2001-wallet-" + xbt;
+        String ethWallet = "ofac-sdn-2001-wallet-" + eth;
+
+        SanctionedEntity acme = byId(entities, "ofac-sdn-2001");
+        assertThat(acme.identifiers())
+                .extracting(i -> i.type(), i -> i.value(), i -> i.remarks())
+                .containsExactly(
+                        tuple(IdentifierType.REGISTRATION_NUMBER, "UK-123456", null),
+                        tuple(IdentifierType.LEI, "549300LCJ1UJXHYBWI24", null),
+                        tuple(IdentifierType.CRYPTO_ADDRESS, xbt, "XBT"),
+                        tuple(IdentifierType.CRYPTO_ADDRESS, eth, "ETH"),
+                        tuple(IdentifierType.CRYPTO_ADDRESS, eth, "USDT"),
+                        tuple(IdentifierType.CRYPTO_ADDRESS, xbt, "XBT"));
+        assertThat(acme.relations())
+                .containsExactly(
+                        new Relation(RelationType.OWNERSHIP, xbtWallet, "holder", null, null, null),
+                        new Relation(
+                                RelationType.OWNERSHIP, ethWallet, "holder", null, null, null));
+
+        // the wallets follow their holder; an address listed under two currencies is one wallet
+        assertThat(entities)
+                .extracting(SanctionedEntity::id)
+                .containsSubsequence("ofac-sdn-2001", xbtWallet, ethWallet, "ofac-sdn-3001");
+
+        SanctionedEntity wallet = byId(entities, ethWallet);
+        assertThat(wallet.entityType()).isEqualTo(EntityType.CRYPTO_WALLET);
+        assertThat(wallet.listSource()).isEqualTo(ListSource.OFAC_SDN);
+        assertThat(wallet.primaryName().fullName()).isEqualTo(eth);
+        assertThat(wallet.aliases()).isEmpty();
+        assertThat(wallet.addresses()).isEmpty();
+        assertThat(wallet.identifiers())
+                .extracting(i -> i.type(), i -> i.value(), i -> i.remarks())
+                .containsExactly(
+                        tuple(IdentifierType.CRYPTO_ADDRESS, eth, "ETH"),
+                        tuple(IdentifierType.CRYPTO_ADDRESS, eth, "USDT"));
+        assertThat(wallet.programs()).extracting(p -> p.code()).containsExactly("CYBER2");
+        assertThat(wallet.topics()).containsExactly(RiskTopic.SANCTION);
+        assertThat(wallet.relations())
+                .containsExactly(
+                        new Relation(
+                                RelationType.LINKED, "ofac-sdn-2001", "holder", null, null, null));
+        assertThat(wallet.remarks())
+                .isEqualTo(
+                        "Digital currency address (ETH, USDT) held by ACME HOLDINGS LTD"
+                                + " (ofac-sdn-2001)");
+        // OFAC lists a few addresses twice under one currency; the wallet keeps the row once
+        SanctionedEntity xbtOne = byId(entities, xbtWallet);
+        assertThat(xbtOne.identifiers())
+                .extracting(i -> i.type(), i -> i.value(), i -> i.remarks())
+                .containsExactly(tuple(IdentifierType.CRYPTO_ADDRESS, xbt, "XBT"));
+        assertThat(xbtOne.remarks())
+                .isEqualTo(
+                        "Digital currency address (XBT) held by ACME HOLDINGS LTD (ofac-sdn-2001)");
+
+        // entries without digital currency addresses get no wallets and no relations
+        assertThat(byId(entities, "ofac-sdn-1001").relations()).isEmpty();
+        assertThat(byId(entities, "ofac-sdn-1001").topics()).containsExactly(RiskTopic.SANCTION);
+    }
+
+    @Test
+    void shouldReadTheCurrencyFromTheIdentifierType() {
+        assertThat(OfacSdnProvider.currency("Digital Currency Address - XBT")).isEqualTo("XBT");
+        assertThat(OfacSdnProvider.currency("Digital Currency Address -USDT")).isEqualTo("USDT");
+        assertThat(OfacSdnProvider.currency("Digital Currency Address")).isNull();
+        assertThat(OfacSdnProvider.currency("Digital Currency Address - ")).isNull();
     }
 
     @Test
@@ -262,6 +339,10 @@ class OfacSdnProviderTest {
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?><sdnList></sdnList>".getBytes();
         List<SanctionedEntity> entities = provider.parseXml(emptyXml);
         assertThat(entities).isEmpty();
+    }
+
+    private static SanctionedEntity byId(List<SanctionedEntity> entities, String id) {
+        return entities.stream().filter(e -> id.equals(e.id())).findFirst().orElseThrow();
     }
 
     private static byte[] loadTestResource(String filename) throws IOException {
