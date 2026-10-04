@@ -57,7 +57,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
   PEP.
 - [ ] 1.13 National PEP lists: the lists of prominent public functions that EU member states publish
   under AMLD5, used to decide which positions count.
-- [ ] 1.14 Corporate ownership from GLEIF: LEI parent and child relations, which also give a first
+- [x] 1.14 Corporate ownership from GLEIF: LEI parent and child relations, which also give a first
   set of state-owned companies.
 - [ ] 1.15 Sanction-linked companies: companies majority-owned by a sanctioned party (the OFAC and
   EU 50% rules), derived from the ownership data held.
