@@ -34,6 +34,8 @@ export interface Source {
   entities: number; names: number; countries: number; status: Status; error?: string; fetchMs: number | null; lastFetched: string | null;
   /** Entities whose records are published; the rest are counted only. */
   published: number;
+  /** Published records that another list also carries. */
+  onOtherLists: number;
   /** True for a list whose records are all counted but never published, such as politically exposed persons. */
   countsOnly: boolean;
   topics: [string, number][];
@@ -62,6 +64,10 @@ export interface Snapshot {
   byTopic: [string, number][];
   /** Entities counted in the lists but not published as records: politically exposed persons and their associates. */
   unpublished: number;
+  /** Published records after matching one entity's records across lists, when the snapshot did that. */
+  distinctEntities: number | null;
+  /** Distinct entities found on more than one list. */
+  onSeveralLists: number | null;
   countries: Country[]; countryByNum: Record<string, Country>; countryByCc: Record<string, Country>;
   /** Source ids by the country whose authority publishes them; EU lists count for every member state. */
   authorities: Record<string, string[]>;
@@ -146,6 +152,7 @@ function adapt(o: RawOverview, s: RawSources, c: RawCountries, history: RawHisto
     sources, byId,
     totalEntities: o.totalEntities, totalNames: o.totalNames, byType: typeCounts(o.byType),
     byTopic: sorted(o.byTopic), unpublished: sources.reduce((a, x) => a + (x.entities - x.published), 0),
+    distinctEntities: o.dedup?.distinctEntities ?? null, onSeveralLists: o.dedup?.onSeveralLists ?? null,
     countries, countryByNum: Object.fromEntries(countries.map(x => [x.num, x])), countryByCc: Object.fromEntries(countries.map(x => [x.cc, x])),
     authorities, flows: [...merged.values()].sort((a, b) => b[2] - a[2]).slice(0, 40),
     unresolved: { occurrences: c.unresolved?.occurrences ?? 0, top: sorted(c.unresolved?.topValues) },
@@ -173,7 +180,7 @@ function source(r: RawSource, recent: RawHistoryRow[], hasHistory: boolean): Sou
     id: r.source, name: r.displayName, cc: r.jurisdiction.toLowerCase(), authority: r.authority,
     region: REGION[r.jurisdiction] ?? 'Europe', format: r.format, homepage: r.homepage, listUri: r.listUri,
     entities: r.entities, names: r.names ?? 0, countries: r.countries ?? 0, status: STATUS[r.status] ?? 'skipped', error: r.error,
-    published: r.published ?? r.entities, countsOnly: r.entities > 0 && (r.published ?? r.entities) === 0, topics: sorted(r.byTopic),
+    published: r.published ?? r.entities, onOtherLists: r.onOtherLists ?? 0, countsOnly: r.entities > 0 && (r.published ?? r.entities) === 0, topics: sorted(r.byTopic),
     fetchMs: r.status === 'NEEDS_KEY' || r.status === 'SKIPPED' ? null : r.fetchMs ?? null, lastFetched: r.lastFetched ?? null,
     completeness: k ? [k.withDateOfBirth, k.withNationality, k.withAddress, k.withIdentifiers, k.withAliases, k.withProgram, k.withListedDate].map(pct) : [0, 0, 0, 0, 0, 0, 0],
     types: TYPES.map(x => t[x] / tsum),

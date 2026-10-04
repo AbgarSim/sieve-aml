@@ -6,7 +6,7 @@ import { Flag } from '../components/Flag';
 import { Badge, Chip, TypeBadge } from '../components/Badges';
 import { Icon, TYPE_ICON } from '../lib/icons';
 import { RAW_TYPE, SIEVE, TYPE_LABEL } from '../data/snapshot';
-import { loadEntity, sameName, type Entry } from '../data/search';
+import { loadEntity, sameEntity, type Entry } from '../data/search';
 import type { RawEntity, RawName } from '../data/raw';
 import { useIndex } from '../data/useIndex';
 import { countryName } from '../data/iso';
@@ -47,7 +47,7 @@ export default function Entity() {
   const ids = rec.identifiers ?? [], addrs = uniq((rec.addresses ?? []).map(address).filter(Boolean));
   const nats = uniq([...(rec.nationalities ?? []), ...(rec.citizenships ?? [])]);
   const progs = uniq((rec.programs ?? []).map(p => p.code)).map(code => (rec.programs ?? []).find(p => p.code === code)!);
-  const others = sameName(ix, entry);
+  const others = sameEntity(ix, entry);
   const isPerson = type === 'individual';
   const copy = async () => { const u = location.href; try { await navigator.clipboard.writeText(u); toast.show('Permalink copied'); } catch { prompt('Copy permalink', u); } };
   const download = () => { const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([JSON.stringify(rec, null, 2)], { type: 'application/json' })), download: `${rec.listSource}-${rec.id}.json` }); a.click(); URL.revokeObjectURL(a.href); toast.show('Downloading JSON'); };
@@ -96,10 +96,10 @@ export default function Entity() {
             <div><Lbl>Last updated</Lbl><div className="num" style={{ fontSize: 16, color: 'var(--heading)' }}>{day(rec.lastUpdated)}</div></div>
           </div></div>
           <div className="card">
-            <div className="card-h"><h3>Same name on other lists</h3><span className="xs muted">exact match after normalisation</span></div>
+            <div className="card-h"><h3>Same entity on other lists</h3><span className="xs muted">matched by name, identifiers and date of birth</span></div>
             <div className="card-b" style={{ paddingTop: 8, paddingBottom: 8 }}>
-              {others.map(o => <div key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}><Badge variant="acc" cc={D.byId[o.source]?.cc}>{D.byId[o.source]?.name ?? o.source}</Badge><span className="num muted" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.id}</span><Link className="xs" to={entityPath(o)}>Open</Link></div>)}
-              {!others.length && <div className="small muted" style={{ padding: '6px 0' }}><Icon name={TYPE_ICON[type]} size={14} style={{ verticalAlign: -2, marginRight: 6 }} />No other list carries a {TYPE_LABEL[type].toLowerCase()} with this exact name.</div>}
+              {others.map(o => <div key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}><Badge variant="acc" cc={D.byId[o.source]?.cc}>{D.byId[o.source]?.name ?? o.source}</Badge><span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name} <span className="num muted xs">{o.id}</span></span><Link className="xs" to={entityPath(o)}>Open</Link></div>)}
+              {!others.length && <div className="small muted" style={{ padding: '6px 0' }}><Icon name={TYPE_ICON[type]} size={14} style={{ verticalAlign: -2, marginRight: 6 }} />No other list was found to carry this {TYPE_LABEL[type].toLowerCase()}.</div>}
             </div>
           </div>
           {src && <div className="callout"><Icon name="info" size={18} /><span>Published by {src.authority}: <a href={src.homepage} target="_blank" rel="noopener">{host(src.homepage)}</a>. Sieve normalises list data; the issuing authority's publication is authoritative.</span></div>}
