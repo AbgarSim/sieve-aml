@@ -112,7 +112,10 @@ public enum ListSource {
     WIKIDATA_PEP("Wikidata PEPs"),
 
     /** Companies consolidated by government entities, from the GLEIF LEI register. */
-    GLEIF_STATE_OWNED("GLEIF State-Owned");
+    GLEIF_STATE_OWNED("GLEIF State-Owned"),
+
+    /** Companies consolidated by sanctioned parties, derived from the GLEIF LEI register. */
+    GLEIF_SANCTION_LINKED("GLEIF Sanction-Linked");
 
     private final String displayName;
 

@@ -684,6 +684,8 @@ public final class OfacSdnProvider implements ListProvider {
             return IdentifierType.MMSI;
         } else if (normalized.contains("swift") || normalized.contains("bic")) {
             return IdentifierType.SWIFT_BIC;
+        } else if (normalized.contains("legal entity")) {
+            return IdentifierType.LEI;
         } else if (normalized.contains("registration")) {
             return IdentifierType.REGISTRATION_NUMBER;
         }

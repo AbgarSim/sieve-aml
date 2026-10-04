@@ -15,6 +15,7 @@ import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
 import dev.sieve.ingest.europol.EuMostWantedProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
+import dev.sieve.ingest.gleif.GleifSanctionLinkedProvider;
 import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaProvider;
@@ -489,5 +490,15 @@ class ProviderIntegrationTest {
         log.info("GLEIF state-owned: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.GLEIF_STATE_OWNED);
+    }
+
+    @Test
+    void gleifSanctionLinked_shouldFetchAndParseEntities() throws Exception {
+        var provider = new GleifSanctionLinkedProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("GLEIF sanction-linked: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.GLEIF_SANCTION_LINKED);
     }
 }

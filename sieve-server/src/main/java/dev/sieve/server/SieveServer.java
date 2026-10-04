@@ -23,6 +23,7 @@ import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
 import dev.sieve.ingest.europol.EuMostWantedProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
+import dev.sieve.ingest.gleif.GleifSanctionLinkedProvider;
 import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaProvider;
@@ -250,6 +251,7 @@ public final class SieveServer {
         providers.add(new WorldBankDebarredProvider());
         providers.add(new WikidataPepProvider());
         providers.add(new GleifStateOwnedProvider());
+        providers.add(new GleifSanctionLinkedProvider());
         log.info("Registered {} providers total", providers.size());
 
         return providers;
