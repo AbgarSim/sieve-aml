@@ -16,10 +16,10 @@ package dev.sieve.match.algorithm;
 public final class JaroWinkler {
 
     /** Default Winkler prefix scaling factor. */
-    private static final double DEFAULT_PREFIX_SCALE = 0.1;
+    public static final double DEFAULT_PREFIX_SCALE = 0.1;
 
     /** Maximum prefix length considered by the Winkler adjustment. */
-    private static final int MAX_PREFIX_LENGTH = 4;
+    public static final int MAX_PREFIX_LENGTH = 4;
 
     /** Initial capacity for thread-local reusable arrays. */
     private static final int INITIAL_ARRAY_SIZE = 128;

@@ -600,8 +600,9 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
      * common score 1.0 without comparing. Otherwise name pairs that cannot reach the required score
      * are skipped without comparing: when the token counts differ, the extra tokens count as
      * unmatched, so "vladimir vladimirovich putin" can never score 0.9 against "vladimir putin";
-     * and unless an identifier vouches for the pair, two names with no token starting alike are too
-     * far apart for the 0.9 a date of birth needs, let alone an uncorroborated match.
+     * unless an identifier vouches for the pair, two names with no token starting alike are too far
+     * apart for the 0.9 a date of birth needs, let alone an uncorroborated match; and a name pair
+     * whose tokens, by their letters alone, cannot be similar enough is not aligned.
      */
     private static double bestNameSimilarity(
             Profile a,
@@ -616,9 +617,11 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
         double best = 0.0;
         for (int i = 0; i < a.nameTokens().length; i++) {
             int[] nameA = a.nameTokens()[i];
+            int[] lengthsA = a.nameLengths()[i];
             long prefixesA = a.namePrefixes()[i];
             for (int k = 0; k < b.nameTokens().length; k++) {
                 int[] nameB = b.nameTokens()[k];
+                int[] lengthsB = b.nameLengths()[k];
                 if (!identifierMatch && (prefixesA & b.namePrefixes()[k]) == 0) {
                     continue;
                 }
@@ -627,16 +630,98 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                         < required) {
                     continue;
                 }
+                int totalLength =
+                        a.unmatchable()[i][nameA.length - 1] + b.unmatchable()[k][nameB.length - 1];
+                // A hair below the threshold is left to the exact score, in case rounding differs
+                if (boundedSimilarity(
+                                nameA, lengthsA, nameB, lengthsB, totalLength, tokenSimilarities)
+                        < required - 1e-9) {
+                    continue;
+                }
                 double[] sims = new double[nameA.length * nameB.length];
                 for (int x = 0; x < nameA.length; x++) {
                     for (int y = 0; y < nameB.length; y++) {
                         sims[x * nameB.length + y] = tokenSimilarities.of(nameA[x], nameB[y]);
                     }
                 }
-                best = Math.max(best, align(sims, a.lengthsOf(nameA), b.lengthsOf(nameB)));
+                best = Math.max(best, align(sims, lengthsA, lengthsB));
             }
         }
         return best;
+    }
+
+    /**
+     * Upper bound of the aligned similarity of two names: every token takes the partner it could
+     * score best against, by {@link #tokenSimilarityBound}, as if partners could be reused.
+     */
+    private static double boundedSimilarity(
+            int[] nameA,
+            int[] lengthsA,
+            int[] nameB,
+            int[] lengthsB,
+            int totalLength,
+            TokenSimilarities tokenSimilarities) {
+        double sum = 0.0;
+        for (int x = 0; x < nameA.length; x++) {
+            double best = 0.0;
+            for (int y = 0; y < nameB.length; y++) {
+                double bound =
+                        tokenSimilarities.atMost(nameA[x], nameB[y]) * (lengthsA[x] + lengthsB[y]);
+                if (bound > best) {
+                    best = bound;
+                }
+            }
+            sum += best;
+        }
+        return sum / totalLength;
+    }
+
+    /**
+     * Upper bound of {@link #tokenSimilarity} from the tokens' lengths, letters and common prefix.
+     * Jaro counts characters matched one to one, so no more can match than the shorter token has,
+     * nor than the two share, counting a shared letter once per repeat in the token with fewer
+     * repeats; transpositions can only lower the score. Letters are compared as bits of a mask, so
+     * two letters may share a bit, which only loosens the bound.
+     */
+    static double tokenSimilarityBound(String a, long maskA, String b, long maskB) {
+        if (a.length() == 1 || b.length() == 1) {
+            return a.charAt(0) == b.charAt(0) ? INITIAL_MATCH_SIMILARITY : 0.0;
+        }
+        int lengthA = a.length();
+        int lengthB = b.length();
+        int shared = Long.bitCount(maskA & maskB);
+        int repeats = Math.min(lengthA - Long.bitCount(maskA), lengthB - Long.bitCount(maskB));
+        int matches = Math.min(Math.min(lengthA, lengthB), shared + repeats);
+        if (matches == 0) {
+            return 0.0;
+        }
+        double jaro = ((double) matches / lengthA + (double) matches / lengthB + 1.0) / 3.0;
+        int prefix = 0;
+        while (prefix < JaroWinkler.MAX_PREFIX_LENGTH
+                && prefix < lengthA
+                && prefix < lengthB
+                && a.charAt(prefix) == b.charAt(prefix)) {
+            prefix++;
+        }
+        return jaro + prefix * JaroWinkler.DEFAULT_PREFIX_SCALE * (1.0 - jaro);
+    }
+
+    /** The letters of a token as bits, for {@link #tokenSimilarityBound}. */
+    static long letterMask(String token) {
+        long mask = 0L;
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            int bit;
+            if (c >= 'a' && c <= 'z') {
+                bit = c - 'a';
+            } else if (c >= '0' && c <= '9') {
+                bit = 26 + c - '0';
+            } else {
+                bit = 36 + ((c * 0x9E3779B9) >>> 27) % 28;
+            }
+            mask |= 1L << bit;
+        }
+        return mask;
     }
 
     /**
@@ -796,7 +881,9 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
      * @param nameSet the same names, for the exact-match shortcut
      * @param tokens the distinct tokens of all the names; aliases repeat name parts, so a pair of
      *     entities compares each pair of tokens once
+     * @param tokenMasks per token, its letters as bits, see {@link #letterMask}
      * @param nameTokens per name, the positions in {@code tokens} of its tokens, in order
+     * @param nameLengths per name, the lengths of its tokens, in order
      * @param namePrefixes per name, a bit set over the blocking prefixes of its tokens: two names
      *     with no bit in common share no prefix (the converse may not hold)
      * @param unmatchable per name, the cumulative lengths of its tokens shortest first, for the
@@ -808,7 +895,9 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             String[] names,
             Set<String> nameSet,
             String[] tokens,
+            long[] tokenMasks,
             int[][] nameTokens,
+            int[][] nameLengths,
             long[] namePrefixes,
             int[][] unmatchable,
             String[] dobChannels,
@@ -827,12 +916,14 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
 
             Map<String, Integer> tokenPositions = new LinkedHashMap<>();
             int[][] nameTokens = new int[names.size()][];
+            int[][] nameLengths = new int[names.size()][];
             long[] namePrefixes = new long[names.size()];
             int[][] unmatchable = new int[names.size()][];
             int n = 0;
             for (String name : names) {
                 String[] tokens = name.split(" ");
                 int[] positions = new int[tokens.length];
+                int[] lengths = new int[tokens.length];
                 long prefixes = 0L;
                 for (int t = 0; t < tokens.length; t++) {
                     Integer position = tokenPositions.get(tokens[t]);
@@ -841,14 +932,21 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                         tokenPositions.put(tokens[t], position);
                     }
                     positions[t] = position;
+                    lengths[t] = tokens[t].length();
                     if (tokens[t].length() > 1) {
                         prefixes |= prefixBit(prefix(tokens[t], prefixLength));
                     }
                 }
                 nameTokens[n] = positions;
+                nameLengths[n] = lengths;
                 namePrefixes[n] = prefixes;
                 unmatchable[n] = cumulativeShortest(tokens);
                 n++;
+            }
+            String[] tokens = tokenPositions.keySet().toArray(String[]::new);
+            long[] tokenMasks = new long[tokens.length];
+            for (int t = 0; t < tokens.length; t++) {
+                tokenMasks[t] = letterMask(tokens[t]);
             }
 
             String[] dobChannels =
@@ -872,8 +970,10 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             return new Profile(
                     names.toArray(String[]::new),
                     names,
-                    tokenPositions.keySet().toArray(String[]::new),
+                    tokens,
+                    tokenMasks,
                     nameTokens,
+                    nameLengths,
                     namePrefixes,
                     unmatchable,
                     dobChannels,
@@ -886,7 +986,9 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                     names,
                     nameSet,
                     tokens,
+                    tokenMasks,
                     nameTokens,
+                    nameLengths,
                     namePrefixes,
                     unmatchable,
                     dobChannels,
@@ -907,15 +1009,6 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                 }
             }
             return false;
-        }
-
-        /** Lengths of the tokens at the given positions. */
-        int[] lengthsOf(int[] positions) {
-            int[] lengths = new int[positions.length];
-            for (int i = 0; i < positions.length; i++) {
-                lengths[i] = tokens[positions[i]].length();
-            }
-            return lengths;
         }
 
         /**
@@ -943,39 +1036,55 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     }
 
     /**
-     * Token similarities of one entity pair, each computed when a name pair first needs it. One
-     * instance serves a whole scoring chunk; a stamp marks which entries belong to the current
-     * pair, so switching pairs costs nothing.
+     * Token similarities of one entity pair, and their cheap upper bounds, each computed when a
+     * name pair first needs it. One instance serves a whole scoring chunk; a stamp marks which
+     * entries belong to the current pair, so switching pairs costs nothing.
      */
     private static final class TokenSimilarities {
         private double[] values = new double[0];
-        private int[] stamps = new int[0];
+        private double[] bounds = new double[0];
+        private int[] valueStamps = new int[0];
+        private int[] boundStamps = new int[0];
         private int stamp;
-        private String[] tokensA;
-        private String[] tokensB;
+        private Profile a;
+        private Profile b;
         private int width;
 
         void reset(Profile a, Profile b) {
-            tokensA = a.tokens();
-            tokensB = b.tokens();
-            width = tokensB.length;
-            int needed = tokensA.length * width;
+            this.a = a;
+            this.b = b;
+            width = b.tokens().length;
+            int needed = a.tokens().length * width;
             if (needed > values.length) {
                 values = new double[needed];
-                stamps = new int[needed];
+                bounds = new double[needed];
+                valueStamps = new int[needed];
+                boundStamps = new int[needed];
                 stamp = 0;
             }
             stamp++;
         }
 
-        /** Similarity of token {@code a} of the first profile to token {@code b} of the second. */
-        double of(int a, int b) {
-            int index = a * width + b;
-            if (stamps[index] != stamp) {
-                stamps[index] = stamp;
-                values[index] = tokenSimilarity(tokensA[a], tokensB[b]);
+        /** Similarity of token {@code x} of the first profile to token {@code y} of the second. */
+        double of(int x, int y) {
+            int index = x * width + y;
+            if (valueStamps[index] != stamp) {
+                valueStamps[index] = stamp;
+                values[index] = tokenSimilarity(a.tokens()[x], b.tokens()[y]);
             }
             return values[index];
+        }
+
+        /** Upper bound of {@link #of}, see {@link #tokenSimilarityBound}. */
+        double atMost(int x, int y) {
+            int index = x * width + y;
+            if (boundStamps[index] != stamp) {
+                boundStamps[index] = stamp;
+                bounds[index] =
+                        tokenSimilarityBound(
+                                a.tokens()[x], a.tokenMasks()[x], b.tokens()[y], b.tokenMasks()[y]);
+            }
+            return bounds[index];
         }
     }
 

@@ -314,6 +314,51 @@ class SimilarityDeduplicatorTest {
     }
 
     @Test
+    void tokenSimilarityBoundShouldNeverUnderstateTheSimilarity() {
+        String[][] pairs = {
+            {"mohammed", "mohammad"},
+            {"reza", "jafari"},
+            {"putin", "poutine"},
+            {"aaa", "aaa"},
+            {"abc", "cba"},
+            {"yevgeny", "evgeny"},
+            {"j", "john"},
+            {"j", "jane"},
+            {"x", "y"},
+            {"soleimani", "suleymani"},
+            {"naqdi", "naghdi"},
+            {"ali", "aly"},
+            {"ab", "ba"},
+            {"владимир", "владимирович"},
+            {"محمد", "محمود"},
+            {"company", "co"},
+            {"12", "21"},
+        };
+        for (String[] pair : pairs) {
+            double bound =
+                    SimilarityDeduplicator.tokenSimilarityBound(
+                            pair[0],
+                            SimilarityDeduplicator.letterMask(pair[0]),
+                            pair[1],
+                            SimilarityDeduplicator.letterMask(pair[1]));
+            double exact =
+                    SimilarityDeduplicator.tokenAlignedSimilarity(
+                            new String[] {pair[0]}, new String[] {pair[1]});
+            // The aligned score weighs and divides by the token lengths, which may cost an ulp
+            assertThat(bound)
+                    .as("%s vs %s", pair[0], pair[1])
+                    .isGreaterThanOrEqualTo(exact - 1e-12);
+        }
+        assertThat(
+                        SimilarityDeduplicator.tokenSimilarityBound(
+                                "reza",
+                                SimilarityDeduplicator.letterMask("reza"),
+                                "jafari",
+                                SimilarityDeduplicator.letterMask("jafari")))
+                .isLessThan(0.7);
+    }
+
+    @Test
     void shouldMergeByIdentifierEvenWithWeakerNameMatch() {
         SanctionedEntity ofac =
                 entityWithPassport("ofac-1", "John DOE", ListSource.OFAC_SDN, "AB123456");
