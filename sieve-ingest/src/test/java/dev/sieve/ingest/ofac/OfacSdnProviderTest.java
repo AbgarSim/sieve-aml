@@ -1,6 +1,7 @@
 package dev.sieve.ingest.ofac;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.IdentifierType;
@@ -170,6 +171,9 @@ class OfacSdnProviderTest {
                         .orElseThrow();
         assertThat(acme.entityType()).isEqualTo(EntityType.ENTITY);
         assertThat(acme.primaryName().fullName()).isEqualTo("ACME HOLDINGS LTD");
+        assertThat(acme.identifiers())
+                .extracting(i -> i.type(), i -> i.value())
+                .contains(tuple(IdentifierType.LEI, "549300LCJ1UJXHYBWI24"));
 
         SanctionedEntity vessel =
                 entities.stream()

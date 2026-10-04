@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdnList xmlns="http://www.un.org/sanctions/1.0">
+  <publshInformation>
+    <Publish_Date>10/03/2026</Publish_Date>
+    <Record_Count>5</Record_Count>
+  </publshInformation>
+
+  <!-- a blocked bank with an LEI: its subsidiaries in the LEI register are sanction-linked -->
+  <sdnEntry>
+    <uid>17013</uid>
+    <lastName>VTB BANK PUBLIC JOINT STOCK COMPANY</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>RUSSIA-EO14024</program>
+      <program>UKRAINE-EO13662</program>
+    </programList>
+    <akaList>
+      <aka>
+        <uid>1</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>VTB BANK PJSC</lastName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <uid>1</uid>
+        <address1>Degtyarnyy Pereulok 11, Lit. A</address1>
+        <city>St. Petersburg</city>
+        <postalCode>191144</postalCode>
+        <country>Russia</country>
+      </address>
+    </addressList>
+    <idList>
+      <id>
+        <uid>1</uid>
+        <idType>Registration Number</idType>
+        <idNumber>1027739609391</idNumber>
+        <idCountry>Russia</idCountry>
+      </id>
+      <id>
+        <uid>2</uid>
+        <idType>Legal Entity Number</idType>
+        <idNumber>253400V1H6ART1UQ0N98</idNumber>
+      </id>
+    </idList>
+  </sdnEntry>
+
+  <!-- a second blocked bank with an LEI, which the register shows as consolidated by the first -->
+  <sdnEntry>
+    <uid>17016</uid>
+    <lastName>GAZPROMBANK JOINT STOCK COMPANY</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>RUSSIA-EO14024</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>3</uid>
+        <idType>Legal Entity Number</idType>
+        <idNumber>253400WSS48YWMBUA688</idNumber>
+      </id>
+    </idList>
+  </sdnEntry>
+
+  <!-- a listed subsidiary without an LEI: known by name only -->
+  <sdnEntry>
+    <uid>20003</uid>
+    <lastName>VTB CAPITAL PLC</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>RUSSIA-EO14024</program>
+    </programList>
+  </sdnEntry>
+
+  <!-- an entity whose "LEI" is not one -->
+  <sdnEntry>
+    <uid>30001</uid>
+    <lastName>BROKEN NUMBERS LLC</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>RUSSIA-EO14024</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>4</uid>
+        <idType>Legal Entity Number</idType>
+        <idNumber>851683897</idNumber>
+      </id>
+    </idList>
+  </sdnEntry>
+
+  <!-- an individual: never a parent in the register -->
+  <sdnEntry>
+    <uid>30002</uid>
+    <firstName>John</firstName>
+    <lastName>DOE</lastName>
+    <sdnType>Individual</sdnType>
+    <programList>
+      <program>SDGT</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>5</uid>
+        <idType>Legal Entity Number</idType>
+        <idNumber>549300LCJ1UJXHYBWI24</idNumber>
+      </id>
+    </idList>
+  </sdnEntry>
+</sdnList>

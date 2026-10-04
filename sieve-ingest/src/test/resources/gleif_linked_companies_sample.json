@@ -1,0 +1,334 @@
+{
+ "meta": {
+  "pagination": {
+   "currentPage": 1,
+   "perPage": 200,
+   "from": 1,
+   "to": 6,
+   "total": 6,
+   "lastPage": 1
+  }
+ },
+ "data": [
+  {
+   "type": "lei-records",
+   "id": "5493000000000000L001",
+   "attributes": {
+    "lei": "5493000000000000L001",
+    "entity": {
+     "legalName": {
+      "name": "VTB Leasing (Europe) Limited",
+      "language": "en"
+     },
+     "otherNames": [],
+     "transliteratedOtherNames": [],
+     "legalAddress": {
+      "language": "en",
+      "addressLines": [
+       "Arch. Makariou III, 2-4"
+      ],
+      "city": "Nicosia",
+      "country": "CY",
+      "postalCode": "1065"
+     },
+     "headquartersAddress": {
+      "language": "en",
+      "addressLines": [
+       "Arch. Makariou III, 2-4"
+      ],
+      "city": "Nicosia",
+      "country": "CY",
+      "postalCode": "1065"
+     },
+     "registeredAt": {
+      "id": "RA000124",
+      "other": null
+     },
+     "registeredAs": "HE 123456",
+     "jurisdiction": "CY",
+     "category": "GENERAL",
+     "legalForm": {
+      "id": "8888",
+      "other": null
+     },
+     "status": "ACTIVE"
+    },
+    "registration": {
+     "initialRegistrationDate": "2014-01-01T00:00:00Z",
+     "lastUpdateDate": "2026-01-01T00:00:00Z",
+     "status": "ISSUED",
+     "managingLou": "529900T8BM49AURSDO55"
+    },
+    "bic": []
+   }
+  },
+  {
+   "type": "lei-records",
+   "id": "5493000000000000L002",
+   "attributes": {
+    "lei": "5493000000000000L002",
+    "entity": {
+     "legalName": {
+      "name": "VTB CAPITAL PLC",
+      "language": "en"
+     },
+     "otherNames": [],
+     "transliteratedOtherNames": [],
+     "legalAddress": {
+      "language": "en",
+      "addressLines": [
+       "14 Cornhill"
+      ],
+      "city": "London",
+      "country": "GB",
+      "postalCode": "EC3V 3ND"
+     },
+     "headquartersAddress": {
+      "language": "en",
+      "addressLines": [
+       "14 Cornhill"
+      ],
+      "city": "London",
+      "country": "GB",
+      "postalCode": "EC3V 3ND"
+     },
+     "registeredAt": {
+      "id": "RA000585",
+      "other": null
+     },
+     "registeredAs": "02404817",
+     "jurisdiction": "GB",
+     "category": "GENERAL",
+     "legalForm": {
+      "id": "8888",
+      "other": null
+     },
+     "status": "ACTIVE"
+    },
+    "registration": {
+     "initialRegistrationDate": "2014-01-01T00:00:00Z",
+     "lastUpdateDate": "2026-01-01T00:00:00Z",
+     "status": "LAPSED",
+     "managingLou": "529900T8BM49AURSDO55"
+    },
+    "bic": []
+   }
+  },
+  {
+   "type": "lei-records",
+   "id": "5493000000000000L003",
+   "attributes": {
+    "lei": "5493000000000000L003",
+    "entity": {
+     "legalName": {
+      "name": "VTB Leasing Finance B.V.",
+      "language": "en"
+     },
+     "otherNames": [
+      {
+       "name": "VTB Leasing Finance",
+       "language": "en",
+       "type": "TRADING_OR_OPERATING_NAME"
+      }
+     ],
+     "transliteratedOtherNames": [],
+     "legalAddress": {
+      "language": "en",
+      "addressLines": [
+       "Strawinskylaan 1"
+      ],
+      "city": "Amsterdam",
+      "country": "NL",
+      "postalCode": "1077 XW"
+     },
+     "headquartersAddress": {
+      "language": "en",
+      "addressLines": [
+       "Strawinskylaan 1"
+      ],
+      "city": "Amsterdam",
+      "country": "NL",
+      "postalCode": "1077 XW"
+     },
+     "registeredAt": {
+      "id": "RA000463",
+      "other": null
+     },
+     "registeredAs": "34211111",
+     "jurisdiction": "NL",
+     "category": "GENERAL",
+     "legalForm": {
+      "id": "8888",
+      "other": null
+     },
+     "status": "ACTIVE"
+    },
+    "registration": {
+     "initialRegistrationDate": "2014-01-01T00:00:00Z",
+     "lastUpdateDate": "2026-01-01T00:00:00Z",
+     "status": "LAPSED",
+     "managingLou": "529900T8BM49AURSDO55"
+    },
+    "bic": []
+   }
+  },
+  {
+   "type": "lei-records",
+   "id": "5493000000000000L004",
+   "attributes": {
+    "lei": "5493000000000000L004",
+    "entity": {
+     "legalName": {
+      "name": "Coral Energy Trading DMCC",
+      "language": "en"
+     },
+     "otherNames": [],
+     "transliteratedOtherNames": [],
+     "legalAddress": {
+      "language": "en",
+      "addressLines": [
+       "Jumeirah Lakes Towers"
+      ],
+      "city": "Dubai",
+      "region": "AE-DU",
+      "country": "AE",
+      "postalCode": "340505"
+     },
+     "headquartersAddress": {
+      "language": "en",
+      "addressLines": [
+       "Jumeirah Lakes Towers"
+      ],
+      "city": "Dubai",
+      "region": "AE-DU",
+      "country": "AE",
+      "postalCode": "340505"
+     },
+     "registeredAt": {
+      "id": "RA000013",
+      "other": null
+     },
+     "registeredAs": "DMCC123456",
+     "jurisdiction": "AE-DU",
+     "category": "GENERAL",
+     "legalForm": {
+      "id": "8888",
+      "other": null
+     },
+     "status": "ACTIVE"
+    },
+    "registration": {
+     "initialRegistrationDate": "2014-01-01T00:00:00Z",
+     "lastUpdateDate": "2026-01-01T00:00:00Z",
+     "status": "ISSUED",
+     "managingLou": "529900T8BM49AURSDO55"
+    },
+    "bic": []
+   }
+  },
+  {
+   "type": "lei-records",
+   "id": "5493000000000000L007",
+   "attributes": {
+    "lei": "5493000000000000L007",
+    "entity": {
+     "legalName": {
+      "name": "Dissolved Holdings Ltd",
+      "language": "en"
+     },
+     "otherNames": [],
+     "transliteratedOtherNames": [],
+     "legalAddress": {
+      "language": "en",
+      "addressLines": [
+       "Arch. Makariou III, 2-4"
+      ],
+      "city": "Nicosia",
+      "country": "CY",
+      "postalCode": "1065"
+     },
+     "headquartersAddress": {
+      "language": "en",
+      "addressLines": [
+       "Arch. Makariou III, 2-4"
+      ],
+      "city": "Nicosia",
+      "country": "CY",
+      "postalCode": "1065"
+     },
+     "registeredAt": {
+      "id": null,
+      "other": null
+     },
+     "registeredAs": null,
+     "jurisdiction": "CY",
+     "category": "GENERAL",
+     "legalForm": {
+      "id": "8888",
+      "other": null
+     },
+     "status": "INACTIVE"
+    },
+    "registration": {
+     "initialRegistrationDate": "2014-01-01T00:00:00Z",
+     "lastUpdateDate": "2026-01-01T00:00:00Z",
+     "status": "RETIRED",
+     "managingLou": "529900T8BM49AURSDO55"
+    },
+    "bic": []
+   }
+  },
+  {
+   "type": "lei-records",
+   "id": "5493000000000000L009",
+   "attributes": {
+    "lei": "5493000000000000L009",
+    "entity": {
+     "legalName": {
+      "name": "Orphan Services Ltd",
+      "language": "en"
+     },
+     "otherNames": [],
+     "transliteratedOtherNames": [],
+     "legalAddress": {
+      "language": "en",
+      "addressLines": [
+       "Arch. Makariou III, 2-4"
+      ],
+      "city": "Nicosia",
+      "country": "CY",
+      "postalCode": "1065"
+     },
+     "headquartersAddress": {
+      "language": "en",
+      "addressLines": [
+       "Arch. Makariou III, 2-4"
+      ],
+      "city": "Nicosia",
+      "country": "CY",
+      "postalCode": "1065"
+     },
+     "registeredAt": {
+      "id": null,
+      "other": null
+     },
+     "registeredAs": null,
+     "jurisdiction": "CY",
+     "category": "GENERAL",
+     "legalForm": {
+      "id": "8888",
+      "other": null
+     },
+     "status": "ACTIVE"
+    },
+    "registration": {
+     "initialRegistrationDate": "2014-01-01T00:00:00Z",
+     "lastUpdateDate": "2026-01-01T00:00:00Z",
+     "status": "ISSUED",
+     "managingLou": "529900T8BM49AURSDO55"
+    },
+    "bic": []
+   }
+  }
+ ]
+}
