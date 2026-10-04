@@ -22,6 +22,7 @@ final class CountryAliases {
                     Map.entry("Korea, Democratic People's Republic of", "KP"),
                     Map.entry("Democratic People's Republic of Korea", "KP"),
                     Map.entry("DPRK", "KP"),
+                    Map.entry("DPR Korea", "KP"),
                     Map.entry("South Korea", "KR"),
                     Map.entry("Korea, South", "KR"),
                     Map.entry("Korea, Republic of", "KR"),
