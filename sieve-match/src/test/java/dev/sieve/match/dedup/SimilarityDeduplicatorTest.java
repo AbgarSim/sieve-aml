@@ -199,6 +199,101 @@ class SimilarityDeduplicatorTest {
     }
 
     @Test
+    void shouldMeetSpellingVariantsOfACommonNameWithinTheirBirthYear() {
+        // A block of "Mohammed ..." too large to compare in full falls back to exact spellings,
+        // which "Mohamed" is not; the birth year narrows it to a block the variants can meet in
+        List<SanctionedEntity> entities = new ArrayList<>();
+        for (int i = 0; i < SimilarityDeduplicator.MAX_BLOCK_SIZE + 5; i++) {
+            entities.add(
+                    person(
+                            "ofac-" + i,
+                            "Mohammed Person" + i,
+                            ListSource.OFAC_SDN,
+                            LocalDate.of(1950 + i % 50, 1, 1)));
+        }
+        entities.add(
+                person(
+                        "eu-1",
+                        "Mohamed Person7",
+                        ListSource.EU_CONSOLIDATED,
+                        LocalDate.of(1957, 1, 1)));
+
+        DeduplicationResult result = deduplicator.deduplicate(entities);
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(entities.size() - 1);
+        assertThat(result.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(result.entityToCanonicalId().get("ofac-7"));
+    }
+
+    @Test
+    void shouldMeetOnASharedIdentifierWhateverTheNames() {
+        // No name part of these two starts alike, so only the passport brings them together
+        SanctionedEntity ofac =
+                entityWithPassport("ofac-1", "Qasem Soleimani", ListSource.OFAC_SDN, "K 1234567");
+        SanctionedEntity eu =
+                entityWithPassport(
+                        "eu-1", "Ghasem Suleymani", ListSource.EU_CONSOLIDATED, "K1234567");
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, eu));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldNotTreatAValueSharedByManyEntitiesAsAnIdentifier() {
+        // Some lists store a gender flag as an identifier; shared by every man on them, it must not
+        // vouch for two different men with vaguely similar names ("ali hassan" vs "ali hussein"
+        // score about 0.84, enough with an identifier, not without)
+        Identifier male = new Identifier(IdentifierType.OTHER, "Male", null, null);
+        List<SanctionedEntity> entities = new ArrayList<>();
+        entities.add(entityWithPassport("ofac-1", "Ali Hassan", ListSource.OFAC_SDN, male));
+        entities.add(entityWithPassport("eu-1", "Ali Hussein", ListSource.EU_CONSOLIDATED, male));
+        String[] given = {"Anna", "Boris", "Carla", "Dmitri", "Elena", "Farid", "Greta"};
+        String[] family = {
+            "Holt", "Ivarsen", "Jurek", "Kowal", "Lindqvist", "Marchetti", "Nowak", "Oyelaran"
+        };
+        for (int i = 0; i < SimilarityDeduplicator.MAX_IDENTIFIER_HOLDERS; i++) {
+            ListSource source = i % 2 == 0 ? ListSource.OFAC_SDN : ListSource.EU_CONSOLIDATED;
+            String name = given[i % given.length] + " " + family[i / given.length];
+            entities.add(entityWithPassport(source + "-" + i, name, source, male));
+        }
+
+        DeduplicationResult result = deduplicator.deduplicate(entities);
+
+        assertThat(result.entityToCanonicalId().get("ofac-1"))
+                .isNotEqualTo(result.entityToCanonicalId().get("eu-1"));
+        assertThat(result.totalCanonicalEntities()).isEqualTo(entities.size());
+    }
+
+    @Test
+    void shouldResolveTiesTheSameWayWhateverTheInputOrder() {
+        // Two OFAC records fit the EU record equally well; only one may join it, and it must be the
+        // same one whether OFAC or the EU list was fetched first
+        SanctionedEntity eu = entity("eu-1", "John Doe", ListSource.EU_CONSOLIDATED);
+        SanctionedEntity first = entity("ofac-1", "DOE, John", ListSource.OFAC_SDN);
+        SanctionedEntity second = entity("ofac-2", "DOE, John", ListSource.OFAC_SDN);
+
+        DeduplicationResult ofacFirst = deduplicator.deduplicate(List.of(second, first, eu));
+        DeduplicationResult euFirst = deduplicator.deduplicate(List.of(eu, second, first));
+
+        assertThat(ofacFirst.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(ofacFirst.entityToCanonicalId().get("ofac-1"));
+        assertThat(euFirst.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(euFirst.entityToCanonicalId().get("ofac-1"));
+    }
+
+    @Test
+    void shouldNotMatchOnNamesWithoutLetters() {
+        // A stray row number parsed as a name is the same "18" on every list
+        SanctionedEntity ofac = unstructured("ofac-1", "18", ListSource.OFAC_SDN);
+        SanctionedEntity eu = unstructured("eu-1", "18", ListSource.EU_CONSOLIDATED);
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, eu));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(2);
+    }
+
+    @Test
     void shouldNotMergeDifferentFirstNamesSharingSurname() {
         // Whole-string Jaro-Winkler rates "doe john" vs "doe jane" at 0.90
         SanctionedEntity ofac = entity("ofac-1", "DOE, John", ListSource.OFAC_SDN);
@@ -233,6 +328,51 @@ class SimilarityDeduplicatorTest {
                         SimilarityDeduplicator.tokenAlignedSimilarity(
                                 johnDoe, new String[] {"jon", "doe"}))
                 .isGreaterThan(0.95);
+    }
+
+    @Test
+    void tokenSimilarityBoundShouldNeverUnderstateTheSimilarity() {
+        String[][] pairs = {
+            {"mohammed", "mohammad"},
+            {"reza", "jafari"},
+            {"putin", "poutine"},
+            {"aaa", "aaa"},
+            {"abc", "cba"},
+            {"yevgeny", "evgeny"},
+            {"j", "john"},
+            {"j", "jane"},
+            {"x", "y"},
+            {"soleimani", "suleymani"},
+            {"naqdi", "naghdi"},
+            {"ali", "aly"},
+            {"ab", "ba"},
+            {"владимир", "владимирович"},
+            {"محمد", "محمود"},
+            {"company", "co"},
+            {"12", "21"},
+        };
+        for (String[] pair : pairs) {
+            double bound =
+                    SimilarityDeduplicator.tokenSimilarityBound(
+                            pair[0],
+                            SimilarityDeduplicator.letterMask(pair[0]),
+                            pair[1],
+                            SimilarityDeduplicator.letterMask(pair[1]));
+            double exact =
+                    SimilarityDeduplicator.tokenAlignedSimilarity(
+                            new String[] {pair[0]}, new String[] {pair[1]});
+            // The aligned score weighs and divides by the token lengths, which may cost an ulp
+            assertThat(bound)
+                    .as("%s vs %s", pair[0], pair[1])
+                    .isGreaterThanOrEqualTo(exact - 1e-12);
+        }
+        assertThat(
+                        SimilarityDeduplicator.tokenSimilarityBound(
+                                "reza",
+                                SimilarityDeduplicator.letterMask("reza"),
+                                "jafari",
+                                SimilarityDeduplicator.letterMask("jafari")))
+                .isLessThan(0.7);
     }
 
     @Test

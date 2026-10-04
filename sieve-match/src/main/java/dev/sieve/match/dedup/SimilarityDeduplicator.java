@@ -51,7 +51,8 @@ import org.slf4j.LoggerFactory;
  *       folding diacritics and punctuation, both as written and token-sorted (so "DOE, John" equals
  *       "John Doe")
  *   <li><b>Identifier overlap</b> — same type and value ignoring formatting, with no conflicting
- *       issuing country
+ *       issuing country; a value shared by more than {@link #MAX_IDENTIFIER_HOLDERS} entities is
+ *       not an identifier and is ignored
  *   <li><b>Date of birth</b> — a shared DOB adds evidence; DOBs with no year in common are proof of
  *       different people and veto a name-only merge
  * </ul>
@@ -71,13 +72,17 @@ import org.slf4j.LoggerFactory;
  *       of every name, so two entities are compared when any of their name parts start alike,
  *       whatever the token order or alias spelling. A block on a common prefix ("moh", "abd") would
  *       hold thousands of entities, so blocks over {@link #MAX_BLOCK_SIZE} are split by finer keys
- *       (the neighbouring token's prefix, then the whole name)
+ *       (that prefix paired with each other token's prefix, then the whole name). Entities with a
+ *       date of birth are blocked again within their birth year, where the blocks stay small enough
+ *       for spelling variants of a common name to meet; entities sharing an identifier always meet
  *   <li><b>Pairwise scoring</b> — candidate pairs from different list sources are scored, in
  *       parallel, using a weighted combination of name similarity, identifier overlap, and DOB
  *       evidence
  *   <li><b>Constrained clustering</b> — pairs are merged strongest first with Union-Find. A merge
  *       that would put two entities from one list, or provably different DOBs, into one cluster is
- *       refused, so a loose transitive chain (A≈B, B≈C) cannot join two distinct people
+ *       refused, so a loose transitive chain (A≈B, B≈C) cannot join two distinct people. Equally
+ *       strong pairs are taken in list and id order, so the result does not depend on the order the
+ *       entities arrive in
  *   <li><b>Canonical creation</b> — each cluster is merged into a single {@link CanonicalEntity}
  *       with combined metadata
  * </ol>
@@ -90,13 +95,23 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     static final double MIN_NAME_SIMILARITY_WITH_IDENTIFIER = 0.75;
 
     /**
-     * Entities a block may hold before it is split by a finer key. Within a block every pair is
-     * compared, so this bounds the cost of common name prefixes.
+     * Entities that may share an identifier value before it stops counting as one. A person or
+     * company has at most a few dozen records across the lists; a value on thousands is a gender or
+     * a sanctions-programme flag that a list stored as an identifier.
      */
-    static final int MAX_BLOCK_SIZE = 3000;
+    static final int MAX_IDENTIFIER_HOLDERS = 50;
 
-    /** Blocking keys per name form, from the coarsest (a short prefix) to the whole name. */
-    private static final int KEY_LEVELS = 3;
+    /**
+     * Entities a block may hold before it is split by a finer key. Within a block every pair is
+     * compared, so this bounds the cost of common name parts.
+     */
+    static final int MAX_BLOCK_SIZE = 500;
+
+    /** The finest blocking level, keyed by the whole name; its blocks are never split. */
+    private static final int LAST_LEVEL = 2;
+
+    /** Channel of the blocks every name joins; a date of birth adds channels named by year. */
+    private static final String NAME_CHANNEL = "";
 
     /** Entities whose candidates one unit of parallel scoring work covers. */
     private static final int SCORING_CHUNK = 256;
@@ -133,7 +148,14 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             return new DeduplicationResult(Map.of(), Map.of(), 0, 0, 0, Duration.ZERO);
         }
 
-        List<SanctionedEntity> entityList = List.copyOf(entities);
+        // Ties between equally strong candidates fall to the earlier position, so the input is put
+        // in a fixed order first: the lists are fetched in parallel and arrive in any order
+        List<SanctionedEntity> entityList =
+                entities.stream()
+                        .sorted(
+                                Comparator.comparing(SanctionedEntity::listSource)
+                                        .thenComparing(SanctionedEntity::id))
+                        .toList();
         int size = entityList.size();
         log.info("Starting entity deduplication [entities={}]", size);
 
@@ -142,11 +164,20 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
         for (SanctionedEntity entity : entityList) {
             profiles.add(Profile.of(entity, config.blockingPrefixLength()));
         }
+        discountCommonIdentifiers(profiles);
 
         // Phase 1: Blocking
         List<int[]> blocks = buildBlocks(entityList, profiles);
         int[][] blocksOf = blocksOf(blocks, size);
         int largestBlock = blocks.stream().mapToInt(block -> block.length).max().orElse(0);
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "Blocking done [blocks={}, largestBlock={}, bySize={}, elapsed={}ms]",
+                    blocks.size(),
+                    largestBlock,
+                    blockHistogram(blocks),
+                    Duration.between(start, Instant.now()).toMillis());
+        }
 
         // Phase 2: Pairwise scoring, collecting every candidate pair above threshold. Each chunk of
         // entities gathers the candidates from all its blocks, so a pair is scored once.
@@ -167,6 +198,11 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                                                 pairsCompared))
                         .flatMap(List::stream)
                         .collect(ArrayList::new, List::add, List::addAll);
+        log.debug(
+                "Scoring done [pairsCompared={}, candidatePairs={}, elapsed={}ms]",
+                pairsCompared.sum(),
+                candidates.size(),
+                Duration.between(start, Instant.now()).toMillis());
 
         // Phase 3: Constrained clustering. Strongest evidence first, so an entity that resembles
         // several candidates joins the one it matches best; a union is refused when the merged
@@ -253,48 +289,181 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     }
 
     /**
+     * Strips the identifiers whose value more than {@link #MAX_IDENTIFIER_HOLDERS} entities share.
+     * Such a value identifies nobody, and letting it stand in for an identifier would merge any two
+     * people it describes on a loose name match.
+     */
+    private static void discountCommonIdentifiers(List<Profile> profiles) {
+        Map<String, Integer> holders = new HashMap<>();
+        for (Profile profile : profiles) {
+            profile.identifiers().stream()
+                    .map(IdentifierKey::key)
+                    .distinct()
+                    .forEach(key -> holders.merge(key, 1, Integer::sum));
+        }
+        Set<String> common = new HashSet<>();
+        holders.forEach(
+                (key, count) -> {
+                    if (count > MAX_IDENTIFIER_HOLDERS) {
+                        common.add(key);
+                    }
+                });
+        if (common.isEmpty()) {
+            return;
+        }
+        log.warn(
+                "Ignoring {} identifier values shared by more than {} entities each, such as {}",
+                common.size(),
+                MAX_IDENTIFIER_HOLDERS,
+                common.stream().sorted().limit(3).toList());
+        for (int i = 0; i < profiles.size(); i++) {
+            Profile profile = profiles.get(i);
+            if (profile.identifiers().stream().anyMatch(id -> common.contains(id.key()))) {
+                profiles.set(i, profile.withoutIdentifiers(common));
+            }
+        }
+    }
+
+    /**
      * Groups entities that could be the same. Each entity joins one block per token of each of its
-     * names, so two spellings of one person meet as long as one name part starts alike. Entities of
-     * different types never share a block.
+     * names, so two spellings of one person meet as long as one name part starts alike; an entity
+     * with a date of birth joins those blocks again within each of its birth years, and entities
+     * sharing an identifier form a block of their own. Entities of different types never share a
+     * block.
      *
      * @return the blocks, each the ascending positions of at least two entities
      */
     private List<int[]> buildBlocks(List<SanctionedEntity> entities, List<Profile> profiles) {
         Map<EntityType, List<Membership>> byType = new EnumMap<>(EntityType.class);
+        Map<EntityType, Map<String, List<Integer>>> byIdentifier = new EnumMap<>(EntityType.class);
         for (int i = 0; i < entities.size(); i++) {
-            List<Membership> members =
-                    byType.computeIfAbsent(entities.get(i).entityType(), t -> new ArrayList<>());
-            for (String[] keys : profiles.get(i).keyChains()) {
-                members.add(new Membership(i, keys));
+            EntityType type = entities.get(i).entityType();
+            Profile profile = profiles.get(i);
+            List<Membership> members = byType.computeIfAbsent(type, t -> new ArrayList<>());
+            for (int name = 0; name < profile.nameTokens().length; name++) {
+                int[] positions = profile.nameTokens()[name];
+                for (int token = 0; token < positions.length; token++) {
+                    // An initial alone can't carry a match, so it keys no block
+                    if (profile.tokens()[positions[token]].length() > 1) {
+                        members.add(new Membership(i, name, token, NAME_CHANNEL));
+                        for (String year : profile.dobChannels()) {
+                            members.add(new Membership(i, name, token, year));
+                        }
+                    }
+                }
+            }
+            Map<String, List<Integer>> holders =
+                    byIdentifier.computeIfAbsent(type, t -> new HashMap<>());
+            for (IdentifierKey identifier : profile.identifiers()) {
+                holders.computeIfAbsent(identifier.key(), k -> new ArrayList<>()).add(i);
             }
         }
+
         List<int[]> blocks = new ArrayList<>();
         for (List<Membership> members : byType.values()) {
-            split(members, 0, blocks);
+            split(members, 0, profiles, blocks);
+        }
+        for (Map<String, List<Integer>> holders : byIdentifier.values()) {
+            for (List<Integer> sharing : holders.values()) {
+                int[] indexes = sharing.stream().mapToInt(Integer::intValue).distinct().toArray();
+                if (indexes.length > 1) {
+                    blocks.add(indexes);
+                }
+            }
         }
         return blocks;
     }
 
     /**
-     * Blocks the memberships by their key at the given level. A block over {@link #MAX_BLOCK_SIZE}
+     * Blocks the memberships by their keys at the given level. A block over {@link #MAX_BLOCK_SIZE}
      * is blocked again by the next, finer level while one exists.
      */
-    private static void split(List<Membership> members, int level, List<int[]> blocks) {
+    private void split(
+            List<Membership> members, int level, List<Profile> profiles, List<int[]> blocks) {
         Map<String, List<Membership>> groups = new HashMap<>();
         for (Membership member : members) {
-            groups.computeIfAbsent(member.keys()[level], k -> new ArrayList<>()).add(member);
+            for (String key : keys(member, level, profiles.get(member.entity()))) {
+                groups.computeIfAbsent(key, k -> new ArrayList<>()).add(member);
+            }
         }
         for (List<Membership> group : groups.values()) {
-            if (group.size() > MAX_BLOCK_SIZE && level < KEY_LEVELS - 1) {
-                split(group, level + 1, blocks);
-                continue;
-            }
             int[] indexes =
                     group.stream().mapToInt(Membership::entity).distinct().sorted().toArray();
-            if (indexes.length > 1) {
+            if (indexes.length < 2) {
+                continue;
+            }
+            if (indexes.length > MAX_BLOCK_SIZE && level < LAST_LEVEL) {
+                split(group, level + 1, profiles, blocks);
+            } else {
                 blocks.add(indexes);
             }
         }
+    }
+
+    /**
+     * Blocking keys of one membership at a level, coarse to fine: the token's prefix; that prefix
+     * paired with the prefix of each other token of the name, in either order (the whole token for
+     * a one-word name); the whole name. Every key carries the membership's channel.
+     */
+    private List<String> keys(Membership member, int level, Profile profile) {
+        int[] positions = profile.nameTokens()[member.name()];
+        String token = profile.tokens()[positions[member.token()]];
+        String channel = member.channel();
+        int prefixLength = config.blockingPrefixLength();
+        return switch (level) {
+            case 0 -> List.of(channel + prefix(token, prefixLength));
+            case 1 -> {
+                if (positions.length == 1) {
+                    yield List.of(channel + "=" + token);
+                }
+                String own = prefix(token, prefixLength);
+                List<String> keys = new ArrayList<>(positions.length - 1);
+                for (int t = 0; t < positions.length; t++) {
+                    if (t == member.token()) {
+                        continue;
+                    }
+                    String other = prefix(profile.tokens()[positions[t]], prefixLength);
+                    keys.add(
+                            own.compareTo(other) <= 0
+                                    ? channel + own + "|" + other
+                                    : channel + other + "|" + own);
+                }
+                yield keys;
+            }
+            default -> List.of(channel + "~" + profile.names()[member.name()]);
+        };
+    }
+
+    /** Blocks and pairs to compare by block size, for tuning {@link #MAX_BLOCK_SIZE}. */
+    private static String blockHistogram(List<int[]> blocks) {
+        int[] limits = {10, 50, 100, 250, MAX_BLOCK_SIZE, Integer.MAX_VALUE};
+        long[] count = new long[limits.length];
+        long[] pairs = new long[limits.length];
+        for (int[] block : blocks) {
+            int bucket = 0;
+            while (block.length > limits[bucket]) {
+                bucket++;
+            }
+            count[bucket]++;
+            pairs[bucket] += (long) block.length * (block.length - 1) / 2;
+        }
+        StringBuilder histogram = new StringBuilder();
+        int from = 2;
+        for (int i = 0; i < limits.length; i++) {
+            if (i > 0) {
+                histogram.append(", ");
+            }
+            histogram
+                    .append(from)
+                    .append(limits[i] == Integer.MAX_VALUE ? "+" : "-" + limits[i])
+                    .append(": ")
+                    .append(count[i])
+                    .append(" blocks/")
+                    .append(pairs[i])
+                    .append(" pairs");
+            from = limits[i] + 1;
+        }
+        return histogram.toString();
     }
 
     /** Positions in {@code blocks} of the blocks each entity belongs to. */
@@ -331,6 +500,7 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             int[][] blocksOf,
             LongAdder pairsCompared) {
         BitSet candidates = new BitSet(entities.size());
+        TokenSimilarities tokenSimilarities = new TokenSimilarities();
         List<CandidatePair> found = new ArrayList<>();
         long compared = 0;
         for (int i = from; i < to; i++) {
@@ -351,7 +521,8 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                     continue;
                 }
                 compared++;
-                PairEvidence evidence = evaluate(a, profileA, b, profiles.get(j));
+                PairEvidence evidence =
+                        evaluate(a, profileA, b, profiles.get(j), tokenSimilarities);
                 if (evidence.rawScore() >= config.mergeThreshold()) {
                     found.add(
                             new CandidatePair(
@@ -377,12 +548,22 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     double compositeScore(SanctionedEntity a, SanctionedEntity b) {
         int prefixLength = config.blockingPrefixLength();
         return Math.min(
-                evaluate(a, Profile.of(a, prefixLength), b, Profile.of(b, prefixLength)).rawScore(),
+                evaluate(
+                                a,
+                                Profile.of(a, prefixLength),
+                                b,
+                                Profile.of(b, prefixLength),
+                                new TokenSimilarities())
+                        .rawScore(),
                 1.0);
     }
 
     private PairEvidence evaluate(
-            SanctionedEntity a, Profile profileA, SanctionedEntity b, Profile profileB) {
+            SanctionedEntity a,
+            Profile profileA,
+            SanctionedEntity b,
+            Profile profileB,
+            TokenSimilarities tokenSimilarities) {
         // The cheap signals first: most candidate pairs never need their names compared
         boolean identifierMatch = hasMatchingIdentifier(profileA, profileB);
         DobEvidence dobEvidence = DobEvidence.between(a.datesOfBirth(), b.datesOfBirth());
@@ -398,7 +579,9 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
         } else {
             required = config.nameThreshold();
         }
-        double nameSim = bestNameSimilarity(profileA, profileB, required);
+        double nameSim =
+                bestNameSimilarity(
+                        profileA, profileB, required, identifierMatch, tokenSimilarities);
         if (nameSim < required) {
             return PairEvidence.NONE;
         }
@@ -422,32 +605,132 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     }
 
     /**
-     * Best token-aligned similarity across all names of two entities. Name pairs whose token counts
-     * differ by more than the required score allows are skipped without comparing: the extra tokens
-     * count as unmatched, so "vladimir vladimirovich putin" can never score 0.9 against "vladimir
-     * putin".
+     * Best token-aligned similarity across all names of two entities. Two entities with a name in
+     * common score 1.0 without comparing. Otherwise name pairs that cannot reach the required score
+     * are skipped without comparing: when the token counts differ, the extra tokens count as
+     * unmatched, so "vladimir vladimirovich putin" can never score 0.9 against "vladimir putin";
+     * unless an identifier vouches for the pair, two names with no token starting alike are too far
+     * apart for the 0.9 a date of birth needs, let alone an uncorroborated match; and a name pair
+     * whose tokens, by their letters alone, cannot be similar enough is not aligned.
      */
-    private static double bestNameSimilarity(Profile a, Profile b, double required) {
+    private static double bestNameSimilarity(
+            Profile a,
+            Profile b,
+            double required,
+            boolean identifierMatch,
+            TokenSimilarities tokenSimilarities) {
+        if (a.sharesNameWith(b)) {
+            return 1.0;
+        }
+        tokenSimilarities.reset(a, b);
         double best = 0.0;
-        for (int i = 0; i < a.tokenizedNames().size(); i++) {
-            String[] nameA = a.tokenizedNames().get(i);
-            for (int k = 0; k < b.tokenizedNames().size(); k++) {
-                String[] nameB = b.tokenizedNames().get(k);
+        for (int i = 0; i < a.nameTokens().length; i++) {
+            int[] nameA = a.nameTokens()[i];
+            int[] lengthsA = a.nameLengths()[i];
+            long prefixesA = a.namePrefixes()[i];
+            for (int k = 0; k < b.nameTokens().length; k++) {
+                int[] nameB = b.nameTokens()[k];
+                int[] lengthsB = b.nameLengths()[k];
+                if (!identifierMatch && (prefixesA & b.namePrefixes()[k]) == 0) {
+                    continue;
+                }
                 if (bestPossibleSimilarity(
-                                nameA, a.unmatchable().get(i), nameB, b.unmatchable().get(k))
+                                nameA.length, a.unmatchable()[i], nameB.length, b.unmatchable()[k])
                         < required) {
                     continue;
                 }
-                double sim = tokenAlignedSimilarity(nameA, nameB);
-                if (sim > best) {
-                    best = sim;
-                    if (best >= 1.0) {
-                        return 1.0;
+                int totalLength =
+                        a.unmatchable()[i][nameA.length - 1] + b.unmatchable()[k][nameB.length - 1];
+                // A hair below the threshold is left to the exact score, in case rounding differs
+                if (boundedSimilarity(
+                                nameA, lengthsA, nameB, lengthsB, totalLength, tokenSimilarities)
+                        < required - 1e-9) {
+                    continue;
+                }
+                double[] sims = new double[nameA.length * nameB.length];
+                for (int x = 0; x < nameA.length; x++) {
+                    for (int y = 0; y < nameB.length; y++) {
+                        sims[x * nameB.length + y] = tokenSimilarities.of(nameA[x], nameB[y]);
                     }
                 }
+                best = Math.max(best, align(sims, lengthsA, lengthsB));
             }
         }
         return best;
+    }
+
+    /**
+     * Upper bound of the aligned similarity of two names: every token takes the partner it could
+     * score best against, by {@link #tokenSimilarityBound}, as if partners could be reused.
+     */
+    private static double boundedSimilarity(
+            int[] nameA,
+            int[] lengthsA,
+            int[] nameB,
+            int[] lengthsB,
+            int totalLength,
+            TokenSimilarities tokenSimilarities) {
+        double sum = 0.0;
+        for (int x = 0; x < nameA.length; x++) {
+            double best = 0.0;
+            for (int y = 0; y < nameB.length; y++) {
+                double bound =
+                        tokenSimilarities.atMost(nameA[x], nameB[y]) * (lengthsA[x] + lengthsB[y]);
+                if (bound > best) {
+                    best = bound;
+                }
+            }
+            sum += best;
+        }
+        return sum / totalLength;
+    }
+
+    /**
+     * Upper bound of {@link #tokenSimilarity} from the tokens' lengths, letters and common prefix.
+     * Jaro counts characters matched one to one, so no more can match than the shorter token has,
+     * nor than the two share, counting a shared letter once per repeat in the token with fewer
+     * repeats; transpositions can only lower the score. Letters are compared as bits of a mask, so
+     * two letters may share a bit, which only loosens the bound.
+     */
+    static double tokenSimilarityBound(String a, long maskA, String b, long maskB) {
+        if (a.length() == 1 || b.length() == 1) {
+            return a.charAt(0) == b.charAt(0) ? INITIAL_MATCH_SIMILARITY : 0.0;
+        }
+        int lengthA = a.length();
+        int lengthB = b.length();
+        int shared = Long.bitCount(maskA & maskB);
+        int repeats = Math.min(lengthA - Long.bitCount(maskA), lengthB - Long.bitCount(maskB));
+        int matches = Math.min(Math.min(lengthA, lengthB), shared + repeats);
+        if (matches == 0) {
+            return 0.0;
+        }
+        double jaro = ((double) matches / lengthA + (double) matches / lengthB + 1.0) / 3.0;
+        int prefix = 0;
+        while (prefix < JaroWinkler.MAX_PREFIX_LENGTH
+                && prefix < lengthA
+                && prefix < lengthB
+                && a.charAt(prefix) == b.charAt(prefix)) {
+            prefix++;
+        }
+        return jaro + prefix * JaroWinkler.DEFAULT_PREFIX_SCALE * (1.0 - jaro);
+    }
+
+    /** The letters of a token as bits, for {@link #tokenSimilarityBound}. */
+    static long letterMask(String token) {
+        long mask = 0L;
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            int bit;
+            if (c >= 'a' && c <= 'z') {
+                bit = c - 'a';
+            } else if (c >= '0' && c <= '9') {
+                bit = 26 + c - '0';
+            } else {
+                bit = 36 + ((c * 0x9E3779B9) >>> 27) % 28;
+            }
+            mask |= 1L << bit;
+        }
+        return mask;
     }
 
     /**
@@ -458,13 +741,13 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
      * @param shortestB cumulative lengths of the shortest tokens of the second name
      */
     private static double bestPossibleSimilarity(
-            String[] tokensA, int[] shortestA, String[] tokensB, int[] shortestB) {
-        int extra = tokensA.length - tokensB.length;
+            int tokensA, int[] shortestA, int tokensB, int[] shortestB) {
+        int extra = tokensA - tokensB;
         if (extra == 0) {
             return 1.0;
         }
         int unmatched = extra > 0 ? shortestA[extra - 1] : shortestB[-extra - 1];
-        int total = shortestA[tokensA.length - 1] + shortestB[tokensB.length - 1];
+        int total = shortestA[tokensA - 1] + shortestB[tokensB - 1];
         return 1.0 - (double) unmatched / total;
     }
 
@@ -481,30 +764,53 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
         if (tokensA.length == 0 || tokensB.length == 0) {
             return 0.0;
         }
-        double[][] sims = new double[tokensA.length][tokensB.length];
-        int totalLength = 0;
+        double[] sims = new double[tokensA.length * tokensB.length];
+        int[] lengthsA = new int[tokensA.length];
+        int[] lengthsB = new int[tokensB.length];
         for (int i = 0; i < tokensA.length; i++) {
-            totalLength += tokensA[i].length();
+            lengthsA[i] = tokensA[i].length();
             for (int k = 0; k < tokensB.length; k++) {
-                sims[i][k] = tokenSimilarity(tokensA[i], tokensB[k]);
+                sims[i * tokensB.length + k] = tokenSimilarity(tokensA[i], tokensB[k]);
             }
         }
-        for (String token : tokensB) {
-            totalLength += token.length();
+        for (int k = 0; k < tokensB.length; k++) {
+            lengthsB[k] = tokensB[k].length();
+        }
+        return align(sims, lengthsA, lengthsB);
+    }
+
+    /**
+     * The greedy alignment behind {@link #tokenAlignedSimilarity}.
+     *
+     * @param sims similarity of each token of the first name (rows) to each of the second (columns)
+     * @param lengthsA lengths of the first name's tokens
+     * @param lengthsB lengths of the second name's tokens
+     */
+    private static double align(double[] sims, int[] lengthsA, int[] lengthsB) {
+        int countA = lengthsA.length;
+        int countB = lengthsB.length;
+        int totalLength = 0;
+        for (int length : lengthsA) {
+            totalLength += length;
+        }
+        for (int length : lengthsB) {
+            totalLength += length;
         }
 
-        boolean[] usedA = new boolean[tokensA.length];
-        boolean[] usedB = new boolean[tokensB.length];
+        boolean[] usedA = new boolean[countA];
+        boolean[] usedB = new boolean[countB];
         double weightedSum = 0.0;
-        for (int pairs = Math.min(tokensA.length, tokensB.length); pairs > 0; pairs--) {
+        for (int pairs = Math.min(countA, countB); pairs > 0; pairs--) {
             int bestI = -1;
             int bestK = -1;
-            for (int i = 0; i < tokensA.length; i++) {
+            double bestSim = -1.0;
+            for (int i = 0; i < countA; i++) {
                 if (usedA[i]) {
                     continue;
                 }
-                for (int k = 0; k < tokensB.length; k++) {
-                    if (!usedB[k] && (bestI < 0 || sims[i][k] > sims[bestI][bestK])) {
+                for (int k = 0; k < countB; k++) {
+                    if (!usedB[k] && sims[i * countB + k] > bestSim) {
+                        bestSim = sims[i * countB + k];
                         bestI = i;
                         bestK = k;
                     }
@@ -512,7 +818,7 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             }
             usedA[bestI] = true;
             usedB[bestK] = true;
-            weightedSum += sims[bestI][bestK] * (tokensA[bestI].length() + tokensB[bestK].length());
+            weightedSum += bestSim * (lengthsA[bestI] + lengthsB[bestK]);
         }
         return weightedSum / totalLength;
     }
@@ -580,16 +886,30 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     /**
      * All comparable name forms of one entity, computed once per deduplication run.
      *
-     * @param tokenizedNames each distinct normalized name, split into tokens
+     * @param names each distinct normalized name
+     * @param nameSet the same names, for the exact-match shortcut
+     * @param tokens the distinct tokens of all the names; aliases repeat name parts, so a pair of
+     *     entities compares each pair of tokens once
+     * @param tokenMasks per token, its letters as bits, see {@link #letterMask}
+     * @param nameTokens per name, the positions in {@code tokens} of its tokens, in order
+     * @param nameLengths per name, the lengths of its tokens, in order
+     * @param namePrefixes per name, a bit set over the blocking prefixes of its tokens: two names
+     *     with no bit in common share no prefix (the converse may not hold)
      * @param unmatchable per name, the cumulative lengths of its tokens shortest first, for the
      *     bound on what a comparison can score
-     * @param keyChains blocking keys, coarse to fine, of each token of each name
+     * @param dobChannels blocking channel of each year the entity may have been born in
      * @param identifiers identifiers with their values normalized for comparison
      */
     private record Profile(
-            List<String[]> tokenizedNames,
-            List<int[]> unmatchable,
-            List<String[]> keyChains,
+            String[] names,
+            Set<String> nameSet,
+            String[] tokens,
+            long[] tokenMasks,
+            int[][] nameTokens,
+            int[][] nameLengths,
+            long[] namePrefixes,
+            int[][] unmatchable,
+            String[] dobChannels,
             List<IdentifierKey> identifiers) {
 
         static Profile of(SanctionedEntity entity, int prefixLength) {
@@ -603,20 +923,48 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
                 addName(names, alias.fullName());
             }
 
-            List<String[]> tokenized = new ArrayList<>(names.size());
-            List<int[]> unmatchable = new ArrayList<>(names.size());
-            Set<List<String>> chains = new LinkedHashSet<>();
+            Map<String, Integer> tokenPositions = new LinkedHashMap<>();
+            int[][] nameTokens = new int[names.size()][];
+            int[][] nameLengths = new int[names.size()][];
+            long[] namePrefixes = new long[names.size()];
+            int[][] unmatchable = new int[names.size()][];
+            int n = 0;
             for (String name : names) {
                 String[] tokens = name.split(" ");
-                tokenized.add(tokens);
-                unmatchable.add(cumulativeShortest(tokens));
-                for (int i = 0; i < tokens.length; i++) {
-                    // An initial alone can't carry a match, so it keys no block
-                    if (tokens[i].length() > 1) {
-                        chains.add(keyChain(name, tokens, i, prefixLength));
+                int[] positions = new int[tokens.length];
+                int[] lengths = new int[tokens.length];
+                long prefixes = 0L;
+                for (int t = 0; t < tokens.length; t++) {
+                    Integer position = tokenPositions.get(tokens[t]);
+                    if (position == null) {
+                        position = tokenPositions.size();
+                        tokenPositions.put(tokens[t], position);
+                    }
+                    positions[t] = position;
+                    lengths[t] = tokens[t].length();
+                    if (tokens[t].length() > 1) {
+                        prefixes |= prefixBit(prefix(tokens[t], prefixLength));
                     }
                 }
+                nameTokens[n] = positions;
+                nameLengths[n] = lengths;
+                namePrefixes[n] = prefixes;
+                unmatchable[n] = cumulativeShortest(tokens);
+                n++;
             }
+            String[] tokens = tokenPositions.keySet().toArray(String[]::new);
+            long[] tokenMasks = new long[tokens.length];
+            for (int t = 0; t < tokens.length; t++) {
+                tokenMasks[t] = letterMask(tokens[t]);
+            }
+
+            String[] dobChannels =
+                    entity.datesOfBirth().stream()
+                            .mapToInt(LocalDate::getYear)
+                            .distinct()
+                            .sorted()
+                            .mapToObj(year -> year + "|")
+                            .toArray(String[]::new);
 
             List<IdentifierKey> identifiers = new ArrayList<>();
             for (Identifier identifier : entity.identifiers()) {
@@ -629,26 +977,47 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             }
 
             return new Profile(
-                    List.copyOf(tokenized),
-                    List.copyOf(unmatchable),
-                    chains.stream().map(chain -> chain.toArray(String[]::new)).toList(),
+                    names.toArray(String[]::new),
+                    names,
+                    tokens,
+                    tokenMasks,
+                    nameTokens,
+                    nameLengths,
+                    namePrefixes,
+                    unmatchable,
+                    dobChannels,
                     List.copyOf(identifiers));
         }
 
-        /**
-         * Blocking keys of one token of a name: the token's prefix, then that with the prefix of
-         * the token next to it, then the whole name.
-         */
-        private static List<String> keyChain(
-                String name, String[] tokens, int index, int prefixLength) {
-            String token = prefix(tokens[index], prefixLength);
-            String neighbour =
-                    tokens.length == 1
-                            ? token
-                            : prefix(
-                                    tokens[index + 1 < tokens.length ? index + 1 : index - 1],
-                                    prefixLength);
-            return List.of(token, token + "|" + neighbour, name);
+        /** The same profile without the identifiers whose {@link IdentifierKey#key} is given. */
+        Profile withoutIdentifiers(Set<String> keys) {
+            return new Profile(
+                    names,
+                    nameSet,
+                    tokens,
+                    tokenMasks,
+                    nameTokens,
+                    nameLengths,
+                    namePrefixes,
+                    unmatchable,
+                    dobChannels,
+                    identifiers.stream().filter(id -> !keys.contains(id.key())).toList());
+        }
+
+        /** One of 64 bits for a blocking prefix; distinct prefixes may share a bit. */
+        private static long prefixBit(String prefix) {
+            return 1L << ((prefix.hashCode() * 0x9E3779B9) >>> 26);
+        }
+
+        boolean sharesNameWith(Profile other) {
+            Profile fewer = names.length <= other.names.length ? this : other;
+            Profile more = fewer == this ? other : this;
+            for (String name : fewer.names) {
+                if (more.nameSet.contains(name)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /**
@@ -668,17 +1037,82 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
 
         private static void addName(Set<String> names, String name) {
             String normalized = normalizeForDedup(name);
-            if (!normalized.isEmpty()) {
+            // A "name" without a letter, such as a stray row number, can't identify anyone
+            if (normalized.chars().anyMatch(Character::isLetter)) {
                 names.add(normalized);
             }
         }
     }
 
-    /** An identifier reduced to what the comparison looks at. */
-    private record IdentifierKey(IdentifierType type, String value, String country) {}
+    /**
+     * Token similarities of one entity pair, and their cheap upper bounds, each computed when a
+     * name pair first needs it. One instance serves a whole scoring chunk; a stamp marks which
+     * entries belong to the current pair, so switching pairs costs nothing.
+     */
+    private static final class TokenSimilarities {
+        private double[] values = new double[0];
+        private double[] bounds = new double[0];
+        private int[] valueStamps = new int[0];
+        private int[] boundStamps = new int[0];
+        private int stamp;
+        private Profile a;
+        private Profile b;
+        private int width;
 
-    /** One entity's claim to a block, with its keys from the coarsest level to the finest. */
-    private record Membership(int entity, String[] keys) {}
+        void reset(Profile a, Profile b) {
+            this.a = a;
+            this.b = b;
+            width = b.tokens().length;
+            int needed = a.tokens().length * width;
+            if (needed > values.length) {
+                values = new double[needed];
+                bounds = new double[needed];
+                valueStamps = new int[needed];
+                boundStamps = new int[needed];
+                stamp = 0;
+            }
+            stamp++;
+        }
+
+        /** Similarity of token {@code x} of the first profile to token {@code y} of the second. */
+        double of(int x, int y) {
+            int index = x * width + y;
+            if (valueStamps[index] != stamp) {
+                valueStamps[index] = stamp;
+                values[index] = tokenSimilarity(a.tokens()[x], b.tokens()[y]);
+            }
+            return values[index];
+        }
+
+        /** Upper bound of {@link #of}, see {@link #tokenSimilarityBound}. */
+        double atMost(int x, int y) {
+            int index = x * width + y;
+            if (boundStamps[index] != stamp) {
+                boundStamps[index] = stamp;
+                bounds[index] =
+                        tokenSimilarityBound(
+                                a.tokens()[x], a.tokenMasks()[x], b.tokens()[y], b.tokenMasks()[y]);
+            }
+            return bounds[index];
+        }
+    }
+
+    /** An identifier reduced to what the comparison looks at. */
+    private record IdentifierKey(IdentifierType type, String value, String country) {
+
+        /** The type and value, by which identifiers are blocked and counted. */
+        String key() {
+            return type + ":" + value;
+        }
+    }
+
+    /**
+     * One token of one name of an entity, which claims a block at each level of {@link #keys}. The
+     * channel keeps blocks apart that must not mix: names as such, and names of entities born in
+     * one year, so that a common name split into exact spellings can still meet its variants among
+     * the few entities sharing its birth year.
+     */
+    private record Membership(int entity, int name, int token, String channel) {}
 
     /** A pair of entity positions whose composite score reached the merge threshold. */
     private record CandidatePair(int first, int second, double score, boolean identifierMatch) {

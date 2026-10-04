@@ -24,6 +24,8 @@ export interface RawOverview extends Header {
   identifiersByType?: Record<string, number>;
   topPrograms?: RawProgramCount[];
   ingest?: { sumMs: number; longestMs: number };
+  /** Cross-list matching of the published records: distinct entities, how many are on several lists, and the time it took. */
+  dedup?: { distinctEntities: number; onSeveralLists: number; ms: number };
 }
 
 export interface RawCompleteness {
@@ -37,6 +39,8 @@ export interface RawSource {
   entities: number; names?: number; byType?: Partial<Record<RawType, number>>; countries?: number;
   /** Entities whose records are in entities/ and the search index; PEP and RCA records are counted but never written. */
   published?: number; byTopic?: Record<string, number>;
+  /** Published records of this list that another list also carries. */
+  onOtherLists?: number;
   completeness?: RawCompleteness; topPrograms?: RawProgramCount[];
 }
 export interface RawSources extends Header { sources: RawSource[] }
@@ -50,10 +54,13 @@ export interface RawCountries extends Header {
   unresolved?: { occurrences: number; topValues?: Record<string, number> };
 }
 
-export interface RawHistoryRow { date: string; totalEntities: number; totalNames: number; countries: number; bySource?: Record<string, number> }
+export interface RawHistoryRow { date: string; totalEntities: number; distinctEntities?: number; totalNames: number; countries: number; bySource?: Record<string, number> }
 
-/** One search index entry: key, name, aliases, type code, source, countries, programs, shard. */
-export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; f: number }
+/**
+ * One search index entry: key, name, aliases, type code, source, countries, programs, shard, and for a record of an
+ * entity found on several lists the group's id (the key of its first record in list order).
+ */
+export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; f: number; g?: string }
 export interface RawIndex extends Header { shardSize: number; entries?: RawIndexEntry[] }
 
 export interface RawName { fullName: string; nameType: string; strength?: string; script?: string }

@@ -5,7 +5,11 @@ import { jaroWinkler as jw, normalize as norm, tokens } from '../lib/jw';
 
 const T: Record<RawIndexEntry['t'], EntityType> = { I: 'individual', E: 'entity', C: 'company', O: 'organization', V: 'vessel', A: 'aircraft', W: 'wallet', S: 'security' };
 
-export interface Entry { key: string; source: string; id: string; name: string; aliases: string[]; type: EntityType; countries: string[]; programs: string[]; shard: number }
+export interface Entry {
+  key: string; source: string; id: string; name: string; aliases: string[]; type: EntityType; countries: string[]; programs: string[]; shard: number;
+  /** The entity this record is one listing of: shared by its records on other lists, or the record's own key. */
+  group: string;
+}
 
 export interface Index {
   entries: Entry[];
@@ -14,8 +18,8 @@ export interface Index {
   names: string[][];
   /** Entries by normalised name token. */
   vocab: Map<string, number[]>;
-  /** Entries by normalised primary name, to find the same record on other lists. */
-  byName: Map<string, number[]>;
+  /** Entries by group, to find the same entity's records on other lists. */
+  byGroup: Map<string, number[]>;
 }
 
 let pending: Promise<Index> | null = null;
@@ -29,19 +33,19 @@ export function loadIndex(): Promise<Index> {
 export function build(raw: RawIndex): Index {
   const entries: Entry[] = (raw.entries ?? []).map(e => {
     const slash = e.k.indexOf('/');
-    return { key: e.k, source: e.s, id: e.k.slice(slash + 1), name: e.n, aliases: e.a ?? [], type: T[e.t], countries: e.c ?? [], programs: e.p ?? [], shard: e.f };
+    return { key: e.k, source: e.s, id: e.k.slice(slash + 1), name: e.n, aliases: e.a ?? [], type: T[e.t], countries: e.c ?? [], programs: e.p ?? [], shard: e.f, group: e.g ?? e.k };
   });
   const names: string[][] = [];
   const vocab = new Map<string, number[]>();
-  const byName = new Map<string, number[]>();
+  const byGroup = new Map<string, number[]>();
   entries.forEach((e, i) => {
     const ns = [e.name, ...e.aliases].map(norm);
     names.push(ns);
     const seen = new Set<string>();
     ns.forEach(n => tokens(n).forEach(t => { if (!seen.has(t)) { seen.add(t); let l = vocab.get(t); if (!l) vocab.set(t, (l = [])); l.push(i); } }));
-    let l = byName.get(ns[0]); if (!l) byName.set(ns[0], (l = [])); l.push(i);
+    let l = byGroup.get(e.group); if (!l) byGroup.set(e.group, (l = [])); l.push(i);
   });
-  return { entries, byKey: new Map(entries.map(e => [e.key, e])), names, vocab, byName };
+  return { entries, byKey: new Map(entries.map(e => [e.key, e])), names, vocab, byGroup };
 }
 
 export interface Hit { e: Entry; s: number; name: string }
@@ -77,9 +81,9 @@ export function search(ix: Index, q: string, threshold: number): Hit[] {
   return hits.sort((a, b) => b.s - a.s);
 }
 
-/** Other lists carrying a record with the same normalised primary name and type. */
-export function sameName(ix: Index, e: Entry): Entry[] {
-  return (ix.byName.get(norm(e.name)) ?? []).map(i => ix.entries[i]).filter(o => o.key !== e.key && o.type === e.type);
+/** The same entity's records on other lists, as matched when the snapshot was written. */
+export function sameEntity(ix: Index, e: Entry): Entry[] {
+  return (ix.byGroup.get(e.group) ?? []).map(i => ix.entries[i]).filter(o => o.key !== e.key);
 }
 
 const shards = new Map<string, Promise<RawEntity[]>>();
