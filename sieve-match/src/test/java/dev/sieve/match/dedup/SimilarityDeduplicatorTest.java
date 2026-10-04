@@ -14,6 +14,8 @@ import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -87,6 +89,113 @@ class SimilarityDeduplicatorTest {
 
         assertThat(result.totalCanonicalEntities()).isEqualTo(2);
         assertThat(result.mergedGroups()).isEqualTo(0);
+    }
+
+    @Test
+    void shouldMergeOnePersonListedInDifferentScriptsAndTransliterations() {
+        // One head of state as eleven lists write him: Cyrillic with a Latin alias, a Swedish and
+        // a French transliteration, and surname first with no structured name parts
+        LocalDate born = LocalDate.of(1952, 10, 7);
+        SanctionedEntity eu =
+                person(
+                        "eu-1",
+                        "Влади́мир Влади́мирович ПУТИН",
+                        ListSource.EU_CONSOLIDATED,
+                        born,
+                        "Vladimir Vladimirovich PUTIN");
+        SanctionedEntity travelBans =
+                person(
+                        "eu-tb-1",
+                        "Vladimir Vladimirovitj PUTIN",
+                        ListSource.EU_TRAVEL_BANS,
+                        null,
+                        "Vladimir Vladimirovich PUTIN");
+        SanctionedEntity canada =
+                person(
+                        "ca-1",
+                        "Vladimir Vladimirovich PUTIN",
+                        ListSource.CA_CONSOLIDATED,
+                        born,
+                        "Владимир Владимирович Путин");
+        SanctionedEntity france =
+                person("fr-1", "Vladimir Vladimirovich POUTINE", ListSource.FR_TRESOR, null);
+        SanctionedEntity ofac =
+                person(
+                        "ofac-1",
+                        "PUTIN, Vladimir Vladimirovich",
+                        ListSource.OFAC_SDN,
+                        born,
+                        "PUTIN, Vladimir");
+
+        DeduplicationResult result =
+                deduplicator.deduplicate(List.of(eu, travelBans, canada, france, ofac));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(1);
+        assertThat(result.canonicalEntityList().getFirst().listSources())
+                .containsExactlyInAnyOrder(
+                        ListSource.EU_CONSOLIDATED,
+                        ListSource.EU_TRAVEL_BANS,
+                        ListSource.CA_CONSOLIDATED,
+                        ListSource.FR_TRESOR,
+                        ListSource.OFAC_SDN);
+    }
+
+    @Test
+    void shouldNotMergeSimilarNamesWithoutCorroboration() {
+        // Token for token these score 0.93, but with no date of birth to compare, nothing says
+        // they are one person rather than two
+        SanctionedEntity ofac = entity("ofac-1", "Ivan Petrov", ListSource.OFAC_SDN);
+        SanctionedEntity un = entity("un-1", "Petr Ivanov", ListSource.UN_CONSOLIDATED);
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, un));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(2);
+        assertThat(deduplicator.compositeScore(ofac, un)).isEqualTo(0.0);
+    }
+
+    @Test
+    void shouldMergeSimilarNamesWhenDatesOfBirthAgree() {
+        // A French transliteration scores 0.93 against the English one: enough once the date of
+        // birth corroborates it, not on its own
+        LocalDate born = LocalDate.of(1961, 6, 1);
+        SanctionedEntity ofac = entity("ofac-1", "Yevgeny Prigozhin", ListSource.OFAC_SDN);
+        SanctionedEntity fr = entity("fr-1", "Evgeny Prigojine", ListSource.FR_TRESOR);
+
+        assertThat(deduplicator.deduplicate(List.of(ofac, fr)).totalCanonicalEntities())
+                .isEqualTo(2);
+        assertThat(
+                        deduplicator
+                                .deduplicate(
+                                        List.of(
+                                                person(
+                                                        "ofac-1",
+                                                        "Yevgeny Prigozhin",
+                                                        ListSource.OFAC_SDN,
+                                                        born),
+                                                person(
+                                                        "fr-1",
+                                                        "Evgeny Prigojine",
+                                                        ListSource.FR_TRESOR,
+                                                        born)))
+                                .totalCanonicalEntities())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void shouldStillMatchInsideBlocksTooLargeToCompareInFull() {
+        // More "Mohammed ..." entries than one block may hold: the block is split by finer keys,
+        // and the one true pair still meets in a block of its own
+        List<SanctionedEntity> entities = new ArrayList<>();
+        for (int i = 0; i < SimilarityDeduplicator.MAX_BLOCK_SIZE + 5; i++) {
+            entities.add(unstructured("ofac-" + i, "Mohammed Person" + i, ListSource.OFAC_SDN));
+        }
+        entities.add(unstructured("eu-1", "Mohammed Person7", ListSource.EU_CONSOLIDATED));
+
+        DeduplicationResult result = deduplicator.deduplicate(entities);
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(entities.size() - 1);
+        assertThat(result.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(result.entityToCanonicalId().get("ofac-7"));
     }
 
     @Test
@@ -481,6 +590,39 @@ class SimilarityDeduplicatorTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
+                null,
+                List.of(),
+                null,
+                Instant.now());
+    }
+
+    /** A person as most providers deliver one: a full name, aliases and perhaps a date of birth. */
+    private static SanctionedEntity person(
+            String id, String fullName, ListSource source, LocalDate dob, String... aliases) {
+        return new SanctionedEntity(
+                id,
+                EntityType.INDIVIDUAL,
+                source,
+                name(fullName, null, null),
+                Arrays.stream(aliases)
+                        .map(
+                                alias ->
+                                        new NameInfo(
+                                                alias,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                NameType.AKA,
+                                                null,
+                                                null))
+                        .toList(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                dob == null ? List.of() : List.of(dob),
                 List.of(),
                 null,
                 List.of(),
