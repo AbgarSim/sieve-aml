@@ -77,7 +77,7 @@ public final class FuzzyMatchEngine implements MatchEngine {
 
     private static boolean shouldSkipEntity(ScreeningRequest request, SanctionedEntity entity) {
         return request.entityType().isPresent()
-                && request.entityType().get() != entity.entityType();
+                && !request.entityType().get().isCompatibleWith(entity.entityType());
     }
 
     private MatchResult scoreEntity(

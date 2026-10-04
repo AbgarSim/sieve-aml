@@ -81,7 +81,7 @@ public final class PhoneticMatchEngine implements MatchEngine {
 
         for (SanctionedEntity entity : entities) {
             if (request.entityType().isPresent()
-                    && request.entityType().get() != entity.entityType()) {
+                    && !request.entityType().get().isCompatibleWith(entity.entityType())) {
                 continue;
             }
 

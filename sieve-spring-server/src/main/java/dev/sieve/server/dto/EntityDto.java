@@ -8,7 +8,8 @@ import java.util.List;
  * Outbound DTO for a sanctioned entity.
  *
  * @param id source-specific entity ID
- * @param entityType type classification (INDIVIDUAL, ENTITY, VESSEL, AIRCRAFT)
+ * @param entityType type classification (INDIVIDUAL, ENTITY, COMPANY, ORGANIZATION, VESSEL,
+ *     AIRCRAFT, CRYPTO_WALLET, SECURITY)
  * @param listSource originating sanctions list
  * @param primaryName the entity's primary name
  * @param aliases list of alternative names

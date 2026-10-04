@@ -2,10 +2,16 @@
 import { EU_MEMBERS, ISO_NUMERIC, countryName } from './iso';
 import type { RawCountries, RawHistoryRow, RawOverview, RawProgramCount, RawSource, RawSources, RawStatus, RawType } from './raw';
 
-export type EntityType = 'individual' | 'entity' | 'vessel' | 'aircraft';
-export const TYPES: EntityType[] = ['individual', 'entity', 'vessel', 'aircraft'];
-export const TYPE_LABEL: Record<EntityType, string> = { individual: 'Individual', entity: 'Entity', vessel: 'Vessel', aircraft: 'Aircraft' };
-export const RAW_TYPE: Record<RawType, EntityType> = { INDIVIDUAL: 'individual', ENTITY: 'entity', VESSEL: 'vessel', AIRCRAFT: 'aircraft' };
+export type EntityType = 'individual' | 'entity' | 'company' | 'organization' | 'vessel' | 'aircraft' | 'wallet' | 'security';
+export const TYPES: EntityType[] = ['individual', 'entity', 'company', 'organization', 'vessel', 'aircraft', 'wallet', 'security'];
+export const TYPE_LABEL: Record<EntityType, string> = {
+  individual: 'Individual', entity: 'Entity', company: 'Company', organization: 'Organisation',
+  vessel: 'Vessel', aircraft: 'Aircraft', wallet: 'Crypto wallet', security: 'Security',
+};
+export const RAW_TYPE: Record<RawType, EntityType> = {
+  INDIVIDUAL: 'individual', ENTITY: 'entity', COMPANY: 'company', ORGANIZATION: 'organization',
+  VESSEL: 'vessel', AIRCRAFT: 'aircraft', CRYPTO_WALLET: 'wallet', SECURITY: 'security',
+};
 
 export type Status = 'loaded' | 'empty' | 'failed' | 'needs-key' | 'skipped';
 const STATUS: Record<RawStatus, Status> = { LOADED: 'loaded', EMPTY: 'empty', FAILED: 'failed', NEEDS_KEY: 'needs-key', SKIPPED: 'skipped' };
@@ -98,8 +104,11 @@ const REGION: Record<string, string> = {
 /** Where flows from EU lists are drawn from on the map. */
 const EU_SEAT = 'BE';
 
-const typeCounts = (m?: Partial<Record<RawType, number>>): Record<EntityType, number> =>
-  ({ individual: m?.INDIVIDUAL ?? 0, entity: m?.ENTITY ?? 0, vessel: m?.VESSEL ?? 0, aircraft: m?.AIRCRAFT ?? 0 });
+const typeCounts = (m?: Partial<Record<RawType, number>>): Record<EntityType, number> => {
+  const counts = Object.fromEntries(TYPES.map(t => [t, 0])) as Record<EntityType, number>;
+  for (const [raw, n] of Object.entries(m ?? {})) if (raw in RAW_TYPE) counts[RAW_TYPE[raw as RawType]] += n ?? 0;
+  return counts;
+};
 const program = (p: RawProgramCount): Program => ({ source: p.source, code: p.code, name: p.name ?? '', entities: p.entities });
 const sorted = (m?: Record<string, number>) => Object.entries(m ?? {}).sort((a, b) => b[1] - a[1]);
 const days = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);

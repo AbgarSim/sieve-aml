@@ -26,7 +26,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
 - [x] 1.1 Stable ids: every source's ids carry a source prefix, so no list can overwrite another.
 - [x] 1.2 Replace on refresh: a refresh swaps out that source's whole set, so delisted entries
   disappear and are recorded as removed.
-- [ ] 1.3 Risk entity model: entity kinds (person, company, organisation, vessel, aircraft, crypto
+- [x] 1.3 Risk entity model: entity kinds (person, company, organisation, vessel, aircraft, crypto
   wallet, security), risk topics (sanction, sanction-linked, PEP, relative or close associate,
   crime, wanted, debarment, export control, state-owned) and relations (owner, director, family,
   associate, position held). It follows an open, widely used entity schema so data can be imported
