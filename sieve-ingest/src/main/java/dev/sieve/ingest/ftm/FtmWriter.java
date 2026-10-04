@@ -7,6 +7,7 @@ import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.Identifier;
+import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.Relation;
 import dev.sieve.core.model.RelationType;
@@ -133,6 +134,9 @@ public final class FtmWriter {
         for (Identifier identifier : entity.identifiers()) {
             FtmProperties.identifierProperty(type, identifier.type())
                     .ifPresent(p -> props.add(p, identifier.value()));
+            if (identifier.type() == IdentifierType.CRYPTO_ADDRESS) {
+                props.add("currency", identifier.remarks());
+            }
         }
         props.add("notes", entity.remarks());
         entity.topics().forEach(t -> props.add("topics", t.code()));

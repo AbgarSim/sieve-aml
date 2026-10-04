@@ -37,7 +37,10 @@ public enum IdentifierType {
     /** International Securities Identification Number of a share or bond. */
     ISIN("ISIN"),
 
-    /** A digital currency address, such as a Bitcoin or Ethereum address. */
+    /**
+     * A digital currency address, such as a Bitcoin or Ethereum address. The identifier's remarks
+     * hold the currency code the list states for it (XBT, ETH, USDT and so on), if any.
+     */
     CRYPTO_ADDRESS("Crypto address"),
 
     /** Company or business registration number. */
