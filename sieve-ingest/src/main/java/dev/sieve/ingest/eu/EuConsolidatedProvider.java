@@ -15,6 +15,7 @@ import dev.sieve.core.model.ScriptType;
 import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.relations.RemarkRelations;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,6 +53,10 @@ import org.slf4j.LoggerFactory;
  * in XML attributes rather than text content.
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing.
+ *
+ * <p>The list states links only in its remarks ("owned by Saadi Qadhafi", "brother of ..."); a
+ * remark that names another entry by its full name or an alias gives a relation to that entry,
+ * typed by the words before the name (see {@link RemarkRelations}).
  *
  * @see <a
  *     href="https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw">EU
@@ -268,7 +273,7 @@ public final class EuConsolidatedProvider implements ListProvider {
                     e);
         }
 
-        return entities;
+        return RemarkRelations.byName(entities, "EU consolidated");
     }
 
     // ---- Entity parsing ----------------------------------------------------

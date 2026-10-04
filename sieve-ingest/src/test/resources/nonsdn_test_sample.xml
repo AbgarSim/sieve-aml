@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdnList xmlns="http://www.un.org/sanctions/1.0">
+  <publshInformation>
+    <Publish_Date>01/15/2026</Publish_Date>
+    <Record_Count>3</Record_Count>
+  </publshInformation>
+
+  <sdnEntry>
+    <uid>9001</uid>
+    <lastName>ENERGY HOLDING PJSC</lastName>
+    <sdnType>Entity</sdnType>
+    <remarks>Executive Order 13662 Directive Determination - Subject to Directive 2.</remarks>
+    <programList>
+      <program>UKRAINE-EO13662</program>
+    </programList>
+    <akaList>
+      <aka>
+        <uid>9002</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>ENERGY HOLDING</lastName>
+      </aka>
+      <aka>
+        <uid>9003</uid>
+        <type>f.k.a.</type>
+        <category>weak</category>
+        <lastName>EH OJSC</lastName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <uid>9004</uid>
+        <address1>1 Energy Street</address1>
+        <city>Moscow</city>
+        <country>Russia</country>
+      </address>
+    </addressList>
+    <idList>
+      <id>
+        <uid>9005</uid>
+        <idType>Registration Number</idType>
+        <idNumber>1027700070518</idNumber>
+        <idCountry>Russia</idCountry>
+      </id>
+    </idList>
+  </sdnEntry>
+
+  <sdnEntry>
+    <uid>9010</uid>
+    <lastName>ENERGY SUBSIDIARY LLC</lastName>
+    <sdnType>Entity</sdnType>
+    <remarks>Executive Order 13662 Directive Determination - Subject to Directive 2. (Linked To: ENERGY HOLDING PJSC).</remarks>
+    <programList>
+      <program>UKRAINE-EO13662</program>
+    </programList>
+  </sdnEntry>
+
+  <sdnEntry>
+    <uid>9020</uid>
+    <firstName>John</firstName>
+    <lastName>SMITH</lastName>
+    <sdnType>Individual</sdnType>
+    <remarks>(Linked To: ENERGY HOLDING).</remarks>
+    <programList>
+      <program>NS-PLC</program>
+    </programList>
+    <akaList>
+      <aka>
+        <uid>9021</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>SMYTHE</lastName>
+        <firstName>Jon</firstName>
+      </aka>
+    </akaList>
+    <idList>
+      <id>
+        <uid>9022</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>1NonSdnWallet0000000000000000000000</idNumber>
+      </id>
+    </idList>
+    <nationalityList>
+      <nationality>
+        <uid>9023</uid>
+        <country>Russia</country>
+        <mainEntry>true</mainEntry>
+      </nationality>
+    </nationalityList>
+    <dateOfBirthList>
+      <dateOfBirthItem>
+        <uid>9024</uid>
+        <dateOfBirth>01/15/1970</dateOfBirth>
+        <mainEntry>true</mainEntry>
+      </dateOfBirthItem>
+    </dateOfBirthList>
+  </sdnEntry>
+</sdnList>
