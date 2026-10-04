@@ -54,6 +54,7 @@ export function SourcesTable() {
                       <div><dt>Region</dt><dd>{s.region}</dd></div>
                       <div><dt>Names (incl. aliases)</dt><dd className="num">{none ? '—' : fmt(s.names)}</dd></div>
                       <div><dt>Records published</dt><dd className="num">{none ? '—' : fmt(s.published)}</dd></div>
+                      {SIEVE.distinctEntities != null && !s.countsOnly && <div><dt>Also on other lists</dt><dd className="num">{none ? '—' : fmt(s.onOtherLists)}</dd></div>}
                       {s.delta != null && <div><dt>Change vs previous</dt><dd><Delta n={s.delta} /></dd></div>}
                       <div><dt>Countries linked</dt><dd className="num">{none ? '—' : fmt(s.countries)}</dd></div>
                       <div><dt>Type split</dt><dd className="small">{none ? '—' : `Ind ${Math.round(s.types[0] * 100)}% · Ent ${Math.round(s.types[1] * 100)}% · Ves ${Math.round(s.types[2] * 100)}% · Air ${Math.round(s.types[3] * 100)}%`}</dd></div>

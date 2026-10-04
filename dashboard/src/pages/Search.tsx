@@ -24,15 +24,15 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 export const entityPath = (e: Entry) => `/entity/${e.source}/${encodeURIComponent(e.id)}`;
 
-/** Hits for the same name and type on several lists, best first. */
+/** Hits for one entity's records on several lists, best first. */
 interface Group extends Hit { all: Entry[] }
 
-/** Folds the per-list records of one name into a single result row, keeping list order by score. */
+/** Folds the per-list records of one entity into a single result row, keeping list order by score. */
 function group(hits: Hit[]): Group[] {
   const by = new Map<string, Group>();
   for (const h of hits) {
-    const k = h.e.type + '|' + norm(h.e.name), g = by.get(k);
-    if (g) g.all.push(h.e); else by.set(k, { ...h, all: [h.e] });
+    const g = by.get(h.e.group);
+    if (g) g.all.push(h.e); else by.set(h.e.group, { ...h, all: [h.e] });
   }
   return [...by.values()];
 }
