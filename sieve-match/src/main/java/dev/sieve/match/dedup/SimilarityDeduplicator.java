@@ -861,7 +861,25 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
      * "MÜLLER-García, José" and "Muller Garcia Jose" compare token for token, and "Путин" meets
      * "Putin".
      */
+    /** TEMP: 0 = new, 1 = main's normalisation, 2 = new without legal forms. */
+    public static volatile int TEMP_MODE = 0;
+
     static String normalizeForDedup(String name, EntityType type) {
+        if (TEMP_MODE == 1) {
+            if (name == null || name.isBlank()) {
+                return "";
+            }
+            String folded =
+                    java.util.regex.Pattern.compile("\\p{M}+")
+                            .matcher(java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD))
+                            .replaceAll("");
+            return folded.toLowerCase(Locale.ROOT)
+                    .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                    .strip();
+        }
+        if (TEMP_MODE == 2) {
+            return NameNormalizer.normalize(name);
+        }
         return NameNormalizer.normalize(name, type);
     }
 

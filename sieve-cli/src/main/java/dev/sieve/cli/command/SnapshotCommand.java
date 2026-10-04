@@ -70,6 +70,17 @@ public class SnapshotCommand implements Callable<Integer> {
         DatasetStats stats =
                 writer.write(fetched, out, Optional.ofNullable(System.getenv("GITHUB_SHA")));
 
+        if (System.getenv("TEMP_COMPARE") != null) {
+            for (int mode : new int[] {1, 2}) {
+                dev.sieve.match.dedup.SimilarityDeduplicator.TEMP_MODE = mode;
+                writer.write(
+                        fetched,
+                        out.resolveSibling(out.getFileName() + "-mode" + mode),
+                        Optional.empty());
+            }
+            dev.sieve.match.dedup.SimilarityDeduplicator.TEMP_MODE = 0;
+        }
+
         long loaded =
                 fetched.stream().filter(f -> f.status() == FetchedSource.Status.LOADED).count();
         System.out.printf(

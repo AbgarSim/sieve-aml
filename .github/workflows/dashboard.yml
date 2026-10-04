@@ -26,7 +26,7 @@ concurrency:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -50,10 +50,63 @@ jobs:
         env:
           SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}
           SOURCES: ${{ github.event.inputs.sources }}
+          TEMP_COMPARE: '1'
         run: |
           ARGS=(snapshot --out snapshot)
           if [ -n "$SOURCES" ]; then ARGS+=(--source "$SOURCES"); fi
           java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar "${ARGS[@]}"
+      - name: TEMP normalisation report
+        run: |
+          python3 - <<'PYEOF'
+          import collections, json, random
+          def load(d):
+              return json.load(open(d + '/search-index.json'))['entries'], json.load(open(d + '/overview.json'))
+          new_ix, new_ov = load('snapshot')
+          old_ix, old_ov = load('snapshot-mode1')
+          nol_ix, nol_ov = load('snapshot-mode2')
+          print('DEDUP new', new_ov.get('dedup'))
+          print('DEDUP main', old_ov.get('dedup'))
+          print('DEDUP new-keep-legal-forms', nol_ov.get('dedup'))
+          assert [e['k'] for e in new_ix] == [e['k'] for e in old_ix] == [e['k'] for e in nol_ix]
+          N = len(new_ix)
+          print('records', N, 'distinct keys', len({e['k'] for e in new_ix}))
+          def gmap(ix):
+              first = {}
+              out = []
+              for i, e in enumerate(ix):
+                  out.append(e.get('g', 'self:%d' % i))
+              return out
+          G = {'new': gmap(new_ix), 'main': gmap(old_ix), 'keep': gmap(nol_ix)}
+          def nonlatin(s):
+              return any(ord(c) > 0x24F and c.isalpha() for c in s)
+          def fmt(i):
+              e = new_ix[i]
+              al = e.get('a', [])
+              return f"{e['s']}:{e['t']}:{e['n']}" + (f" [{'; '.join(al[:3])}{'...' if len(al) > 3 else ''}]" if al else '')
+          def diff(a, b, title, n):
+              ga = collections.defaultdict(list)
+              for i, g in enumerate(G[a]):
+                  ga[g].append(i)
+              rows = []
+              for ks in ga.values():
+                  parts = collections.defaultdict(list)
+                  for i in ks:
+                      parts[G[b][i]].append(i)
+                  if len(parts) > 1:
+                      rows.append(list(parts.values()))
+              script = [r for r in rows if any(nonlatin(new_ix[i]['n'] + ''.join(new_ix[i].get('a', []))) for p in r for i in p)]
+              org = [r for r in rows if all(new_ix[i]['t'] in 'ECO' for p in r for i in p)]
+              print('==', title, len(rows), 'non-Latin', len(script), 'organisations', len(org))
+              random.seed(7)
+              for label, rs in (('SCRIPT', script), ('ORG', org), ('OTHER', [r for r in rows if r not in script and r not in org])):
+                  print('  --', label)
+                  for r in random.sample(rs, min(n, len(rs))):
+                      print('   ', ' || '.join(' | '.join(fmt(i) for i in p) for p in r)[:420])
+          diff('new', 'main', 'MERGED BY NEW, APART ON MAIN', 14)
+          diff('main', 'new', 'APART IN NEW, MERGED ON MAIN', 14)
+          diff('new', 'keep', 'MERGED ONLY BECAUSE LEGAL FORMS ARE STRIPPED', 20)
+          diff('keep', 'new', 'SPLIT ONLY BECAUSE LEGAL FORMS ARE STRIPPED', 20)
+          PYEOF
       - name: Summarize
         if: always()
         run: |
