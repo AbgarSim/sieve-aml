@@ -74,7 +74,7 @@ a labelled test set.
 
 - [x] 2.1 Fewer false positives: a lone first name no longer scores 1.0, and the name cache and
   n-gram index rebuild after every refresh.
-- [ ] 2.2 Name normalisation: accent folding, punctuation, transliteration from Cyrillic, Arabic,
+- [x] 2.2 Name normalisation: accent folding, punctuation, transliteration from Cyrillic, Arabic,
   Chinese and other scripts, and company legal forms (LLC, OOO, GmbH) that no longer drive a match.
 - [ ] 2.3 Screening request v2: entity kind, name, date or year of birth, nationality and country,
   identifiers, gender, address, and a filter by risk topic.

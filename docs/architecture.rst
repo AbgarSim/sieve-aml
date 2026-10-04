@@ -42,7 +42,7 @@ Request Lifecycle
 
 1. **HTTP request** arrives at ``POST /api/v1/screen`` with a JSON body containing ``name``, optional ``threshold``, ``entityType``, and ``sources``.
 2. **Request parsing** — the handler extracts parameters and constructs a ``ScreeningRequest`` domain object.
-3. **Entity normalization** — the ``NormalizedNameCache`` lowercases, strips diacritics (Unicode NFKD), and collapses whitespace for both the query and all indexed entity names.
+3. **Name normalization** — ``NameNormalizer`` turns the query and every indexed name into a matching key: names in Cyrillic, Greek, Arabic, Chinese, Korean and other scripts are romanised (ICU4J; BGN/PCGN for Cyrillic, pinyin for Chinese), accents and ligatures are folded, apostrophes are dropped and other punctuation separates words, and organisations lose legal forms such as LLC, OOO or GmbH at the start or end of the name. The ``NormalizedNameCache`` holds the keys of indexed names; names are stored and returned as published. Cross-list matching uses the same keys.
 4. **N-gram candidate filtering** — the ``NgramIndex`` selects candidate entities sharing trigrams with the query, avoiding a full linear scan for fuzzy/phonetic engines.
 5. **Matching pipeline** — the ``CompositeMatchEngine`` dispatches the query to all registered engines (exact, fuzzy, phonetic, token) in parallel, collects results, deduplicates by entity ID, and keeps the highest score per entity.
 6. **Scoring & ranking** — results are sorted by descending score and truncated to ``maxResults``.
