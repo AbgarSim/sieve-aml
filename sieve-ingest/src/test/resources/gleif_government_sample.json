@@ -1,0 +1,49 @@
+{
+  "meta": {"goldenCopy": {"publishDate": "2026-10-04T16:00:00Z"}, "pagination": {"currentPage": 1, "perPage": 200, "from": 1, "to": 2, "total": 2, "lastPage": 1}},
+  "data": [
+    {
+      "type": "lei-records",
+      "id": "5493000000000000GOV1",
+      "attributes": {
+        "lei": "5493000000000000GOV1",
+        "entity": {
+          "legalName": {"name": "République d'Exemple", "language": "fr"},
+          "otherNames": [{"name": "Republic of Example", "language": "en", "type": "ALTERNATIVE_LANGUAGE_LEGAL_NAME"}],
+          "transliteratedOtherNames": [],
+          "legalAddress": {"language": "fr", "addressLines": ["55 rue du Faubourg Saint-Honoré"], "city": "Paris", "region": "FR-75", "country": "FR", "postalCode": "75008"},
+          "headquartersAddress": {"language": "fr", "addressLines": ["55 rue du Faubourg Saint-Honoré"], "city": "Paris", "region": "FR-75", "country": "FR", "postalCode": "75008"},
+          "registeredAt": {"id": "RA999999", "other": null},
+          "registeredAs": "n/a",
+          "jurisdiction": "FR",
+          "category": "RESIDENT_GOVERNMENT_ENTITY",
+          "legalForm": {"id": "8888", "other": null},
+          "status": "ACTIVE"
+        },
+        "registration": {"initialRegistrationDate": "2014-01-01T00:00:00Z", "lastUpdateDate": "2026-01-01T00:00:00Z", "status": "ISSUED", "nextRenewalDate": "2027-01-01T00:00:00Z", "managingLou": "5493001KJTIIGC8Y1R12"},
+        "bic": null
+      }
+    },
+    {
+      "type": "lei-records",
+      "id": "5493000000000000GOV2",
+      "attributes": {
+        "lei": "5493000000000000GOV2",
+        "entity": {
+          "legalName": {"name": "Stadt Beispiel", "language": "de"},
+          "otherNames": [],
+          "transliteratedOtherNames": [],
+          "legalAddress": {"language": "de", "addressLines": ["Rathausplatz 1"], "city": "Beispiel", "region": "DE-BY", "country": "DE", "postalCode": "80000"},
+          "headquartersAddress": {"language": "de", "addressLines": ["Rathausplatz 1"], "city": "Beispiel", "region": "DE-BY", "country": "DE", "postalCode": "80000"},
+          "registeredAt": {"id": "RA999999", "other": null},
+          "registeredAs": "n/a",
+          "jurisdiction": "DE",
+          "category": "RESIDENT_GOVERNMENT_ENTITY",
+          "legalForm": {"id": "8888", "other": null},
+          "status": "ACTIVE"
+        },
+        "registration": {"initialRegistrationDate": "2016-05-05T00:00:00Z", "lastUpdateDate": "2026-02-02T00:00:00Z", "status": "ISSUED", "nextRenewalDate": "2027-02-02T00:00:00Z", "managingLou": "5493001KJTIIGC8Y1R12"},
+        "bic": null
+      }
+    }
+  ]
+}

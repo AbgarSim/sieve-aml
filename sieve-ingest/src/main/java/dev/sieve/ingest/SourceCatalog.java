@@ -269,6 +269,13 @@ public final class SourceCatalog {
                 "WD",
                 Format.JSON,
                 "https://www.wikidata.org/");
+        put(
+                map,
+                ListSource.GLEIF_STATE_OWNED,
+                "Global Legal Entity Identifier Foundation",
+                "LE",
+                Format.JSON,
+                "https://www.gleif.org/en/lei-data/gleif-golden-copy");
         return Collections.unmodifiableMap(map);
     }
 
