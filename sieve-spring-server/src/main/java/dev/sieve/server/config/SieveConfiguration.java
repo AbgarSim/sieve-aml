@@ -2,8 +2,6 @@ package dev.sieve.server.config;
 
 import dev.sieve.address.AddressMatchService;
 import dev.sieve.address.AddressNormalizer;
-import dev.sieve.core.index.EntityIndex;
-import dev.sieve.core.index.InMemoryEntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.ingest.IngestionOrchestrator;
 import dev.sieve.ingest.ListProvider;
@@ -42,24 +40,6 @@ public class SieveConfiguration {
     private static final Logger log = LoggerFactory.getLogger(SieveConfiguration.class);
 
     /**
-     * Creates the in-memory entity index bean.
-     *
-     * <p>Only active when {@code sieve.index.type=in-memory} (or not set). When {@code
-     * sieve.index.type=postgres}, the bean is provided by {@link PostgresConfiguration}.
-     *
-     * @return the in-memory entity index
-     */
-    @Bean
-    @ConditionalOnProperty(
-            name = "sieve.index.type",
-            havingValue = "in-memory",
-            matchIfMissing = true)
-    public EntityIndex entityIndex() {
-        log.info("Initializing in-memory entity index");
-        return new InMemoryEntityIndex();
-    }
-
-    /**
      * Creates the libpostal-backed address normalizer.
      *
      * <p>Only active when {@code sieve.address.libpostal-enabled=true}. Uses the Senzing libpostal
@@ -73,6 +53,24 @@ public class SieveConfiguration {
     public AddressNormalizer addressNormalizer(
             @Value("${sieve.address.libpostal-data-dir:#{null}}") String dataDir) {
         AddressNormalizer normalizer = new AddressNormalizer(dataDir);
+        normalizer.init();
+        return normalizer;
+    }
+
+    /**
+     * Creates the address normalizer used when libpostal is off. It falls back to simple
+     * normalization, as the Vert.x server does, so address screening still works and the server
+     * starts without libpostal.
+     *
+     * @return the address normalizer
+     */
+    @Bean(name = "addressNormalizer", destroyMethod = "shutdown")
+    @ConditionalOnProperty(
+            name = "sieve.address.libpostal-enabled",
+            havingValue = "false",
+            matchIfMissing = true)
+    public AddressNormalizer fallbackAddressNormalizer() {
+        AddressNormalizer normalizer = new AddressNormalizer();
         normalizer.init();
         return normalizer;
     }

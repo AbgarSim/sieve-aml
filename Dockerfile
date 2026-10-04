@@ -121,8 +121,8 @@ RUN cd sieve-address/src/main/native && make
 # Required environment variables (set via docker-compose.yml or -e flags):
 #   SIEVE_ADDRESS_LIBPOSTAL_ENABLED   — "true" to activate address normalization
 #   SIEVE_ADDRESS_LIBPOSTAL_DATA_DIR  — path to model data (default: /opt/libpostal-data)
-#   SPRING_PROFILES_ACTIVE            — "postgres" to use PostgreSQL backend
 #   POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+#                                     — the PostgreSQL system of record (required)
 # =============================================================================
 FROM eclipse-temurin:21-jre
 WORKDIR /app

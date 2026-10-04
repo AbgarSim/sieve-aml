@@ -15,7 +15,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # Spring server: PostgreSQL is its system of record.
+  sieve-spring:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: sieve
+      POSTGRES_USER: sieve
+      POSTGRES_PASSWORD: sieve
+    depends_on:
+      postgres:
+        condition: service_healthy
 
+  # Vert.x server: in-memory only, being retired.
   sieve-server:
     build:
       context: .

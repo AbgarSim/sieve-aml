@@ -16,6 +16,25 @@ jobs:
   build:
     name: Build and test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sieve_test
+          POSTGRES_USER: sieve
+          POSTGRES_PASSWORD: sieve
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sieve -d sieve_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Integration tests of the PostgreSQL system of record run against this database
+      SIEVE_TEST_DB_URL: jdbc:postgresql://localhost:5432/sieve_test
+      SIEVE_TEST_DB_USER: sieve
+      SIEVE_TEST_DB_PASSWORD: sieve
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -30,7 +49,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: surefire-reports
-          path: '**/target/surefire-reports/'
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
           retention-days: 7
 
   dashboard:
