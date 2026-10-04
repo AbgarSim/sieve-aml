@@ -10,7 +10,7 @@
     <firstName>John</firstName>
     <lastName>DOE</lastName>
     <sdnType>Individual</sdnType>
-    <remarks>Test individual entry for unit testing.</remarks>
+    <remarks>Test individual entry for unit testing. (Linked To: ACME HOLDINGS LTD; Linked To: NOT ON THIS LIST).</remarks>
     <programList>
       <program>SDGT</program>
       <program>IRAN</program>
@@ -114,7 +114,7 @@
     <uid>3001</uid>
     <lastName>OCEAN VOYAGER</lastName>
     <sdnType>Vessel</sdnType>
-    <remarks>Bulk carrier flagged in Panama.</remarks>
+    <remarks>Bulk carrier flagged in Panama. (Linked To: ACME HOLDINGS LTD)</remarks>
     <programList>
       <program>IRAN</program>
     </programList>
@@ -125,6 +125,13 @@
         <idNumber>9876543</idNumber>
       </id>
     </idList>
+    <vesselInfo>
+      <callSign>3EXY9</callSign>
+      <vesselType>Bulk Carrier</vesselType>
+      <vesselFlag>Panama</vesselFlag>
+      <vesselOwner>ACME HOLDINGS LTD</vesselOwner>
+      <grossRegisteredTonnage>52000</grossRegisteredTonnage>
+    </vesselInfo>
   </sdnEntry>
 
   <sdnEntry>

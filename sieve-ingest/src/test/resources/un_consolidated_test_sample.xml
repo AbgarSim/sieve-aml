@@ -12,7 +12,7 @@
       <REFERENCE_NUMBER>CDi.001</REFERENCE_NUMBER>
       <LISTED_ON>2012-12-31</LISTED_ON>
       <GENDER>Male</GENDER>
-      <COMMENTS1>Test individual for unit testing purposes.</COMMENTS1>
+      <COMMENTS1>Test individual for unit testing purposes. Member of ADF (CDe.001) and brother of QUSAY (IQi.002). Associated with a delisted party (XXi.999).</COMMENTS1>
       <TITLE>
         <VALUE>Dr.</VALUE>
       </TITLE>
@@ -193,7 +193,7 @@
       <UN_LIST_TYPE>DRC</UN_LIST_TYPE>
       <REFERENCE_NUMBER>CDe.001</REFERENCE_NUMBER>
       <LISTED_ON>2014-06-30</LISTED_ON>
-      <COMMENTS1>Test entity for unit testing.</COMMENTS1>
+      <COMMENTS1>Test entity for unit testing. Its leader is ERIC (CDi.001).</COMMENTS1>
       <LIST_TYPE>
         <VALUE>UN List</VALUE>
       </LIST_TYPE>

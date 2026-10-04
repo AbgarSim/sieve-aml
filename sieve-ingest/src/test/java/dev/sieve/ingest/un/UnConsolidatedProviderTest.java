@@ -7,6 +7,8 @@ import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.SanctionedEntity;
 import java.io.IOException;
 import java.io.InputStream;
@@ -130,7 +132,7 @@ class UnConsolidatedProviderTest {
     @Test
     void shouldParseRemarks() throws IOException {
         SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
-        assertThat(eric.remarks()).isEqualTo("Test individual for unit testing purposes.");
+        assertThat(eric.remarks()).startsWith("Test individual for unit testing purposes.");
     }
 
     @Test
@@ -274,6 +276,24 @@ class UnConsolidatedProviderTest {
     }
 
     // ---- Helpers -----------------------------------------------------------
+
+    @Test
+    void shouldLinkEntriesCitedInComments() throws IOException {
+        List<SanctionedEntity> entities = loadEntities();
+
+        // "Member of ADF (CDe.001) and brother of QUSAY (IQi.002)"; the delisted XXi.999 is skipped
+        SanctionedEntity eric = findById(entities, "un-CDi.001");
+        assertThat(eric.relations())
+                .containsExactly(
+                        new Relation(
+                                RelationType.LINKED, "un-CDe.001", "member of", null, null, null),
+                        new Relation(
+                                RelationType.FAMILY, "un-IQi.002", "brother of", null, null, null));
+        // "Its leader is ERIC (CDi.001)": no known phrase, so a plain link
+        assertThat(findById(entities, "un-CDe.001").relations())
+                .containsExactly(Relation.of(RelationType.LINKED, "un-CDi.001"));
+        assertThat(findById(entities, "un-IQi.002").relations()).isEmpty();
+    }
 
     private List<SanctionedEntity> loadEntities() throws IOException {
         return provider.parseXml(loadTestResource("un_consolidated_test_sample.xml"));

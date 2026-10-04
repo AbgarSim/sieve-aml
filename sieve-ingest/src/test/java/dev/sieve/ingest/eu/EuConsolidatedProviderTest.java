@@ -7,6 +7,8 @@ import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.ScriptType;
 import java.io.IOException;
@@ -241,6 +243,18 @@ class EuConsolidatedProviderTest {
     }
 
     // ---- Helpers -----------------------------------------------------------
+
+    @Test
+    void shouldLinkEntriesNamedInRemarks() throws IOException {
+        List<SanctionedEntity> entities = loadEntities();
+
+        // "owned by Sergei Petrovich Ivanov" names the first entry
+        assertThat(findById(entities, "eu-EU.20.15").relations())
+                .containsExactly(
+                        new Relation(
+                                RelationType.LINKED, "eu-EU.10.42", "owned by", null, null, null));
+        assertThat(findById(entities, "eu-EU.10.42").relations()).isEmpty();
+    }
 
     private List<SanctionedEntity> loadEntities() throws IOException {
         return provider.parseXml(loadTestResource("eu_consolidated_test_sample.xml"));

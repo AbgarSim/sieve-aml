@@ -251,4 +251,32 @@ public record SanctionedEntity(
                 relations,
                 provenance);
     }
+
+    /**
+     * Returns a copy of this entity with the given relations and every other field unchanged.
+     *
+     * @param relations the links from this entity to other entities
+     * @return the copy
+     */
+    public SanctionedEntity withRelations(List<Relation> relations) {
+        return new SanctionedEntity(
+                id,
+                entityType,
+                listSource,
+                primaryName,
+                aliases,
+                addresses,
+                identifiers,
+                nationalities,
+                citizenships,
+                datesOfBirth,
+                placesOfBirth,
+                remarks,
+                programs,
+                listedDate,
+                lastUpdated,
+                topics,
+                relations,
+                provenance);
+    }
 }

@@ -15,6 +15,7 @@ import dev.sieve.core.model.ScriptType;
 import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.relations.RemarkRelations;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +37,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
@@ -54,6 +56,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing.
  *
+ * <p>The comments cite other listed parties by permanent reference number, such as "member of the
+ * ADF (CDe.001)"; each citation becomes a relation to that entry, typed by the words before it (see
+ * {@link RemarkRelations}).
+ *
  * @see <a href="https://scsanctions.un.org/resources/xml/en/consolidated.xml">UN Consolidated
  *     XML</a>
  */
@@ -63,6 +69,13 @@ public final class UnConsolidatedProvider implements ListProvider {
 
     private static final String DEFAULT_URL =
             "https://scsanctions.un.org/resources/xml/en/consolidated.xml";
+
+    /**
+     * A permanent reference number as the list cites one in its comments, such as {@code QDe.004}
+     * for an entity or {@code TAi.144} for an individual; it is also the id after {@code un-}.
+     */
+    static final Pattern REFERENCE = Pattern.compile("\\b[A-Za-z]{2,3}[iIeE]\\.\\d{3}\\b");
+
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
 
@@ -271,7 +284,7 @@ public final class UnConsolidatedProvider implements ListProvider {
                     e);
         }
 
-        return entities;
+        return RemarkRelations.byReference(entities, REFERENCE, "un-", "UN consolidated");
     }
 
     // ---- INDIVIDUAL parsing ------------------------------------------------
