@@ -54,6 +54,72 @@ jobs:
           ARGS=(snapshot --out snapshot)
           if [ -n "$SOURCES" ]; then ARGS+=(--source "$SOURCES"); fi
           java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar "${ARGS[@]}"
+      - name: TEMP dedup report
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import collections
+          import json
+          import random
+          import re
+          import unicodedata
+
+          ix = json.load(open('snapshot/search-index.json'))['entries']
+          ov = json.load(open('snapshot/overview.json'))
+          src = json.load(open('snapshot/sources.json'))['sources']
+          print('DEDUP', ov.get('dedup'))
+          groups = collections.defaultdict(list)
+          for e in ix:
+              if 'g' in e:
+                  groups[e['g']].append(e)
+          print('entries', len(ix), 'grouped', sum(len(v) for v in groups.values()), 'groups', len(groups))
+          print('sizes', sorted(collections.Counter(len(v) for v in groups.values()).items()))
+          print('types', sorted(collections.Counter(v[0]['t'] for v in groups.values()).items()))
+          print('onOtherLists', [(s['source'], s.get('published'), s.get('onOtherLists')) for s in src if s.get('onOtherLists')])
+
+
+          def fmt(e):
+              return f"{e['s']}:{e['n']}" + (f" (+{len(e.get('a', []))} aka)" if e.get('a') else '')
+
+
+          def show(title, gs, limit=200):
+              print('==', title, len(gs))
+              for g in gs[:limit]:
+                  print(' | '.join(fmt(e) for e in g))
+
+
+          def norm(s):
+              s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode()
+              return set(t for t in re.sub(r'[^a-z0-9\s]', ' ', s.lower()).split() if len(t) > 1)
+
+
+          def toks(e):
+              out = norm(e['n'])
+              for a in e.get('a', []):
+                  out |= norm(a)
+              return out
+
+
+          big = sorted(groups.values(), key=len, reverse=True)[:15]
+          show('LARGEST', big)
+          putin = [g for g in groups.values() if any('putin' in e['n'].lower() or 'poutine' in e['n'].lower() for e in g)]
+          show('PUTIN', putin)
+          print('== PUTIN UNGROUPED')
+          for e in ix:
+              if 'g' not in e and ('putin' in e['n'].lower() or 'poutine' in e['n'].lower() or any('putin' in a.lower() for a in e.get('a', []))):
+                  print(fmt(e))
+          random.seed(1)
+          show('SAMPLE', random.sample(list(groups.values()), min(90, len(groups))))
+          # Members whose names share no token with the group's lead: candidates for false merges
+          sus = []
+          for g in groups.values():
+              lead = toks(g[0])
+              for e in g[1:]:
+                  if not (toks(e) & lead):
+                      sus.append(g)
+                      break
+          show('NO SHARED TOKEN', sus, 60)
+          PYEOF
       - name: Summarize
         if: always()
         run: |
