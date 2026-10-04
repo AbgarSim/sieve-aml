@@ -58,7 +58,9 @@ class CountryNormalizerTest {
                 "BIRMANIE|MM",
                 "BIRMANIE/MYANMAR|MM",
                 "Region: Gaza|PS",
-                "KIRGIZISTAN|KG"
+                "KIRGIZISTAN|KG",
+                "KORE DEMOKRATİK HALK CUMHURİYETİ|KP",
+                "RÉPUBLIQUE DÉMOCRATIQUE DU CONGO|CD"
             })
     void shouldResolveKnownSpellingsWhenPublishedInDifferentForms(String raw, String expected) {
         assertThat(normalizer.toIso2(raw)).contains(expected);
