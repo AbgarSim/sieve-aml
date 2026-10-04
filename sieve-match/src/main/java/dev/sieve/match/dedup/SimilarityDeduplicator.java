@@ -80,7 +80,9 @@ import org.slf4j.LoggerFactory;
  *       evidence
  *   <li><b>Constrained clustering</b> — pairs are merged strongest first with Union-Find. A merge
  *       that would put two entities from one list, or provably different DOBs, into one cluster is
- *       refused, so a loose transitive chain (A≈B, B≈C) cannot join two distinct people
+ *       refused, so a loose transitive chain (A≈B, B≈C) cannot join two distinct people. Equally
+ *       strong pairs are taken in list and id order, so the result does not depend on the order the
+ *       entities arrive in
  *   <li><b>Canonical creation</b> — each cluster is merged into a single {@link CanonicalEntity}
  *       with combined metadata
  * </ol>
@@ -146,7 +148,14 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             return new DeduplicationResult(Map.of(), Map.of(), 0, 0, 0, Duration.ZERO);
         }
 
-        List<SanctionedEntity> entityList = List.copyOf(entities);
+        // Ties between equally strong candidates fall to the earlier position, so the input is put
+        // in a fixed order first: the lists are fetched in parallel and arrive in any order
+        List<SanctionedEntity> entityList =
+                entities.stream()
+                        .sorted(
+                                Comparator.comparing(SanctionedEntity::listSource)
+                                        .thenComparing(SanctionedEntity::id))
+                        .toList();
         int size = entityList.size();
         log.info("Starting entity deduplication [entities={}]", size);
 

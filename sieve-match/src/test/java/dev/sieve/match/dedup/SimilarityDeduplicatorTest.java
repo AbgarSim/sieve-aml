@@ -266,6 +266,23 @@ class SimilarityDeduplicatorTest {
     }
 
     @Test
+    void shouldResolveTiesTheSameWayWhateverTheInputOrder() {
+        // Two OFAC records fit the EU record equally well; only one may join it, and it must be the
+        // same one whether OFAC or the EU list was fetched first
+        SanctionedEntity eu = entity("eu-1", "John Doe", ListSource.EU_CONSOLIDATED);
+        SanctionedEntity first = entity("ofac-1", "DOE, John", ListSource.OFAC_SDN);
+        SanctionedEntity second = entity("ofac-2", "DOE, John", ListSource.OFAC_SDN);
+
+        DeduplicationResult ofacFirst = deduplicator.deduplicate(List.of(second, first, eu));
+        DeduplicationResult euFirst = deduplicator.deduplicate(List.of(eu, second, first));
+
+        assertThat(ofacFirst.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(ofacFirst.entityToCanonicalId().get("ofac-1"));
+        assertThat(euFirst.entityToCanonicalId().get("eu-1"))
+                .isEqualTo(euFirst.entityToCanonicalId().get("ofac-1"));
+    }
+
+    @Test
     void shouldNotMatchOnNamesWithoutLetters() {
         // A stray row number parsed as a name is the same "18" on every list
         SanctionedEntity ofac = unstructured("ofac-1", "18", ListSource.OFAC_SDN);
