@@ -32,7 +32,7 @@
 
     <!-- Entity 2: Enterprise with business registration -->
     <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.20.15" logicalId="200">
-        <remark>Shell company used for sanctions evasion.</remark>
+        <remark>Shell company used for sanctions evasion, owned by Sergei Petrovich Ivanov.</remark>
         <regulation regulationType="regulation" organisationType="commission" publicationDate="2023-06-15" entryIntoForceDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" programme="RUS" logicalId="501">
             <publicationUrl>http://example.com/regulation2</publicationUrl>
         </regulation>

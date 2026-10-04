@@ -20,14 +20,14 @@
 
 | Provider | Source | Format | Entities |
 |----------|--------|--------|----------|
-| UN Consolidated | UN Security Council | XML | ~800 |
+| UN Consolidated | UN Security Council; parties the comments cite by reference number become relations, typed by the words before them (member of, brother of, leader of) | XML | ~800 |
 
 ### North America
 
 | Provider | Source | Format | Entities |
 |----------|--------|--------|----------|
-| OFAC SDN | U.S. Treasury — Specially Designated Nationals; every digital currency address an entry lists is also a crypto wallet entity of its own, linked to its holder | XML | ~20,500 (incl. ~1,050 wallets) |
-| OFAC Non-SDN | U.S. Treasury — Non-SDN Consolidated | XML | ~600 |
+| OFAC SDN | U.S. Treasury — Specially Designated Nationals; every digital currency address an entry lists is also a crypto wallet entity of its own, linked to its holder; the "Linked To" names in an entry's remarks and the owner a vessel record names become relations to the entries they name | XML | ~20,500 (incl. ~1,050 wallets) |
+| OFAC Non-SDN | U.S. Treasury — Non-SDN Consolidated; same parser as the SDN list, so entries carry aliases, addresses, identifiers and wallets, and "Linked To" names in remarks become relations to the entries they name | XML | ~500 |
 | US Trade CSL | U.S. Commerce Dept — Consolidated Screening List | JSON | ~12,500 |
 | US BIS Entity List | U.S. Commerce Dept — Bureau of Industry and Security Entity List (from the CSL) | JSON | ~3,400 |
 | US BIS MEU | U.S. Commerce Dept — Bureau of Industry and Security Military End-User List (from the CSL) | JSON | ~70 |
@@ -37,7 +37,7 @@
 
 | Provider | Source | Format | Entities |
 |----------|--------|--------|----------|
-| EU Consolidated | European Commission — Financial Sanctions | XML | ~5,900 |
+| EU Consolidated | European Commission — Financial Sanctions; entries a remark names in full become relations, typed by the words before the name | XML | ~5,900 |
 | EU Journal | EU Official Journal designations | XML | ~5,900 |
 | EU Sanctions Map | EU Sanctions Map API | JSON | ~1,000 |
 | EU Travel Bans | EU Travel Bans list | XML | ~5,900 |

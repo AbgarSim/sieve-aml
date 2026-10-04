@@ -41,7 +41,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
   tonnage.
 - [x] 1.7 Crypto wallets from OFAC's digital currency addresses, as their own entity kind linked to
   the owner.
-- [ ] 1.8 Relations already in the lists: OFAC "linked to", UN and EU associated entities, vessel
+- [x] 1.8 Relations already in the lists: OFAC "linked to", UN and EU associated entities, vessel
   owners and operators.
 - [ ] 1.9 More sanctions and export-control lists: US BIS Entity List and Military End User list as
   their own sources, Singapore, Hong Kong, India, Kazakhstan, Argentina, and Ukraine with an API key.

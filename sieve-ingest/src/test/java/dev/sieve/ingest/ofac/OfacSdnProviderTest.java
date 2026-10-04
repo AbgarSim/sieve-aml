@@ -64,8 +64,14 @@ class OfacSdnProviderTest {
         assertThat(acme.relations())
                 .containsExactly(
                         new Relation(RelationType.OWNERSHIP, xbtWallet, "holder", null, null, null),
+                        new Relation(RelationType.OWNERSHIP, ethWallet, "holder", null, null, null),
                         new Relation(
-                                RelationType.OWNERSHIP, ethWallet, "holder", null, null, null));
+                                RelationType.OWNERSHIP,
+                                "ofac-sdn-3001",
+                                "owner",
+                                null,
+                                null,
+                                null));
 
         // the wallets follow their holder; an address listed under two currencies is one wallet
         assertThat(entities)
@@ -103,16 +109,16 @@ class OfacSdnProviderTest {
                         "Digital currency address (XBT) held by ACME HOLDINGS LTD (ofac-sdn-2001)");
 
         // entries without digital currency addresses get no wallets and no relations
-        assertThat(byId(entities, "ofac-sdn-1001").relations()).isEmpty();
+        assertThat(byId(entities, "ofac-sdn-4001").relations()).isEmpty();
         assertThat(byId(entities, "ofac-sdn-1001").topics()).containsExactly(RiskTopic.SANCTION);
     }
 
     @Test
     void shouldReadTheCurrencyFromTheIdentifierType() {
-        assertThat(OfacSdnProvider.currency("Digital Currency Address - XBT")).isEqualTo("XBT");
-        assertThat(OfacSdnProvider.currency("Digital Currency Address -USDT")).isEqualTo("USDT");
-        assertThat(OfacSdnProvider.currency("Digital Currency Address")).isNull();
-        assertThat(OfacSdnProvider.currency("Digital Currency Address - ")).isNull();
+        assertThat(OfacXmlParser.currency("Digital Currency Address - XBT")).isEqualTo("XBT");
+        assertThat(OfacXmlParser.currency("Digital Currency Address -USDT")).isEqualTo("USDT");
+        assertThat(OfacXmlParser.currency("Digital Currency Address")).isNull();
+        assertThat(OfacXmlParser.currency("Digital Currency Address - ")).isNull();
     }
 
     @Test
@@ -339,6 +345,48 @@ class OfacSdnProviderTest {
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?><sdnList></sdnList>".getBytes();
         List<SanctionedEntity> entities = provider.parseXml(emptyXml);
         assertThat(entities).isEmpty();
+    }
+
+    @Test
+    void shouldLinkEntriesNamedInRemarksAndVesselOwners() throws IOException {
+        byte[] xmlContent = loadTestResource("sdn_test_sample.xml");
+        List<SanctionedEntity> entities = provider.parseXml(xmlContent);
+
+        // the first "Linked To" name is ACME's primary name; the second is on no entry
+        SanctionedEntity john = byId(entities, "ofac-sdn-1001");
+        assertThat(john.relations())
+                .containsExactly(
+                        new Relation(
+                                RelationType.LINKED,
+                                "ofac-sdn-2001",
+                                "linked to",
+                                null,
+                                null,
+                                null));
+        assertThat(john.remarks()).contains("Linked To: NOT ON THIS LIST");
+
+        // the vessel's remark and its vesselInfo owner both point at ACME
+        SanctionedEntity vessel = byId(entities, "ofac-sdn-3001");
+        assertThat(vessel.relations())
+                .containsExactly(
+                        new Relation(
+                                RelationType.LINKED,
+                                "ofac-sdn-2001",
+                                "linked to",
+                                null,
+                                null,
+                                null),
+                        new Relation(
+                                RelationType.LINKED, "ofac-sdn-2001", "owner", null, null, null));
+        assertThat(byId(entities, "ofac-sdn-2001").relations())
+                .contains(
+                        new Relation(
+                                RelationType.OWNERSHIP,
+                                "ofac-sdn-3001",
+                                "owner",
+                                null,
+                                null,
+                                null));
     }
 
     private static SanctionedEntity byId(List<SanctionedEntity> entities, String id) {
