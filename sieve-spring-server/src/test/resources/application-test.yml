@@ -19,8 +19,6 @@ sieve:
   screening:
     default-threshold: 0.80
     max-results: 50
-  index:
-    type: in-memory
 
 spring:
   main:

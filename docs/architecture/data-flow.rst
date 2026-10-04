@@ -134,7 +134,7 @@ Index Architecture
    flowchart TD
        subgraph "EntityIndex (interface)"
            IM["InMemoryEntityIndex<br/><small>ConcurrentHashMap</small>"]
-           JPA["JpaEntityIndex<br/><small>PostgreSQL + Hibernate</small>"]
+           PI["PersistentEntityIndex<br/><small>PostgreSQL + in-memory</small>"]
        end
 
        subgraph "Acceleration Structures"
@@ -144,15 +144,19 @@ Index Architecture
 
        IM --> NC
        IM --> NG
-       JPA --> NC
-       JPA --> NG
+       PI --> NC
+       PI --> NG
 
 The ``EntityIndex`` interface is implemented by:
 
 - **InMemoryEntityIndex** — default, uses ``ConcurrentHashMap`` with secondary
   index by ``ListSource``
-- **JpaEntityIndex** — PostgreSQL persistence with Hibernate, activated via the
-  ``postgres`` Spring profile
+- **PersistentEntityIndex** — the Spring server's index. PostgreSQL is the system
+  of record: every refresh is written to the database in one transaction (with
+  delisted entities copied to ``entity_removal``) before it reaches the
+  in-memory index that screening reads. At startup the in-memory index is built
+  from the database, so stored entities and first seen times survive restarts.
+  The CLI and the Vert.x server use ``InMemoryEntityIndex`` alone
 
 Both implementations work with the same acceleration structures
 (``NormalizedNameCache`` and ``NgramIndex``) for matching.

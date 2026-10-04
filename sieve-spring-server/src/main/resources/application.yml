@@ -19,8 +19,6 @@ sieve:
   screening:
     default-threshold: 0.80
     max-results: 50
-  index:
-    type: in-memory
   address:
     libpostal-enabled: false
     libpostal-data-dir: /opt/libpostal-data
@@ -28,6 +26,15 @@ sieve:
 spring:
   application:
     name: sieve
+  # PostgreSQL is the system of record and must be reachable at startup.
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sieve}?reWriteBatchedInserts=true
+    username: ${POSTGRES_USER:sieve}
+    password: ${POSTGRES_PASSWORD:sieve}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
   jackson:
     serialization:
       write-dates-as-timestamps: false
