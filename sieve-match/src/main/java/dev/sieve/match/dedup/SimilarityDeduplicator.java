@@ -12,7 +12,6 @@ import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.match.NameNormalizer;
 import dev.sieve.match.algorithm.JaroWinkler;
-import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -119,8 +118,6 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     /** Similarity of an initial ("j") to a full name token with the same first letter. */
     private static final double INITIAL_MATCH_SIMILARITY = 0.5;
 
-    private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
-    private static final Pattern NON_LETTER_OR_DIGIT = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final Pattern NON_ALPHANUMERIC = Pattern.compile("[^\\p{L}\\p{N}]");
 
     private final DeduplicationConfig config;
@@ -860,20 +857,12 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
     }
 
     /**
-     * Normalizes a name for deduplication: folds diacritics, lowercases, and turns punctuation into
-     * word breaks, so "MÜLLER-García, José" and "Muller Garcia Jose" compare token for token.
+     * Normalizes a name for deduplication with the same keys the match engines use, so
+     * "MÜLLER-García, José" and "Muller Garcia Jose" compare token for token, and "Путин" meets
+     * "Putin".
      */
-    static String normalizeForDedup(String name) {
-        if (name == null || name.isBlank()) {
-            return "";
-        }
-        String folded =
-                COMBINING_MARKS
-                        .matcher(Normalizer.normalize(name, Normalizer.Form.NFD))
-                        .replaceAll("");
-        String cleaned =
-                NON_LETTER_OR_DIGIT.matcher(folded.toLowerCase(Locale.ROOT)).replaceAll(" ");
-        return NameNormalizer.normalize(cleaned);
+    static String normalizeForDedup(String name, EntityType type) {
+        return NameNormalizer.normalize(name, type);
     }
 
     private static String prefix(String normalized, int length) {
@@ -915,12 +904,13 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
         static Profile of(SanctionedEntity entity, int prefixLength) {
             Set<String> names = new LinkedHashSet<>();
             NameInfo primary = entity.primaryName();
-            addName(names, primary.fullName());
+            EntityType type = entity.entityType();
+            addName(names, primary.fullName(), type);
             if (primary.givenName() != null && primary.familyName() != null) {
-                addName(names, primary.givenName() + " " + primary.familyName());
+                addName(names, primary.givenName() + " " + primary.familyName(), type);
             }
             for (NameInfo alias : entity.aliases()) {
-                addName(names, alias.fullName());
+                addName(names, alias.fullName(), type);
             }
 
             Map<String, Integer> tokenPositions = new LinkedHashMap<>();
@@ -1035,8 +1025,8 @@ public final class SimilarityDeduplicator implements EntityDeduplicator {
             return lengths;
         }
 
-        private static void addName(Set<String> names, String name) {
-            String normalized = normalizeForDedup(name);
+        private static void addName(Set<String> names, String name, EntityType type) {
+            String normalized = normalizeForDedup(name, type);
             // A "name" without a letter, such as a stray row number, can't identify anyone
             if (normalized.chars().anyMatch(Character::isLetter)) {
                 names.add(normalized);

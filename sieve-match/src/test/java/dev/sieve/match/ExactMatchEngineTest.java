@@ -168,6 +168,36 @@ class ExactMatchEngineTest {
                 .isEmpty();
     }
 
+    @Test
+    void shouldMatchWhenQueryIsInAnotherScript() {
+        index.add(createEntity("1", "PUTIN, Vladimir", List.of()));
+
+        List<MatchResult> results =
+                engine.screen(ScreeningRequest.of("Путин, Владимир", 0.9), index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldMatchWhenOnlyAccentsAndPunctuationDiffer() {
+        index.add(createEntity("1", "MÜLLER-GARCÍA, José", List.of()));
+
+        assertThat(engine.screen(ScreeningRequest.of("Muller Garcia Jose", 0.9), index)).hasSize(1);
+    }
+
+    @Test
+    void shouldMatchCompanyWhenLegalFormsDiffer() {
+        index.add(
+                createEntity(
+                        "1", "OOO Romashka", EntityType.COMPANY, ListSource.OFAC_SDN, List.of()));
+
+        List<MatchResult> results = engine.screen(ScreeningRequest.of("Romashka LLC", 0.9), index);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.getFirst().score()).isEqualTo(1.0);
+    }
+
     private static SanctionedEntity createEntity(String id, String name, List<String> aliases) {
         return createEntity(id, name, EntityType.INDIVIDUAL, ListSource.OFAC_SDN, aliases);
     }

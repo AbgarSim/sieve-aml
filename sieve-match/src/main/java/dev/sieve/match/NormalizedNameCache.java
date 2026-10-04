@@ -1,6 +1,7 @@
 package dev.sieve.match;
 
 import dev.sieve.core.index.EntityIndex;
+import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.SanctionedEntity;
 import java.util.HashMap;
@@ -15,8 +16,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Cache of pre-normalized entity names for use by match engines.
  *
- * <p>Normalizing names (lowercasing, trimming, collapsing whitespace) is expensive when repeated
- * for every entity on every query. This cache pre-computes normalized forms once when entities are
+ * <p>Normalizing names (romanising, folding accents and punctuation) is expensive when repeated for
+ * every entity on every query. This cache pre-computes normalized forms once when entities are
  * loaded and serves them on subsequent lookups, eliminating redundant work.
  *
  * <p>Thread-safe. Automatically rebuilds when the index content version changes.
@@ -97,12 +98,13 @@ public final class NormalizedNameCache {
     }
 
     private static NormalizedEntry computeEntry(SanctionedEntity entity) {
-        String primary = NameNormalizer.normalize(entity.primaryName().fullName());
+        EntityType type = entity.entityType();
+        String primary = NameNormalizer.normalize(entity.primaryName().fullName(), type);
 
         List<NameInfo> aliasList = entity.aliases();
         String[] normalized = new String[aliasList.size()];
         for (int i = 0; i < aliasList.size(); i++) {
-            normalized[i] = NameNormalizer.normalize(aliasList.get(i).fullName());
+            normalized[i] = NameNormalizer.normalize(aliasList.get(i).fullName(), type);
         }
 
         // Collect distinct normalized name components (familyName, givenName)
