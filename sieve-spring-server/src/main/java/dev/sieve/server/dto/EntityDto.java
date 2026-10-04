@@ -18,6 +18,9 @@ import java.util.List;
  * @param topics why the entity is of interest (SANCTION, PEP, DEBARMENT and so on)
  * @param remarks free-text remarks
  * @param lastUpdated last modification timestamp
+ * @param firstSeen when Sieve first saw any value of the entity, {@code null} if unknown
+ * @param lastSeen when Sieve last saw the entity on its list, {@code null} if unknown
+ * @param provenance where and when each value was seen
  */
 @Schema(description = "Sanctioned entity from a sanctions list")
 public record EntityDto(
@@ -31,4 +34,8 @@ public record EntityDto(
         @Schema(description = "Sanctions programs") List<String> programs,
         @Schema(description = "Risk topics", example = "[\"SANCTION\"]") List<String> topics,
         @Schema(description = "Remarks") String remarks,
-        @Schema(description = "Last updated timestamp") Instant lastUpdated) {}
+        @Schema(description = "Last updated timestamp") Instant lastUpdated,
+        @Schema(description = "When any value of the entity was first seen") Instant firstSeen,
+        @Schema(description = "When the entity was last seen on its list") Instant lastSeen,
+        @Schema(description = "Where and when each name, date, identifier and other value was seen")
+                List<ProvenanceDto> provenance) {}
