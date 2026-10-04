@@ -10,6 +10,14 @@ export const RAW_TYPE: Record<RawType, EntityType> = { INDIVIDUAL: 'individual',
 export type Status = 'loaded' | 'empty' | 'failed' | 'needs-key' | 'skipped';
 const STATUS: Record<RawStatus, Status> = { LOADED: 'loaded', EMPTY: 'empty', FAILED: 'failed', NEEDS_KEY: 'needs-key', SKIPPED: 'skipped' };
 
+export const TOPIC_LABEL: Record<string, string> = {
+  SANCTION: 'Sanctioned', SANCTION_LINKED: 'Sanction-linked', EXPORT_CONTROL: 'Export control', DEBARMENT: 'Debarred',
+  PEP: 'Politically exposed', RCA: 'Relative or associate', CRIME: 'Crime', WANTED: 'Wanted', STATE_OWNED: 'State-owned',
+};
+export const topicLabel = (k: string) => TOPIC_LABEL[k] ?? k.charAt(0) + k.slice(1).toLowerCase().replace(/_/g, ' ');
+/** What a count of entities with this topic is a count of, for prose. */
+export const topicNoun = (k: string) => ({ PEP: 'politically exposed persons', RCA: 'relatives and close associates' })[k] ?? topicLabel(k).toLowerCase() + ' entities';
+
 /** Completeness columns, in the order of {@link Source.completeness}. */
 export const FIELDS = ['Date of birth', 'Nationality', 'Address', 'Identifiers', 'Aliases', 'Program', 'Listing date'];
 
@@ -18,6 +26,11 @@ export interface Program { source: string; code: string; name: string; entities:
 export interface Source {
   id: string; name: string; cc: string; authority: string; region: string; format: string; homepage: string; listUri?: string;
   entities: number; names: number; countries: number; status: Status; error?: string; fetchMs: number | null; lastFetched: string | null;
+  /** Entities whose records are published; the rest are counted only. */
+  published: number;
+  /** True for a list whose records are all counted but never published, such as politically exposed persons. */
+  countsOnly: boolean;
+  topics: [string, number][];
   /** Percent of entities with each of {@link FIELDS}. */
   completeness: number[];
   /** Share of individuals, entities, vessels and aircraft. */
@@ -39,6 +52,10 @@ export interface Country {
 export interface Snapshot {
   sources: Source[]; byId: Record<string, Source>;
   totalEntities: number; totalNames: number; byType: Record<EntityType, number>;
+  /** Entities per risk topic across every list, counted-only records included. */
+  byTopic: [string, number][];
+  /** Entities counted in the lists but not published as records: politically exposed persons and their associates. */
+  unpublished: number;
   countries: Country[]; countryByNum: Record<string, Country>; countryByCc: Record<string, Country>;
   /** Source ids by the country whose authority publishes them; EU lists count for every member state. */
   authorities: Record<string, string[]>;
@@ -119,6 +136,7 @@ function adapt(o: RawOverview, s: RawSources, c: RawCountries, history: RawHisto
   return {
     sources, byId,
     totalEntities: o.totalEntities, totalNames: o.totalNames, byType: typeCounts(o.byType),
+    byTopic: sorted(o.byTopic), unpublished: sources.reduce((a, x) => a + (x.entities - x.published), 0),
     countries, countryByNum: Object.fromEntries(countries.map(x => [x.num, x])), countryByCc: Object.fromEntries(countries.map(x => [x.cc, x])),
     authorities, flows: [...merged.values()].sort((a, b) => b[2] - a[2]).slice(0, 40),
     unresolved: { occurrences: c.unresolved?.occurrences ?? 0, top: sorted(c.unresolved?.topValues) },
@@ -146,6 +164,7 @@ function source(r: RawSource, recent: RawHistoryRow[], hasHistory: boolean): Sou
     id: r.source, name: r.displayName, cc: r.jurisdiction.toLowerCase(), authority: r.authority,
     region: REGION[r.jurisdiction] ?? 'Europe', format: r.format, homepage: r.homepage, listUri: r.listUri,
     entities: r.entities, names: r.names ?? 0, countries: r.countries ?? 0, status: STATUS[r.status] ?? 'skipped', error: r.error,
+    published: r.published ?? r.entities, countsOnly: r.entities > 0 && (r.published ?? r.entities) === 0, topics: sorted(r.byTopic),
     fetchMs: r.status === 'NEEDS_KEY' || r.status === 'SKIPPED' ? null : r.fetchMs ?? null, lastFetched: r.lastFetched ?? null,
     completeness: k ? [k.withDateOfBirth, k.withNationality, k.withAddress, k.withIdentifiers, k.withAliases, k.withProgram, k.withListedDate].map(pct) : [0, 0, 0, 0, 0, 0, 0],
     types: TYPES.map(x => t[x] / tsum),

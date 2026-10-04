@@ -45,7 +45,7 @@ export default function Dashboard() {
           <WorldMap />
         </section>
         <section className="blk" id="composition">
-          <div className="blk-h"><h2>Composition</h2><p>Entities per source, entity type mix and the largest programs.</p></div>
+          <div className="blk-h"><h2>Composition</h2><p>Entities per source, entity type mix, risk topics and the largest programs.</p></div>
           <Composition />
         </section>
         <section className="blk" id="sources">

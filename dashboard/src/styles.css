@@ -80,6 +80,7 @@ section.blk{scroll-margin-top:110px;margin-bottom:56px}
 .card-f{padding:10px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
 .grid{display:grid;gap:16px}
 .g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.g7{grid-template-columns:repeat(7,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g2-1{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
@@ -256,7 +257,7 @@ tr[aria-expanded="true"] .cv{transform:rotate(90deg)}
 .ftr .dis{flex-basis:100%;color:var(--text-2)}
 
 /* responsive */
-@media (max-width:1200px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}.nav a{padding:6px 8px}.pill{display:none}.search{width:220px}}
+@media (max-width:1200px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}.g7{grid-template-columns:repeat(4,minmax(0,1fr))}.nav a{padding:6px 8px}.pill{display:none}.search{width:220px}}
 @media (max-width:1024px){.search{width:200px}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.g2-1,.g2{grid-template-columns:minmax(0,1fr)}.sgrid{grid-template-columns:200px minmax(0,1fr)}.egrid{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:860px){
   .nav{display:none}.menu-btn{display:inline-flex}.pill{display:none}
@@ -265,7 +266,7 @@ tr[aria-expanded="true"] .cv{transform:rotate(90deg)}
   .sgrid{grid-template-columns:minmax(0,1fr)}.sgrid aside{order:2}
 }
 @media (max-width:720px){
-  .wrap{padding:0 16px}.g6,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wrap{padding:0 16px}.g6,.g7,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}
   .search{width:auto;flex:1}.search input{width:60px}
   .tbl.cards thead{display:none}
   .tbl.cards tbody tr.row{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:12px 14px;border-bottom:1px solid var(--border)}
@@ -279,7 +280,7 @@ tr[aria-expanded="true"] .cv{transform:rotate(90deg)}
   .kpi .v{font-size:22px}
   .res .dt{display:none}
 }
-@media (max-width:420px){.g6,.g3{grid-template-columns:minmax(0,1fr)}.kpi svg{width:56px}.search .kbd{display:none}}
+@media (max-width:420px){.g6,.g7,.g3{grid-template-columns:minmax(0,1fr)}.kpi svg{width:56px}.search .kbd{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 .boot{min-height:60vh;display:grid;place-items:center;color:var(--muted);font-size:13px}
