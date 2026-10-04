@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -56,9 +57,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Politically exposed persons and their relatives or close associates are never written as
  * records or index entries: the public dashboard shows how many there are, not who they are. They
- * appear in their list's row of {@code sources.json}, in the history and as {@code pepEntities} in
- * the overview, but stay out of the headline totals, the country map and the top programs, which
- * describe the sanctions-style lists.
+ * are counted in their list's row of {@code sources.json} (whose {@code published} field says how
+ * many of a list's records were written), in the history and in the overview's {@code byTopic}, but
+ * stay out of the headline totals, the country map and the top programs, which describe the
+ * sanctions-style lists.
  */
 public final class SnapshotWriter {
 
@@ -115,10 +117,10 @@ public final class SnapshotWriter {
         DatasetStats everything = aggregator.aggregate(all);
         DatasetStats stats =
                 aggregator.aggregate(all.stream().filter(SnapshotWriter::isPublic).toList());
-        int restricted = everything.totalEntities() - stats.totalEntities();
 
         writeJson(
-                outDir.resolve("overview.json"), overview(stats, restricted, fetched, now, commit));
+                outDir.resolve("overview.json"),
+                overview(stats, byTopic(all), fetched, now, commit));
         writeJson(outDir.resolve("sources.json"), sources(everything, fetched, now));
         writeJson(outDir.resolve("countries.json"), countries(stats, now));
         writeJson(outDir.resolve("search-index.json"), writeEntities(fetched, outDir, now));
@@ -134,7 +136,7 @@ public final class SnapshotWriter {
 
     private Map<String, Object> overview(
             DatasetStats stats,
-            int restricted,
+            Map<String, Integer> byTopic,
             List<FetchedSource> fetched,
             Instant now,
             Optional<String> commit) {
@@ -147,12 +149,12 @@ public final class SnapshotWriter {
         commit.ifPresent(c -> map.put("commit", c));
         map.put("totalEntities", stats.totalEntities());
         map.put("totalNames", stats.totalNames());
-        map.put("pepEntities", restricted);
         map.put("sourcesTotal", ListSource.values().length);
         map.put("sourcesLoaded", loaded);
         map.put("countries", stats.byCountry().size());
         map.put("distinctPrograms", stats.distinctPrograms());
         map.put("byType", stats.byType());
+        map.put("byTopic", byTopic);
         map.put("namesByScript", stats.namesByScript());
         map.put("identifiersByType", stats.identifiersByType());
         map.put("topPrograms", stats.topPrograms());
@@ -192,9 +194,13 @@ public final class SnapshotWriter {
                         row.put("etag", m.etag());
                     });
             if (sourceStats != null) {
+                List<SanctionedEntity> entities =
+                        outcome.map(FetchedSource::entities).orElse(List.of());
                 row.put("entities", sourceStats.entities());
+                row.put("published", entities.stream().filter(SnapshotWriter::isPublic).count());
                 row.put("names", sourceStats.names());
                 row.put("byType", sourceStats.byType());
+                row.put("byTopic", byTopic(entities));
                 row.put("countries", sourceStats.countries());
                 row.put("completeness", sourceStats.completeness());
                 row.put("topPrograms", sourceStats.topPrograms());
@@ -268,6 +274,19 @@ public final class SnapshotWriter {
     /** Whether an entity's record may be published; PEP and RCA records are counted only. */
     static boolean isPublic(SanctionedEntity entity) {
         return !entity.topics().contains(RiskTopic.PEP) && !entity.topics().contains(RiskTopic.RCA);
+    }
+
+    /** Entities per risk topic, in topic order; an entity with several topics counts for each. */
+    static Map<String, Integer> byTopic(Collection<SanctionedEntity> entities) {
+        Map<RiskTopic, Integer> counts = new EnumMap<>(RiskTopic.class);
+        for (SanctionedEntity entity : entities) {
+            for (RiskTopic topic : entity.topics()) {
+                counts.merge(topic, 1, Integer::sum);
+            }
+        }
+        Map<String, Integer> byTopic = new LinkedHashMap<>();
+        counts.forEach((topic, n) -> byTopic.put(topic.name(), n));
+        return byTopic;
     }
 
     private Map<String, Object> indexEntry(SanctionedEntity entity, int shard) {

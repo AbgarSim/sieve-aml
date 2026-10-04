@@ -10,12 +10,14 @@ The site is static. At runtime it reads the files written by `sieve snapshot` fr
 
 | File | Used by |
 | --- | --- |
-| `overview.json` | headline numbers, type mix, scripts, identifiers, largest programs |
+| `overview.json` | headline numbers, type mix, risk topics, scripts, identifiers, largest programs |
 | `sources.json` | sources table, completeness heatmap, ingest timeline |
 | `countries.json` | world map, unresolved country values |
 | `history.json` | sparklines and day-over-day changes (shown once there are two days) |
 | `search-index.json` | search, loaded on first use |
 | `entities/SOURCE/N.json` | entity data cards |
+
+Politically exposed persons and their associates are counted (`byTopic` in `overview.json`, and per list in `sources.json`, whose `published` field says how many of a list's records were written) but never appear in `entities/` or the search index, so the UI shows their numbers and marks those lists as counts only.
 
 Benchmark figures are the published results in `docs/performance/benchmarks.rst`, kept in `src/data/benchmarks.ts`.
 
