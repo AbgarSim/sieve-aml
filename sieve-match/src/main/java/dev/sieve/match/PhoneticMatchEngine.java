@@ -71,7 +71,8 @@ public final class PhoneticMatchEngine implements MatchEngine {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
 
-        String normalizedQuery = NameNormalizer.normalize(request.name());
+        String normalizedQuery =
+                NameNormalizer.normalizeQuery(request.name(), request.entityType());
         String[] queryTokens = normalizedQuery.split("\\s+");
         DoubleMetaphone.PhoneticCode[] queryCodes = encodeTokens(queryTokens);
         int queryTokenCount = PartialNameMatch.tokenCount(normalizedQuery);
