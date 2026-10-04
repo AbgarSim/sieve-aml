@@ -47,18 +47,21 @@ import java.util.stream.Collectors;
  * <p>Offices are the positions whose jurisdiction ({@code P1001}) is a sovereign state and that are
  * a kind of head of state, head of government, minister, central bank governor, chief of defence or
  * commander-in-chief (tier 1), or of member of parliament, judge, deputy minister, ambassador,
- * attorney general or party leader (tier 2). Holders come from "position held" ({@code P39})
- * statements with their start and end dates. A holder is kept while in office, or for {@link
- * #YEARS_AFTER_OFFICE} years after leaving it; open-ended terms that began more than {@link
- * #STALE_TERM_YEARS} years ago are treated as unrecorded ends and left out.
+ * attorney general or party leader (tier 2). The heads of government and state of each country's
+ * first-level regions, such as state governors and regional premiers, are tier 2 as well. Holders
+ * come from "position held" ({@code P39}) statements with their start and end dates. A holder is
+ * kept while in office, or for {@link #YEARS_AFTER_OFFICE} years after leaving it; open-ended terms
+ * that began more than {@link #STALE_TERM_YEARS} years ago are treated as unrecorded ends and left
+ * out.
  *
  * <p>The query service limits each query to a minute and each client to a few queries at once, so
  * the work is split into small queries that run {@link #PARALLEL_QUERIES} at a time: one query
  * lists the countries, one query per {@linkplain #EXTRA_CLASSES smaller class} finds its offices
- * everywhere, then each country gets one query for its other offices and queries for their holders,
- * and the people found are described in batches. A query that keeps failing is skipped and logged
- * rather than failing the whole list; a throttled one waits as long as the service asks. Every
- * entity is tagged {@link RiskTopic#PEP} with id {@code wd-<item id>}.
+ * everywhere and one finds the {@linkplain #REGIONAL_HEADS_QUERY regional heads}, then each country
+ * gets one query for its other offices and queries for their holders, and the people found are
+ * described in batches. A query that keeps failing is skipped and logged rather than failing the
+ * whole list; a throttled one waits as long as the service asks. Every entity is tagged {@link
+ * RiskTopic#PEP} with id {@code wd-<item id>}.
  *
  * @see <a href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">Wikidata Query
  *     Service</a>
@@ -107,6 +110,21 @@ public final class WikidataPepProvider extends AbstractListProvider {
         return Collections.unmodifiableMap(classes);
     }
 
+    /** The tier of the heads of a country's first-level regions. */
+    static final int REGIONAL_TIER = 2;
+
+    /**
+     * The offices held by the head of government ({@code P1313}) or head of state ({@code P1906})
+     * of each first-level region ({@code P150}) of a country: state governors, regional premiers
+     * and the like. Only an office whose own jurisdiction is that region counts, which leaves out
+     * the generic classes, such as "governor", that some regions name instead of an office of their
+     * own.
+     */
+    static final String REGIONAL_HEADS_QUERY =
+            "SELECT DISTINCT ?office ?country WHERE { ?country wdt:P31 wd:Q3624078 ."
+                    + " ?country wdt:P150 ?region . ?region wdt:P1313|wdt:P1906 ?office ."
+                    + " ?office wdt:P1001 ?region . }";
+
     static final String COUNTRIES_QUERY =
             "SELECT ?country ?iso WHERE { ?country wdt:P31 wd:Q3624078 ."
                     + " OPTIONAL { ?country wdt:P297 ?iso } }";
@@ -144,6 +162,9 @@ public final class WikidataPepProvider extends AbstractListProvider {
 
     /** An office in one country. */
     record Office(String id, String label, String country, int tier) {}
+
+    /** A query that finds offices in every country at once, and the tier its offices get. */
+    record OfficeQuery(String what, String sparql, int tier) {}
 
     /** One holder's term in an office. */
     record Term(Office office, LocalDate start, LocalDate end) {}
@@ -264,25 +285,40 @@ public final class WikidataPepProvider extends AbstractListProvider {
     }
 
     /**
-     * Finds the offices of the {@link #EXTRA_CLASSES} in every country, keyed by country item id. A
-     * class whose query fails is skipped and logged.
+     * The queries that find offices in every country at once: the extra classes and regional heads.
+     */
+    static List<OfficeQuery> officeQueries() {
+        List<OfficeQuery> queries = new ArrayList<>();
+        EXTRA_CLASSES.forEach(
+                (officeClass, tier) ->
+                        queries.add(
+                                new OfficeQuery(
+                                        "office class " + officeClass,
+                                        extraOfficesQuery(officeClass),
+                                        tier)));
+        queries.add(new OfficeQuery("regional heads", REGIONAL_HEADS_QUERY, REGIONAL_TIER));
+        return queries;
+    }
+
+    /**
+     * Finds the offices of the {@link #officeQueries()} in every country, keyed by country item id.
+     * A query that fails is skipped and logged.
      */
     private Map<String, Map<String, Office>> extraOffices(
             HttpClient client, ExecutorService pool, Map<String, String> countries)
             throws InterruptedException {
-        Map<String, Future<List<JsonNode>>> queries = new LinkedHashMap<>();
-        for (String officeClass : EXTRA_CLASSES.keySet()) {
-            queries.put(
-                    officeClass, pool.submit(() -> select(client, extraOfficesQuery(officeClass))));
+        Map<OfficeQuery, Future<List<JsonNode>>> queries = new LinkedHashMap<>();
+        for (OfficeQuery query : officeQueries()) {
+            queries.put(query, pool.submit(() -> select(client, query.sparql())));
         }
         Map<String, String> officeCountry = new LinkedHashMap<>();
         Map<String, Integer> officeTier = new LinkedHashMap<>();
-        for (Map.Entry<String, Future<List<JsonNode>>> query : queries.entrySet()) {
-            List<JsonNode> rows = await(query.getValue(), "office class " + query.getKey());
+        for (Map.Entry<OfficeQuery, Future<List<JsonNode>>> query : queries.entrySet()) {
+            List<JsonNode> rows = await(query.getValue(), query.getKey().what());
             if (rows == null) {
                 continue;
             }
-            int tier = EXTRA_CLASSES.get(query.getKey());
+            int tier = query.getKey().tier();
             for (JsonNode row : rows) {
                 String office = id(value(row, "office"));
                 String country = id(value(row, "country"));

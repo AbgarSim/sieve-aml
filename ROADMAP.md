@@ -50,7 +50,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
 
 - [ ] 1.10 Crime, wanted and debarment: World Bank and other development bank debarments, Interpol
   red notices, FBI and Europol most wanted, US SAM exclusions.
-- [ ] 1.11 PEPs from Wikidata: holders of national and regional positions (heads of state,
+- [x] 1.11 PEPs from Wikidata: holders of national and regional positions (heads of state,
   ministers, members of parliament, senior judges, central bankers, military leaders), with start
   and end dates and a PEP tier per position.
 - [ ] 1.12 Relatives and close associates from Wikidata family and associate links, tied to their
