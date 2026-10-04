@@ -18,6 +18,7 @@ import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.provenance.ProvenanceStamper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -163,6 +164,22 @@ class FtmRoundTripTest {
         assertThat(byId.get("x-5").identifiers())
                 .extracting(Identifier::type)
                 .containsExactly(IdentifierType.CRYPTO_ADDRESS);
+    }
+
+    @Test
+    void shouldCarryFirstAndLastSeenThroughTheFormat() throws IOException {
+        Instant seen = Instant.parse("2026-10-04T12:00:00Z");
+        SanctionedEntity stamped =
+                ProvenanceStamper.stamp(person(), java.util.Optional.empty(), null, seen);
+
+        String json = writer.writeToString(List.of(stamped));
+        JsonNode node = lines(json).getFirst();
+        SanctionedEntity back = read(json).getFirst();
+
+        assertThat(node.get("first_seen").asText()).isEqualTo("2026-10-04T12:00:00Z");
+        assertThat(node.get("last_seen").asText()).isEqualTo("2026-10-04T12:00:00Z");
+        assertThat(ProvenanceStamper.firstSeen(back)).contains(seen);
+        assertThat(back.provenance()).isNotEmpty();
     }
 
     private List<SanctionedEntity> read(String json) throws IOException {

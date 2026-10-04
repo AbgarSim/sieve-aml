@@ -10,6 +10,7 @@ import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
+import dev.sieve.core.provenance.ProvenanceStamper;
 import dev.sieve.ingest.IngestionReport;
 import dev.sieve.ingest.ProviderResult;
 import dev.sieve.server.dto.AddressDto;
@@ -17,6 +18,7 @@ import dev.sieve.server.dto.EntityDto;
 import dev.sieve.server.dto.EntityPageDto;
 import dev.sieve.server.dto.IndexStatsDto;
 import dev.sieve.server.dto.MatchResultDto;
+import dev.sieve.server.dto.ProvenanceDto;
 import dev.sieve.server.dto.ProviderResultDto;
 import dev.sieve.server.dto.RefreshResponseDto;
 import dev.sieve.server.dto.ScreeningRequestDto;
@@ -103,7 +105,20 @@ public class ScreeningMapper {
                 programs,
                 entity.topics().stream().map(RiskTopic::name).toList(),
                 entity.remarks(),
-                entity.lastUpdated());
+                entity.lastUpdated(),
+                ProvenanceStamper.firstSeen(entity).orElse(null),
+                ProvenanceStamper.lastSeen(entity).orElse(null),
+                entity.provenance().stream()
+                        .map(
+                                v ->
+                                        new ProvenanceDto(
+                                                v.kind().name(),
+                                                v.value(),
+                                                v.provenance().source().name(),
+                                                v.provenance().sourceUrl(),
+                                                v.provenance().firstSeen(),
+                                                v.provenance().lastSeen()))
+                        .toList());
     }
 
     private AddressDto toAddressDto(Address address) {

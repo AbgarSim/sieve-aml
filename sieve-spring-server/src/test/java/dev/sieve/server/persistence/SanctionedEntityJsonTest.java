@@ -13,8 +13,11 @@ import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.provenance.ProvenanceStamper;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +62,38 @@ class SanctionedEntityJsonTest {
     }
 
     @Test
+    void shouldRoundTripProvenance() throws Exception {
+        Instant seen = Instant.parse("2026-10-04T12:00:00Z");
+        SanctionedEntity entity =
+                ProvenanceStamper.stamp(
+                        new SanctionedEntity(
+                                "un-2",
+                                EntityType.INDIVIDUAL,
+                                ListSource.UN_CONSOLIDATED,
+                                name("ROE, Jane"),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                List.of(LocalDate.of(1960, 1, 1)),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Optional.empty(),
+                        "https://example.org/un.xml",
+                        seen);
+
+        SanctionedEntity read =
+                mapper.readValue(mapper.writeValueAsString(entity), SanctionedEntity.class);
+
+        assertThat(read).isEqualTo(entity);
+        assertThat(read.provenance()).hasSize(3);
+    }
+
+    @Test
     void shouldReadRowsWrittenBeforeTopicsExisted() throws Exception {
         String json =
                 "{\"id\":\"ofac-sdn-1\",\"entityType\":\"INDIVIDUAL\",\"listSource\":\"OFAC_SDN\","
@@ -68,6 +103,7 @@ class SanctionedEntityJsonTest {
 
         assertThat(read.topics()).isEmpty();
         assertThat(read.relations()).isEmpty();
+        assertThat(read.provenance()).isEmpty();
     }
 
     private static NameInfo name(String fullName) {
