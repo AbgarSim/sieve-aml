@@ -15,9 +15,12 @@ import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpClient;
@@ -35,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class WikidataPepProviderTest {
@@ -44,6 +48,7 @@ class WikidataPepProviderTest {
     private static final Clock CLOCK =
             Clock.fixed(Instant.parse("2026-10-03T00:00:00Z"), ZoneOffset.UTC);
     private static final String WD = "http://www.wikidata.org/entity/";
+    private static final String WDT = "http://www.wikidata.org/prop/direct/";
 
     private static final WikidataPepProvider.Office CHANCELLOR =
             new WikidataPepProvider.Office("Q4970706", "Federal Chancellor of Germany", "DE", 1);
@@ -117,9 +122,10 @@ class WikidataPepProviderTest {
                         CHANCELLOR, LocalDate.of(2005, 11, 22), LocalDate.of(2021, 12, 8)));
         person.terms.add(new WikidataPepProvider.Term(MDB, null, null));
 
-        SanctionedEntity entity = WikidataPepProvider.toEntity(person);
+        SanctionedEntity entity = WikidataPepProvider.toEntity(person, Map.of());
 
         assertThat(entity.id()).isEqualTo("wd-Q567");
+        assertThat(entity.relations()).isEmpty();
         assertThat(entity.entityType()).isEqualTo(EntityType.INDIVIDUAL);
         assertThat(entity.listSource()).isEqualTo(ListSource.WIKIDATA_PEP);
         assertThat(entity.topics()).containsExactly(RiskTopic.PEP);
@@ -148,7 +154,87 @@ class WikidataPepProviderTest {
         WikidataPepProvider.Person person = new WikidataPepProvider.Person("Q3");
         person.terms.add(new WikidataPepProvider.Term(MDB, null, null));
 
-        assertThat(WikidataPepProvider.toEntity(person)).isNull();
+        assertThat(WikidataPepProvider.toEntity(person, Map.of())).isNull();
+    }
+
+    @Test
+    void shouldLinkRelativesToTheirPepAndDropLinksToUnnamedOnes() {
+        WikidataPepProvider.Person merkel = new WikidataPepProvider.Person("Q567");
+        merkel.name = "Angela Merkel";
+        merkel.citizenships.add("DE");
+        merkel.terms.add(new WikidataPepProvider.Term(CHANCELLOR, null, null));
+        merkel.terms.add(new WikidataPepProvider.Term(MDB, null, null));
+        WikidataPepProvider.Person unnamed = new WikidataPepProvider.Person("Q999");
+        unnamed.terms.add(new WikidataPepProvider.Term(MDB, null, null));
+        Map<String, WikidataPepProvider.Person> people = Map.of("Q567", merkel, "Q999", unnamed);
+
+        WikidataPepProvider.Person spouse = new WikidataPepProvider.Person("Q800");
+        spouse.name = "Erika Mustermann";
+        spouse.kin.add(new WikidataPepProvider.Kin("Q567", RelationType.FAMILY, "spouse"));
+        spouse.kin.add(new WikidataPepProvider.Kin("Q999", RelationType.FAMILY, "child"));
+        WikidataPepProvider.Person orphan = new WikidataPepProvider.Person("Q801");
+        orphan.name = "Max Mustermann";
+        orphan.kin.add(new WikidataPepProvider.Kin("Q999", RelationType.FAMILY, "child"));
+
+        SanctionedEntity entity = WikidataPepProvider.toEntity(spouse, people);
+
+        assertThat(entity.id()).isEqualTo("wd-Q800");
+        assertThat(entity.topics()).containsExactly(RiskTopic.RCA);
+        assertThat(entity.relations())
+                .containsExactly(
+                        new Relation(RelationType.FAMILY, "wd-Q567", "spouse", null, null, null));
+        assertThat(entity.programs())
+                .extracting(p -> p.code(), p -> p.name())
+                .containsExactly(tuple("spouse of Angela Merkel", "RCA tier 1"));
+        assertThat(entity.nationalities()).containsExactly("DE");
+        assertThat(entity.remarks())
+                .isEqualTo(
+                        "Spouse of Angela Merkel (PEP tier 1, Q567)\n"
+                                + "Source: https://www.wikidata.org/wiki/Q800");
+        assertThat(WikidataPepProvider.toEntity(orphan, people)).isNull();
+    }
+
+    @Test
+    void shouldReadKinLinksInBothDirections() {
+        Map<String, WikidataPepProvider.Person> people = new LinkedHashMap<>();
+        people.put("Q567", new WikidataPepProvider.Person("Q567"));
+
+        WikidataPepProvider.addKin(people, kin("Q567", "P40", "Q1", false));
+        WikidataPepProvider.addKin(people, kin("Q567", "P40", "Q2", true));
+        WikidataPepProvider.addKin(people, kin("Q567", "P22", "Q2", false));
+        WikidataPepProvider.addKin(people, kin("Q567", "P22", "Q1", true));
+        WikidataPepProvider.addKin(people, kin("Q567", "P1327", "Q3", true));
+        WikidataPepProvider.addKin(people, kin("Q567", "P26", "Q567", false));
+        WikidataPepProvider.addKin(people, kin("Q567", "P9999", "Q4", false));
+
+        assertThat(people).containsOnlyKeys("Q567", "Q1", "Q2", "Q3");
+        assertThat(people.get("Q567").kin).isEmpty();
+        assertThat(people.get("Q1").kin)
+                .containsExactly(new WikidataPepProvider.Kin("Q567", RelationType.FAMILY, "child"));
+        assertThat(people.get("Q2").kin)
+                .containsExactly(
+                        new WikidataPepProvider.Kin("Q567", RelationType.FAMILY, "parent"));
+        assertThat(people.get("Q3").kin)
+                .containsExactly(
+                        new WikidataPepProvider.Kin(
+                                "Q567", RelationType.ASSOCIATE, "business partner"));
+    }
+
+    @Test
+    void shouldAskForLivingRelativesOfPepsInBothDirections() {
+        String query = WikidataPepProvider.kinQuery(List.of("Q567", "Q600"));
+
+        assertThat(query)
+                // the optimizer hint must come first, so the query starts from the PEPs
+                .startsWith(
+                        "SELECT ?pep ?prop ?kin ?reverse WHERE { hint:Query hint:optimizer \"None\" ."
+                                + " VALUES ?pep { wd:Q567 wd:Q600 }")
+                .contains(
+                        "VALUES ?prop { wdt:P26 wdt:P451 wdt:P40 wdt:P22 wdt:P25 wdt:P3373"
+                                + " wdt:P1038 wdt:P1327 }")
+                .contains("{ ?pep ?prop ?kin . BIND(false AS ?reverse) }")
+                .contains("UNION { ?kin ?prop ?pep . BIND(true AS ?reverse) }")
+                .contains("?kin wdt:P31 wd:Q5 . FILTER NOT EXISTS { ?kin wdt:P570 ?died }");
     }
 
     @Test
@@ -187,6 +273,8 @@ class WikidataPepProviderTest {
     void shouldQueryEachCountryAndSkipQueriesThatFail() throws Exception {
         HttpClient client = mock(HttpClient.class);
         AtomicBoolean throttled = new AtomicBoolean();
+        AtomicBoolean dropped = new AtomicBoolean();
+        AtomicInteger holdersFailures = new AtomicInteger();
         when(client.send(any(), any(HttpResponse.BodyHandler.class)))
                 .thenAnswer(
                         invocation -> {
@@ -230,8 +318,12 @@ class WikidataPepProviderTest {
                             if (query.startsWith("SELECT DISTINCT ?office ?country")) {
                                 return response(200, bindings());
                             }
+                            // the labels query loses its connection once, then is answered
                             if (query.startsWith("SELECT ?office ?label")) {
                                 assertThat(query).contains("VALUES ?office { wd:Q1200 wd:Q1400 }");
+                                if (dropped.compareAndSet(false, true)) {
+                                    throw new IOException("Received RST_STREAM: Stream cancelled");
+                                }
                                 return response(
                                         200,
                                         bindings(
@@ -263,10 +355,18 @@ class WikidataPepProviderTest {
                             if (query.contains("?office wdt:P1001 wd:Q30")) {
                                 return response(400, "bad query".getBytes());
                             }
+                            // Germany's holders time out three times, so the country is tried
+                            // again, in smaller batches that here hold the same three offices
                             if (query.contains("?person p:P39 ?held")) {
                                 assertThat(query)
                                         .contains(
                                                 "VALUES ?office { wd:Q1200 wd:Q1400 wd:Q4970706 }");
+                                if (holdersFailures.incrementAndGet() <= 3) {
+                                    return response(
+                                            504,
+                                            "timed out".getBytes(),
+                                            Map.of("Retry-After", "0"));
+                                }
                                 return response(
                                         200,
                                         bindings(
@@ -288,7 +388,37 @@ class WikidataPepProviderTest {
                                                         "office", WD + "Q1400",
                                                         "start", "2018-03-16T00:00:00Z")));
                             }
-                            if (query.contains("VALUES ?person { wd:Q567 wd:Q600 wd:Q700 }")) {
+                            // relatives: Merkel's spouse, Nagel's child (stated from the child's
+                            // side), Söder's business partner Merkel, and a self link to ignore
+                            if (query.contains("VALUES ?prop {")) {
+                                assertThat(query)
+                                        .contains("VALUES ?pep { wd:Q567 wd:Q600 wd:Q700 }");
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "pep", WD + "Q567",
+                                                        "prop", WDT + "P26",
+                                                        "kin", WD + "Q800",
+                                                        "reverse", "false"),
+                                                Map.of(
+                                                        "pep", WD + "Q600",
+                                                        "prop", WDT + "P22",
+                                                        "kin", WD + "Q900",
+                                                        "reverse", "true"),
+                                                Map.of(
+                                                        "pep", WD + "Q700",
+                                                        "prop", WDT + "P1327",
+                                                        "kin", WD + "Q567",
+                                                        "reverse", "false"),
+                                                Map.of(
+                                                        "pep", WD + "Q567",
+                                                        "prop", WDT + "P26",
+                                                        "kin", WD + "Q567",
+                                                        "reverse", "true")));
+                            }
+                            if (query.contains(
+                                    "VALUES ?person { wd:Q567 wd:Q600 wd:Q700 wd:Q800 wd:Q900 }")) {
                                 return response(
                                         200,
                                         bindings(
@@ -305,7 +435,17 @@ class WikidataPepProviderTest {
                                                         "person",
                                                         WD + "Q700",
                                                         "name",
-                                                        "Markus Söder")));
+                                                        "Markus Söder"),
+                                                Map.of(
+                                                        "person",
+                                                        WD + "Q800",
+                                                        "name",
+                                                        "Erika Mustermann"),
+                                                Map.of(
+                                                        "person",
+                                                        WD + "Q900",
+                                                        "name",
+                                                        "Max Mustermann")));
                             }
                             throw new AssertionError("unexpected query: " + query);
                         });
@@ -316,7 +456,31 @@ class WikidataPepProviderTest {
 
         assertThat(result)
                 .extracting(SanctionedEntity::id)
-                .containsExactly("wd-Q567", "wd-Q600", "wd-Q700");
+                .containsExactly("wd-Q567", "wd-Q600", "wd-Q700", "wd-Q800", "wd-Q900");
+        assertThat(result.get(0).topics()).containsExactlyInAnyOrder(RiskTopic.PEP, RiskTopic.RCA);
+        assertThat(result.get(0).relations())
+                .containsExactly(
+                        new Relation(
+                                RelationType.ASSOCIATE,
+                                "wd-Q700",
+                                "business partner",
+                                null,
+                                null,
+                                null));
+        assertThat(result.get(0).programs())
+                .extracting(p -> p.code(), p -> p.name())
+                .containsExactly(
+                        tuple("Federal Chancellor of Germany", "PEP tier 1"),
+                        tuple("business partner of Markus Söder", "RCA tier 2"));
+        assertThat(result.get(3).topics()).containsExactly(RiskTopic.RCA);
+        assertThat(result.get(3).relations())
+                .containsExactly(
+                        new Relation(RelationType.FAMILY, "wd-Q567", "spouse", null, null, null));
+        assertThat(result.get(3).nationalities()).containsExactly("DE");
+        assertThat(result.get(4).relations())
+                .containsExactly(
+                        new Relation(RelationType.FAMILY, "wd-Q600", "child", null, null, null));
+        assertThat(result.get(4).nationalities()).containsExactly("DE");
         assertThat(result.get(1).programs())
                 .singleElement()
                 .satisfies(
@@ -329,9 +493,10 @@ class WikidataPepProviderTest {
                 .extracting(p -> p.code(), p -> p.name())
                 .containsExactly(tuple("Minister-President of Bavaria", "PEP tier 2"));
         assertThat(result.get(2).nationalities()).containsExactly("DE");
-        // countries (twice), seven extra classes, regional heads, labels, two countries' offices,
-        // Germany's holders, the people, and the request whose response is parsed
-        verify(client, times(16)).send(any(), any(HttpResponse.BodyHandler.class));
+        // countries (twice), seven extra classes, regional heads, labels (twice), Germany's offices
+        // (twice) and holders (three timeouts, then the second try's answer), the United States'
+        // offices (twice), the relatives, the people, and the request whose response is parsed
+        verify(client, times(23)).send(any(), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
@@ -401,6 +566,15 @@ class WikidataPepProviderTest {
         String form = body.toString(StandardCharsets.UTF_8);
         assertThat(form).startsWith("query=");
         return URLDecoder.decode(form.substring("query=".length()), StandardCharsets.UTF_8);
+    }
+
+    private static JsonNode kin(String pep, String property, String kin, boolean reverse) {
+        return row(
+                Map.of(
+                        "pep", WD + pep,
+                        "prop", WDT + property,
+                        "kin", WD + kin,
+                        "reverse", String.valueOf(reverse)));
     }
 
     private static JsonNode holder(String person, String office, String start, String end) {

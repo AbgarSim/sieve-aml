@@ -53,7 +53,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
 - [x] 1.11 PEPs from Wikidata: holders of national and regional positions (heads of state,
   ministers, members of parliament, senior judges, central bankers, military leaders), with start
   and end dates and a PEP tier per position.
-- [ ] 1.12 Relatives and close associates from Wikidata family and associate links, tied to their
+- [x] 1.12 Relatives and close associates from Wikidata family and associate links, tied to their
   PEP.
 - [ ] 1.13 National PEP lists: the lists of prominent public functions that EU member states publish
   under AMLD5, used to decide which positions count.
