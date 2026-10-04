@@ -20,7 +20,7 @@ export function Composition() {
         <div className="card-h"><h3>Entities by source</h3><span className="small muted num">{fmt(D.totalEntities)} total</span></div>
         <div className="card-b">
           {srt.map(s => <HBar key={s.id} label={<><Flag cc={s.cc} />{s.name}</>} pct={(s.entities / smax) * 100} value={s.entities ? fmt(s.entities) : <span className="muted">{s.status === 'needs-key' ? 'key' : '—'}</span>} />)}
-          {counted.map(s => <p key={s.id} className="small muted" style={{ marginTop: 12 }}><Flag cc={s.cc} /> {s.name}: <span className="num">{fmt(s.entities)}</span> {s.topics.map(([k]) => topicNoun(k)).join(' and ') || 'records'}, counted but not published.</p>)}
+          {counted.map(s => <p key={s.id} className="small muted" style={{ marginTop: 12 }}><Flag cc={s.cc} /> {s.name}: {s.topics.length ? s.topics.map(([k, n], i) => <span key={k}>{i > 0 && ' and '}<span className="num">{fmt(n)}</span> {topicNoun(k)}</span>) : <><span className="num">{fmt(s.entities)}</span> records</>}, counted but not published.</p>)}
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 16, alignContent: 'start', minWidth: 0 }}>
