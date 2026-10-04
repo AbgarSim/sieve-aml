@@ -240,6 +240,32 @@ class SimilarityDeduplicatorTest {
     }
 
     @Test
+    void shouldNotTreatAValueSharedByManyEntitiesAsAnIdentifier() {
+        // Some lists store a gender flag as an identifier; shared by every man on them, it must not
+        // vouch for two different men with vaguely similar names ("ali hassan" vs "ali hussein"
+        // score about 0.84, enough with an identifier, not without)
+        Identifier male = new Identifier(IdentifierType.OTHER, "Male", null, null);
+        List<SanctionedEntity> entities = new ArrayList<>();
+        entities.add(entityWithPassport("ofac-1", "Ali Hassan", ListSource.OFAC_SDN, male));
+        entities.add(entityWithPassport("eu-1", "Ali Hussein", ListSource.EU_CONSOLIDATED, male));
+        String[] given = {"Anna", "Boris", "Carla", "Dmitri", "Elena", "Farid", "Greta"};
+        String[] family = {
+            "Holt", "Ivarsen", "Jurek", "Kowal", "Lindqvist", "Marchetti", "Nowak", "Oyelaran"
+        };
+        for (int i = 0; i < SimilarityDeduplicator.MAX_IDENTIFIER_HOLDERS; i++) {
+            ListSource source = i % 2 == 0 ? ListSource.OFAC_SDN : ListSource.EU_CONSOLIDATED;
+            String name = given[i % given.length] + " " + family[i / given.length];
+            entities.add(entityWithPassport(source + "-" + i, name, source, male));
+        }
+
+        DeduplicationResult result = deduplicator.deduplicate(entities);
+
+        assertThat(result.entityToCanonicalId().get("ofac-1"))
+                .isNotEqualTo(result.entityToCanonicalId().get("eu-1"));
+        assertThat(result.totalCanonicalEntities()).isEqualTo(entities.size());
+    }
+
+    @Test
     void shouldNotMatchOnNamesWithoutLetters() {
         // A stray row number parsed as a name is the same "18" on every list
         SanctionedEntity ofac = unstructured("ofac-1", "18", ListSource.OFAC_SDN);
