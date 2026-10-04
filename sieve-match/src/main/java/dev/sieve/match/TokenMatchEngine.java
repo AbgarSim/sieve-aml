@@ -80,7 +80,7 @@ public final class TokenMatchEngine implements MatchEngine {
 
         for (SanctionedEntity entity : candidates) {
             if (request.entityType().isPresent()
-                    && request.entityType().get() != entity.entityType()) {
+                    && !request.entityType().get().isCompatibleWith(entity.entityType())) {
                 continue;
             }
 

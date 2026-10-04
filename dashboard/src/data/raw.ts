@@ -1,7 +1,7 @@
 // Shapes of the files written by `sieve snapshot` (see SnapshotWriter in sieve-cli).
 // Empty collections and nulls are omitted from the JSON, so most fields are optional.
 
-export type RawType = 'INDIVIDUAL' | 'ENTITY' | 'VESSEL' | 'AIRCRAFT';
+export type RawType = 'INDIVIDUAL' | 'ENTITY' | 'VESSEL' | 'AIRCRAFT' | 'COMPANY' | 'ORGANIZATION' | 'CRYPTO_WALLET' | 'SECURITY';
 export type RawStatus = 'LOADED' | 'EMPTY' | 'FAILED' | 'NEEDS_KEY' | 'SKIPPED';
 
 interface Header { formatVersion: number; generatedAt: string }
@@ -53,7 +53,7 @@ export interface RawCountries extends Header {
 export interface RawHistoryRow { date: string; totalEntities: number; totalNames: number; countries: number; bySource?: Record<string, number> }
 
 /** One search index entry: key, name, aliases, type code, source, countries, programs, shard. */
-export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A'; s: string; c?: string[]; p?: string[]; f: number }
+export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; f: number }
 export interface RawIndex extends Header { shardSize: number; entries?: RawIndexEntry[] }
 
 export interface RawName { fullName: string; nameType: string; strength?: string; script?: string }

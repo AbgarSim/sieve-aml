@@ -439,6 +439,10 @@ public final class SnapshotWriter {
             case ENTITY -> "E";
             case VESSEL -> "V";
             case AIRCRAFT -> "A";
+            case COMPANY -> "C";
+            case ORGANIZATION -> "O";
+            case CRYPTO_WALLET -> "W";
+            case SECURITY -> "S";
         };
     }
 }
