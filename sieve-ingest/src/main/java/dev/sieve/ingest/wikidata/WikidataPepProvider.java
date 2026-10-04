@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,18 +39,19 @@ import java.util.stream.Collectors;
  * national public office.
  *
  * <p>Offices are the positions whose jurisdiction ({@code P1001}) is a sovereign state and that are
- * a kind of head of state, head of government, minister, member of parliament or judge. Holders
- * come from "position held" ({@code P39}) statements with their start and end dates. A holder is
- * kept while in office, or for {@link #YEARS_AFTER_OFFICE} years after leaving it; open-ended terms
- * that began more than {@link #STALE_TERM_YEARS} years ago are treated as unrecorded ends and left
- * out. Heads of state and government and ministers are tier 1; members of parliament and judges
- * tier 2.
+ * a kind of head of state, head of government, minister, central bank governor, chief of defence or
+ * commander-in-chief (tier 1), or of member of parliament, judge, deputy minister, ambassador,
+ * attorney general or party leader (tier 2). Holders come from "position held" ({@code P39})
+ * statements with their start and end dates. A holder is kept while in office, or for {@link
+ * #YEARS_AFTER_OFFICE} years after leaving it; open-ended terms that began more than {@link
+ * #STALE_TERM_YEARS} years ago are treated as unrecorded ends and left out.
  *
  * <p>The query service limits each query to a minute, so the work is split: one query lists the
- * countries, then each country gets one query for its offices and one for their holders, and the
- * people found are described in batches. A country whose queries keep failing is skipped and logged
- * rather than failing the whole list. Every entity is tagged {@link RiskTopic#PEP} with id {@code
- * wd-<item id>}.
+ * countries, one query per {@linkplain #EXTRA_CLASSES smaller class} finds its offices everywhere,
+ * then each country gets one query for its other offices and queries for their holders, and the
+ * people found are described in batches. A query that keeps failing is skipped and logged rather
+ * than failing the whole list. Every entity is tagged {@link RiskTopic#PEP} with id {@code wd-<item
+ * id>}.
  *
  * @see <a href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">Wikidata Query
  *     Service</a>
@@ -63,6 +65,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
     static final int YEARS_AFTER_OFFICE = 5;
     static final int STALE_TERM_YEARS = 40;
     static final int PERSON_BATCH = 400;
+    static final int OFFICE_BATCH = 300;
     private static final int ATTEMPTS = 3;
 
     /** Office classes and the PEP tier their holders get. */
@@ -73,6 +76,24 @@ public final class WikidataPepProvider extends AbstractListProvider {
                     "Q83307", 1, // minister
                     "Q486839", 2, // member of parliament
                     "Q16533", 2); // judge
+
+    /**
+     * Smaller office classes and their tiers, in query order. Each is looked up once for every
+     * country, which is much faster than adding them to the per-country query.
+     */
+    static final Map<String, Integer> EXTRA_CLASSES = extraClasses();
+
+    private static Map<String, Integer> extraClasses() {
+        Map<String, Integer> classes = new LinkedHashMap<>();
+        classes.put("Q107363151", 1); // central bank governor
+        classes.put("Q5097014", 1); // chief of defence
+        classes.put("Q380782", 1); // commander-in-chief
+        classes.put("Q26204040", 2); // deputy minister
+        classes.put("Q121998", 2); // ambassador
+        classes.put("Q1501926", 2); // attorney general
+        classes.put("Q1553195", 2); // party leader
+        return Collections.unmodifiableMap(classes);
+    }
 
     static final String COUNTRIES_QUERY =
             "SELECT ?country ?iso WHERE { ?country wdt:P31 wd:Q3624078 ."
@@ -144,13 +165,22 @@ public final class WikidataPepProvider extends AbstractListProvider {
             throw new IOException("Wikidata returned no countries");
         }
 
+        Map<String, Map<String, Office>> extras = extraOffices(client, countries);
+
         Map<String, Person> found = new LinkedHashMap<>();
         for (Map.Entry<String, String> country : countries.entrySet()) {
             try {
-                List<Office> offices = offices(client, country.getKey(), country.getValue());
-                if (!offices.isEmpty()) {
-                    for (JsonNode row : select(client, holdersQuery(offices, today))) {
-                        addTerm(found, row, offices, today);
+                Map<String, Office> byId = new LinkedHashMap<>();
+                extras.getOrDefault(country.getKey(), Map.of())
+                        .values()
+                        .forEach(o -> keep(byId, o));
+                offices(client, country.getKey(), country.getValue()).forEach(o -> keep(byId, o));
+                List<Office> offices = new ArrayList<>(byId.values());
+                for (int i = 0; i < offices.size(); i += OFFICE_BATCH) {
+                    List<Office> batch =
+                            offices.subList(i, Math.min(i + OFFICE_BATCH, offices.size()));
+                    for (JsonNode row : select(client, holdersQuery(batch, today))) {
+                        addTerm(found, row, batch, today);
                     }
                 }
             } catch (IOException e) {
@@ -174,6 +204,82 @@ public final class WikidataPepProvider extends AbstractListProvider {
         }
         people = found;
         return post(builder, COUNTRIES_QUERY);
+    }
+
+    /** Keeps an office, or its higher tier when it is already known. */
+    static void keep(Map<String, Office> offices, Office office) {
+        Office existing = offices.get(office.id());
+        if (existing == null || office.tier() < existing.tier()) {
+            offices.put(office.id(), office);
+        }
+    }
+
+    /**
+     * Finds the offices of the {@link #EXTRA_CLASSES} in every country, keyed by country item id. A
+     * class whose query fails is skipped and logged.
+     */
+    private Map<String, Map<String, Office>> extraOffices(
+            HttpClient client, Map<String, String> countries)
+            throws IOException, InterruptedException {
+        Map<String, String> officeCountry = new LinkedHashMap<>();
+        Map<String, Integer> officeTier = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> officeClass : EXTRA_CLASSES.entrySet()) {
+            try {
+                for (JsonNode row : select(client, extraOfficesQuery(officeClass.getKey()))) {
+                    String office = id(value(row, "office"));
+                    String country = id(value(row, "country"));
+                    if (office != null && countries.containsKey(country)) {
+                        officeCountry.putIfAbsent(office, country);
+                        officeTier.merge(office, officeClass.getValue(), Math::min);
+                    }
+                }
+            } catch (IOException e) {
+                log.warn(
+                        "Wikidata PEPs: skipped an office class [class={}, error={}]",
+                        officeClass.getKey(),
+                        e.getMessage());
+            }
+        }
+
+        Map<String, String> labels = new LinkedHashMap<>();
+        List<String> ids = new ArrayList<>(officeCountry.keySet());
+        for (int i = 0; i < ids.size(); i += PERSON_BATCH) {
+            List<String> batch = ids.subList(i, Math.min(i + PERSON_BATCH, ids.size()));
+            try {
+                for (JsonNode row : select(client, labelsQuery(batch))) {
+                    labels.putIfAbsent(id(value(row, "office")), value(row, "label"));
+                }
+            } catch (IOException e) {
+                log.warn("Wikidata PEPs: skipped office labels [error={}]", e.getMessage());
+            }
+        }
+
+        Map<String, Map<String, Office>> offices = new LinkedHashMap<>();
+        officeCountry.forEach(
+                (office, country) ->
+                        offices.computeIfAbsent(country, c -> new LinkedHashMap<>())
+                                .put(
+                                        office,
+                                        new Office(
+                                                office,
+                                                labels.getOrDefault(office, office),
+                                                countries.get(country),
+                                                officeTier.get(office))));
+        return offices;
+    }
+
+    static String extraOfficesQuery(String officeClass) {
+        return "SELECT DISTINCT ?office ?country WHERE { ?office wdt:P279* wd:"
+                + officeClass
+                + " . ?office wdt:P1001 ?country . hint:Prior hint:runLast true ."
+                + " ?country wdt:P31 wd:Q3624078 . }";
+    }
+
+    static String labelsQuery(List<String> offices) {
+        String values = offices.stream().map(o -> "wd:" + o).collect(Collectors.joining(" "));
+        return "SELECT ?office ?label WHERE { VALUES ?office { "
+                + values
+                + " } ?office rdfs:label ?label FILTER(LANG(?label) = \"en\") }";
     }
 
     private List<Office> offices(HttpClient client, String countryId, String iso)

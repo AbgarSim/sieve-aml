@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,6 +146,26 @@ class WikidataPepProviderTest {
     }
 
     @Test
+    void shouldRankCentralBankersAndMilitaryChiefsAsTierOne() {
+        assertThat(WikidataPepProvider.EXTRA_CLASSES)
+                .containsEntry("Q107363151", 1)
+                .containsEntry("Q5097014", 1)
+                .containsEntry("Q121998", 2)
+                .containsEntry("Q26204040", 2);
+    }
+
+    @Test
+    void shouldKeepTheHigherTierWhenAnOfficeIsFoundTwice() {
+        Map<String, WikidataPepProvider.Office> offices = new LinkedHashMap<>();
+        WikidataPepProvider.keep(offices, MDB);
+        WikidataPepProvider.keep(
+                offices, new WikidataPepProvider.Office("Q1939555", "member", "DE", 1));
+        WikidataPepProvider.keep(offices, MDB);
+
+        assertThat(offices.get("Q1939555").tier()).isEqualTo(1);
+    }
+
+    @Test
     void shouldReadDatesAndIdsLeniently() {
         assertThat(WikidataPepProvider.date("1954-07-17T00:00:00Z"))
                 .isEqualTo(LocalDate.of(1954, 7, 17));
@@ -155,16 +178,38 @@ class WikidataPepProviderTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void shouldQueryEachCountryAndSkipOneThatFails() throws Exception {
+    void shouldQueryEachCountryAndSkipQueriesThatFail() throws Exception {
         HttpClient client = mock(HttpClient.class);
-        HttpResponse<byte[]> countries =
+        List<HttpResponse<byte[]>> responses = new ArrayList<>();
+        responses.add(
                 response(
                         200,
                         bindings(
                                 Map.of("country", WD + "Q183", "iso", "DE"),
                                 Map.of("country", WD + "Q30", "iso", "US"),
-                                Map.of("country", WD + "Q99999")));
-        HttpResponse<byte[]> germanOffices =
+                                Map.of("country", WD + "Q99999"))));
+        // central bank governors everywhere; chiefs of defence fail and are skipped
+        responses.add(
+                response(
+                        200,
+                        bindings(
+                                Map.of("office", WD + "Q1200", "country", WD + "Q183"),
+                                Map.of("office", WD + "Q1300", "country", WD + "Q99999"))));
+        responses.add(response(400, "timeout".getBytes()));
+        for (int i = 2; i < WikidataPepProvider.EXTRA_CLASSES.size(); i++) {
+            responses.add(response(200, bindings()));
+        }
+        responses.add(
+                response(
+                        200,
+                        bindings(
+                                Map.of(
+                                        "office",
+                                        WD + "Q1200",
+                                        "label",
+                                        "President of the Deutsche Bundesbank"))));
+        // Germany: its other offices, then their holders
+        responses.add(
                 response(
                         200,
                         bindings(
@@ -175,8 +220,8 @@ class WikidataPepProviderTest {
                                 Map.of(
                                         "office", WD + "Q4970706",
                                         "class", WD + "Q2285706",
-                                        "label", "Federal Chancellor of Germany")));
-        HttpResponse<byte[]> germanHolders =
+                                        "label", "Federal Chancellor of Germany"))));
+        responses.add(
                 response(
                         200,
                         bindings(
@@ -188,28 +233,42 @@ class WikidataPepProviderTest {
                                         "start",
                                         "2005-11-22T00:00:00Z",
                                         "end",
-                                        "2021-12-08T00:00:00Z")));
-        HttpResponse<byte[]> usOffices = response(400, "bad query".getBytes());
-        HttpResponse<byte[]> people =
+                                        "2021-12-08T00:00:00Z"),
+                                Map.of(
+                                        "person", WD + "Q600",
+                                        "office", WD + "Q1200",
+                                        "start", "2022-01-01T00:00:00Z"))));
+        // the United States fails and is skipped
+        responses.add(response(400, "bad query".getBytes()));
+        responses.add(
                 response(
                         200,
                         bindings(
                                 Map.of(
                                         "person", WD + "Q567",
                                         "name", "Angela Merkel",
-                                        "citizenship", "DE")));
-        HttpResponse<byte[]> last = response(200, "{}".getBytes());
+                                        "citizenship", "DE"),
+                                Map.of("person", WD + "Q600", "name", "Joachim Nagel"))));
+        responses.add(response(200, "{}".getBytes()));
         when(client.send(any(), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(countries, germanOffices, germanHolders, usOffices, people, last);
+                .thenReturn(
+                        responses.get(0),
+                        responses.subList(1, responses.size()).toArray(HttpResponse[]::new));
 
         List<SanctionedEntity> result =
                 new WikidataPepProvider(URI.create("https://query.example/sparql"), client, CLOCK)
                         .fetch();
 
-        assertThat(result).extracting(SanctionedEntity::id).containsExactly("wd-Q567");
-        assertThat(result.get(0).programs())
+        assertThat(result).extracting(SanctionedEntity::id).containsExactly("wd-Q567", "wd-Q600");
+        assertThat(result.get(1).programs())
                 .singleElement()
-                .satisfies(p -> assertThat(p.name()).isEqualTo("PEP tier 1"));
+                .satisfies(
+                        p -> {
+                            assertThat(p.code()).isEqualTo("President of the Deutsche Bundesbank");
+                            assertThat(p.name()).isEqualTo("PEP tier 1");
+                        });
+        assertThat(result.get(1).nationalities()).containsExactly("DE");
+        verify(client, times(responses.size())).send(any(), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
