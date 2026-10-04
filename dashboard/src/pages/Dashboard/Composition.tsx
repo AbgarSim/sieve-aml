@@ -2,15 +2,17 @@ import { HBar } from '../../components/HBar';
 import { Flag } from '../../components/Flag';
 import { Badge } from '../../components/Badges';
 import { Icon, TYPE_ICON } from '../../lib/icons';
-import { SIEVE, TYPE_LABEL, TYPES, type EntityType } from '../../data/snapshot';
+import { SIEVE, TYPE_LABEL, TYPES, topicLabel, topicNoun, type EntityType } from '../../data/snapshot';
 import { fmt } from '../../lib/format';
 
 export const TCOL: Record<EntityType, string> = { individual: 'var(--map-1)', entity: 'var(--accent)', vessel: 'var(--amber)', aircraft: 'var(--red)' };
 
 export function Composition() {
   const D = SIEVE;
-  const srt = [...D.sources].sort((a, b) => b.entities - a.entities), smax = srt[0]?.entities || 1;
+  const srt = D.sources.filter(s => !s.countsOnly).sort((a, b) => b.entities - a.entities), smax = srt[0]?.entities || 1;
+  const counted = D.sources.filter(s => s.countsOnly);
   const tot = D.byType, tsum = TYPES.reduce((a, t) => a + tot[t], 0) || 1;
+  const topics = D.byTopic, tmax = topics[0]?.[1] || 1;
   const progs = D.programs.slice(0, 8);
   return (
     <div className="grid g2-1">
@@ -18,6 +20,7 @@ export function Composition() {
         <div className="card-h"><h3>Entities by source</h3><span className="small muted num">{fmt(D.totalEntities)} total</span></div>
         <div className="card-b">
           {srt.map(s => <HBar key={s.id} label={<><Flag cc={s.cc} />{s.name}</>} pct={(s.entities / smax) * 100} value={s.entities ? fmt(s.entities) : <span className="muted">{s.status === 'needs-key' ? 'key' : '—'}</span>} />)}
+          {counted.map(s => <p key={s.id} className="small muted" style={{ marginTop: 12 }}><Flag cc={s.cc} /> {s.name}: <span className="num">{fmt(s.entities)}</span> {s.topics.map(([k]) => topicNoun(k)).join(' and ') || 'records'}, counted but not published.</p>)}
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 16, alignContent: 'start', minWidth: 0 }}>
@@ -33,6 +36,13 @@ export function Composition() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-h"><h3>Risk topics</h3><span className="small muted">entities per topic, all lists</span></div>
+          <div className="card-b">
+            {topics.map(([k, n]) => <HBar key={k} label={topicLabel(k)} pct={(n / tmax) * 100} value={fmt(n)} />)}
+            {!topics.length && <span className="muted small">No topic data in this snapshot.</span>}
           </div>
         </div>
         <div className="card">

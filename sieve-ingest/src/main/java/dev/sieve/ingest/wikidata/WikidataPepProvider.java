@@ -24,14 +24,20 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 /**
@@ -46,12 +52,13 @@ import java.util.stream.Collectors;
  * #YEARS_AFTER_OFFICE} years after leaving it; open-ended terms that began more than {@link
  * #STALE_TERM_YEARS} years ago are treated as unrecorded ends and left out.
  *
- * <p>The query service limits each query to a minute, so the work is split: one query lists the
- * countries, one query per {@linkplain #EXTRA_CLASSES smaller class} finds its offices everywhere,
- * then each country gets one query for its other offices and queries for their holders, and the
- * people found are described in batches. A query that keeps failing is skipped and logged rather
- * than failing the whole list. Every entity is tagged {@link RiskTopic#PEP} with id {@code wd-<item
- * id>}.
+ * <p>The query service limits each query to a minute and each client to a few queries at once, so
+ * the work is split into small queries that run {@link #PARALLEL_QUERIES} at a time: one query
+ * lists the countries, one query per {@linkplain #EXTRA_CLASSES smaller class} finds its offices
+ * everywhere, then each country gets one query for its other offices and queries for their holders,
+ * and the people found are described in batches. A query that keeps failing is skipped and logged
+ * rather than failing the whole list; a throttled one waits as long as the service asks. Every
+ * entity is tagged {@link RiskTopic#PEP} with id {@code wd-<item id>}.
  *
  * @see <a href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">Wikidata Query
  *     Service</a>
@@ -66,7 +73,12 @@ public final class WikidataPepProvider extends AbstractListProvider {
     static final int STALE_TERM_YEARS = 40;
     static final int PERSON_BATCH = 400;
     static final int OFFICE_BATCH = 300;
+
+    /** Queries in flight at once; the query service allows a client five. */
+    static final int PARALLEL_QUERIES = 4;
+
     private static final int ATTEMPTS = 3;
+    private static final int THROTTLE_WAITS = 10;
 
     /** Office classes and the PEP tier their holders get. */
     static final Map<String, Integer> OFFICE_CLASSES =
@@ -154,6 +166,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
     protected HttpRequest buildRequest(HttpClient client, HttpRequest.Builder builder)
             throws IOException, InterruptedException {
         LocalDate today = LocalDate.now(clock);
+        Instant started = Instant.now();
         Map<String, String> countries = new LinkedHashMap<>();
         for (JsonNode row : select(client, COUNTRIES_QUERY)) {
             String iso = value(row, "iso");
@@ -165,45 +178,81 @@ public final class WikidataPepProvider extends AbstractListProvider {
             throw new IOException("Wikidata returned no countries");
         }
 
-        Map<String, Map<String, Office>> extras = extraOffices(client, countries);
-
         Map<String, Person> found = new LinkedHashMap<>();
-        for (Map.Entry<String, String> country : countries.entrySet()) {
-            try {
-                Map<String, Office> byId = new LinkedHashMap<>();
-                extras.getOrDefault(country.getKey(), Map.of())
-                        .values()
-                        .forEach(o -> keep(byId, o));
-                offices(client, country.getKey(), country.getValue()).forEach(o -> keep(byId, o));
-                List<Office> offices = new ArrayList<>(byId.values());
-                for (int i = 0; i < offices.size(); i += OFFICE_BATCH) {
-                    List<Office> batch =
-                            offices.subList(i, Math.min(i + OFFICE_BATCH, offices.size()));
-                    for (JsonNode row : select(client, holdersQuery(batch, today))) {
-                        addTerm(found, row, batch, today);
-                    }
-                }
-            } catch (IOException e) {
-                log.warn(
-                        "Wikidata PEPs: skipped country [country={}, error={}]",
-                        country.getValue(),
-                        e.getMessage());
-            }
-        }
+        ExecutorService pool = Executors.newFixedThreadPool(PARALLEL_QUERIES);
+        try {
+            Map<String, Map<String, Office>> extras = extraOffices(client, pool, countries);
 
-        List<String> ids = new ArrayList<>(found.keySet());
-        for (int i = 0; i < ids.size(); i += PERSON_BATCH) {
-            List<String> batch = ids.subList(i, Math.min(i + PERSON_BATCH, ids.size()));
-            try {
-                for (JsonNode row : select(client, peopleQuery(batch))) {
-                    describe(found, row);
+            Deque<String> isos = new ArrayDeque<>(countries.values());
+            Deque<Future<Map<String, List<Term>>>> pending = new ArrayDeque<>();
+            countries.forEach(
+                    (countryId, iso) ->
+                            pending.add(
+                                    pool.submit(
+                                            () ->
+                                                    holders(
+                                                            client,
+                                                            countryId,
+                                                            iso,
+                                                            extras.getOrDefault(
+                                                                    countryId, Map.of()),
+                                                            today))));
+            while (!pending.isEmpty()) {
+                Map<String, List<Term>> terms = await(pending.poll(), "country " + isos.poll());
+                if (terms != null) {
+                    terms.forEach(
+                            (person, held) ->
+                                    found.computeIfAbsent(person, Person::new).terms.addAll(held));
                 }
-            } catch (IOException e) {
-                log.warn("Wikidata PEPs: skipped a batch of people [error={}]", e.getMessage());
             }
+            log.info(
+                    "Wikidata PEPs: found office holders [countries={}, people={}, seconds={}]",
+                    countries.size(),
+                    found.size(),
+                    Duration.between(started, Instant.now()).toSeconds());
+
+            List<String> ids = new ArrayList<>(found.keySet());
+            Deque<Future<List<JsonNode>>> batches = new ArrayDeque<>();
+            for (int i = 0; i < ids.size(); i += PERSON_BATCH) {
+                List<String> batch = ids.subList(i, Math.min(i + PERSON_BATCH, ids.size()));
+                batches.add(pool.submit(() -> select(client, peopleQuery(batch))));
+            }
+            while (!batches.isEmpty()) {
+                List<JsonNode> rows = await(batches.poll(), "a batch of people");
+                if (rows != null) {
+                    rows.forEach(row -> describe(found, row));
+                }
+            }
+        } finally {
+            // every result has been awaited by now; this only cancels what is left after a failure
+            pool.shutdownNow();
         }
+        log.info(
+                "Wikidata PEPs: described people [people={}, seconds={}]",
+                found.size(),
+                Duration.between(started, Instant.now()).toSeconds());
         people = found;
         return post(builder, COUNTRIES_QUERY);
+    }
+
+    /**
+     * Waits for a query's result. A query that failed is skipped and logged, with {@code what} it
+     * was for, and yields {@code null}.
+     */
+    private <T> T await(Future<T> future, String what) throws InterruptedException {
+        try {
+            return future.get();
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException || cause instanceof InterruptedException) {
+                log.warn("Wikidata PEPs: skipped {} [error={}]", what, cause.getMessage());
+                return null;
+            }
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException(cause);
+        }
     }
 
     /** Keeps an office, or its higher tier when it is already known. */
@@ -219,38 +268,43 @@ public final class WikidataPepProvider extends AbstractListProvider {
      * class whose query fails is skipped and logged.
      */
     private Map<String, Map<String, Office>> extraOffices(
-            HttpClient client, Map<String, String> countries)
-            throws IOException, InterruptedException {
+            HttpClient client, ExecutorService pool, Map<String, String> countries)
+            throws InterruptedException {
+        Map<String, Future<List<JsonNode>>> queries = new LinkedHashMap<>();
+        for (String officeClass : EXTRA_CLASSES.keySet()) {
+            queries.put(
+                    officeClass, pool.submit(() -> select(client, extraOfficesQuery(officeClass))));
+        }
         Map<String, String> officeCountry = new LinkedHashMap<>();
         Map<String, Integer> officeTier = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> officeClass : EXTRA_CLASSES.entrySet()) {
-            try {
-                for (JsonNode row : select(client, extraOfficesQuery(officeClass.getKey()))) {
-                    String office = id(value(row, "office"));
-                    String country = id(value(row, "country"));
-                    if (office != null && countries.containsKey(country)) {
-                        officeCountry.putIfAbsent(office, country);
-                        officeTier.merge(office, officeClass.getValue(), Math::min);
-                    }
+        for (Map.Entry<String, Future<List<JsonNode>>> query : queries.entrySet()) {
+            List<JsonNode> rows = await(query.getValue(), "office class " + query.getKey());
+            if (rows == null) {
+                continue;
+            }
+            int tier = EXTRA_CLASSES.get(query.getKey());
+            for (JsonNode row : rows) {
+                String office = id(value(row, "office"));
+                String country = id(value(row, "country"));
+                if (office != null && countries.containsKey(country)) {
+                    officeCountry.putIfAbsent(office, country);
+                    officeTier.merge(office, tier, Math::min);
                 }
-            } catch (IOException e) {
-                log.warn(
-                        "Wikidata PEPs: skipped an office class [class={}, error={}]",
-                        officeClass.getKey(),
-                        e.getMessage());
             }
         }
 
-        Map<String, String> labels = new LinkedHashMap<>();
         List<String> ids = new ArrayList<>(officeCountry.keySet());
+        Deque<Future<List<JsonNode>>> batches = new ArrayDeque<>();
         for (int i = 0; i < ids.size(); i += PERSON_BATCH) {
             List<String> batch = ids.subList(i, Math.min(i + PERSON_BATCH, ids.size()));
-            try {
-                for (JsonNode row : select(client, labelsQuery(batch))) {
-                    labels.putIfAbsent(id(value(row, "office")), value(row, "label"));
-                }
-            } catch (IOException e) {
-                log.warn("Wikidata PEPs: skipped office labels [error={}]", e.getMessage());
+            batches.add(pool.submit(() -> select(client, labelsQuery(batch))));
+        }
+        Map<String, String> labels = new LinkedHashMap<>();
+        while (!batches.isEmpty()) {
+            List<JsonNode> rows = await(batches.poll(), "office labels");
+            if (rows != null) {
+                rows.forEach(
+                        row -> labels.putIfAbsent(id(value(row, "office")), value(row, "label")));
             }
         }
 
@@ -282,33 +336,58 @@ public final class WikidataPepProvider extends AbstractListProvider {
                 + " } ?office rdfs:label ?label FILTER(LANG(?label) = \"en\") }";
     }
 
+    /**
+     * One country's offices, from the extra classes already known and the {@link #OFFICE_CLASSES},
+     * and the terms of their holders, keyed by person.
+     */
+    private Map<String, List<Term>> holders(
+            HttpClient client,
+            String countryId,
+            String iso,
+            Map<String, Office> extras,
+            LocalDate today)
+            throws IOException, InterruptedException {
+        Map<String, Office> byId = new LinkedHashMap<>();
+        extras.values().forEach(o -> keep(byId, o));
+        offices(client, countryId, iso).forEach(o -> keep(byId, o));
+        List<Office> offices = new ArrayList<>(byId.values());
+        Map<String, List<Term>> terms = new LinkedHashMap<>();
+        for (int i = 0; i < offices.size(); i += OFFICE_BATCH) {
+            List<Office> batch = offices.subList(i, Math.min(i + OFFICE_BATCH, offices.size()));
+            for (JsonNode row : select(client, holdersQuery(batch, today))) {
+                addTerm(terms, row, batch, today);
+            }
+        }
+        return terms;
+    }
+
     private List<Office> offices(HttpClient client, String countryId, String iso)
             throws IOException, InterruptedException {
-        String classes =
-                OFFICE_CLASSES.keySet().stream()
-                        .map(c -> "wd:" + c)
-                        .collect(Collectors.joining(" "));
-        String query =
-                "SELECT DISTINCT ?office ?class ?label WHERE { VALUES ?class { "
-                        + classes
-                        + " } ?office wdt:P1001 wd:"
-                        + countryId
-                        + " . ?office wdt:P279* ?class ."
-                        + " OPTIONAL { ?office rdfs:label ?label FILTER(LANG(?label) = \"en\") } }";
         Map<String, Office> offices = new LinkedHashMap<>();
-        for (JsonNode row : select(client, query)) {
+        for (JsonNode row : select(client, officesQuery(countryId))) {
             String office = id(value(row, "office"));
             Integer tier = OFFICE_CLASSES.get(id(value(row, "class")));
             String label = value(row, "label");
-            if (office == null || tier == null) {
-                continue;
-            }
-            Office existing = offices.get(office);
-            if (existing == null || tier < existing.tier()) {
-                offices.put(office, new Office(office, label == null ? office : label, iso, tier));
+            if (office != null && tier != null) {
+                keep(offices, new Office(office, label == null ? office : label, iso, tier));
             }
         }
         return new ArrayList<>(offices.values());
+    }
+
+    /** The query for one country's offices of the {@link #OFFICE_CLASSES}. */
+    static String officesQuery(String countryId) {
+        String classes =
+                OFFICE_CLASSES.keySet().stream()
+                        .sorted()
+                        .map(c -> "wd:" + c)
+                        .collect(Collectors.joining(" "));
+        return "SELECT DISTINCT ?office ?class ?label WHERE { VALUES ?class { "
+                + classes
+                + " } ?office wdt:P1001 wd:"
+                + countryId
+                + " . ?office wdt:P279* ?class ."
+                + " OPTIONAL { ?office rdfs:label ?label FILTER(LANG(?label) = \"en\") } }";
     }
 
     static String holdersQuery(List<Office> offices, LocalDate today) {
@@ -335,7 +414,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
     }
 
     static void addTerm(
-            Map<String, Person> people, JsonNode row, List<Office> offices, LocalDate today) {
+            Map<String, List<Term>> terms, JsonNode row, List<Office> offices, LocalDate today) {
         String person = id(value(row, "person"));
         String officeId = id(value(row, "office"));
         Office office =
@@ -351,7 +430,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
         if (end == null && start != null && start.isBefore(today.minusYears(STALE_TERM_YEARS))) {
             return;
         }
-        people.computeIfAbsent(person, Person::new).terms.add(new Term(office, start, end));
+        terms.computeIfAbsent(person, p -> new ArrayList<>()).add(new Term(office, start, end));
     }
 
     static void describe(Map<String, Person> people, JsonNode row) {
@@ -466,6 +545,11 @@ public final class WikidataPepProvider extends AbstractListProvider {
                 List.of());
     }
 
+    /**
+     * Runs a query and returns its result rows. A server error is retried a few times and being
+     * throttled waits as long as the service asks, up to {@link #THROTTLE_WAITS} times; any other
+     * failure is thrown at once.
+     */
     private List<JsonNode> select(HttpClient client, String query)
             throws IOException, InterruptedException {
         HttpRequest request =
@@ -475,8 +559,9 @@ public final class WikidataPepProvider extends AbstractListProvider {
                                 .timeout(Duration.ofSeconds(90))
                                 .header("Accept", "application/sparql-results+json"),
                         query);
-        IOException last = null;
-        for (int attempt = 1; attempt <= ATTEMPTS; attempt++) {
+        int failures = 0;
+        int waits = 0;
+        while (true) {
             HttpResponse<byte[]> response =
                     client.send(request, HttpResponse.BodyHandlers.ofByteArray());
             int status = response.statusCode();
@@ -488,15 +573,27 @@ public final class WikidataPepProvider extends AbstractListProvider {
                         .forEach(rows::add);
                 return rows;
             }
-            last = new IOException("Wikidata query failed [status=" + status + "]");
-            if (status != 429 && status < 500) {
-                break;
+            IOException failure = new IOException("Wikidata query failed [status=" + status + "]");
+            if (status == 429) {
+                if (++waits > THROTTLE_WAITS) {
+                    throw failure;
+                }
+            } else if (status < 500 || ++failures >= ATTEMPTS) {
+                throw failure;
             }
             long waitSeconds =
-                    response.headers().firstValueAsLong("Retry-After").orElse(5L * attempt);
-            Thread.sleep(Duration.ofSeconds(Math.min(waitSeconds, 60)));
+                    Math.min(
+                            response.headers()
+                                    .firstValueAsLong("Retry-After")
+                                    .orElse(5L * (failures + waits)),
+                            60);
+            if (status == 429) {
+                log.info(
+                        "Wikidata PEPs: throttled by the query service [waitSeconds={}]",
+                        waitSeconds);
+            }
+            Thread.sleep(Duration.ofSeconds(waitSeconds));
         }
-        throw last;
     }
 
     private static HttpRequest post(HttpRequest.Builder builder, String query) {

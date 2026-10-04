@@ -3,7 +3,7 @@ import { Flag } from '../../components/Flag';
 import { Chip, Delta, StatusDot } from '../../components/Badges';
 import { Sparkline } from '../../components/Sparkline';
 import { Icon } from '../../lib/icons';
-import { SIEVE, type Source } from '../../data/snapshot';
+import { SIEVE, topicNoun, type Source } from '../../data/snapshot';
 import { ago, clock, fmt, host, ms } from '../../lib/format';
 
 type Key = keyof Source;
@@ -38,7 +38,7 @@ export function SourcesTable() {
               <Fragment key={s.id}>
                 <tr className="row" aria-expanded={o} tabIndex={0} onClick={() => toggle(s.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(s.id); } }}>
                   <td style={{ paddingRight: 0 }}><Icon name="right" size={12} className="cv" /></td>
-                  <td className="full" data-l="List"><span className="cl"><Flag cc={s.cc} /><b style={{ color: 'var(--heading)' }}>{s.name}</b></span></td>
+                  <td className="full" data-l="List"><span className="cl"><Flag cc={s.cc} /><b style={{ color: 'var(--heading)' }}>{s.name}</b>{s.countsOnly && <Chip>counts only</Chip>}</span></td>
                   <td data-l="Authority" style={{ minWidth: 220 }}><span className="small" style={{ color: 'var(--text-2)' }}>{s.authority}</span></td>
                   <td data-l="Format"><Chip>{s.format}</Chip></td>
                   <td className="r num" data-l="Entities">{none ? <span className="muted">—</span> : fmt(s.entities)}</td>
@@ -53,6 +53,7 @@ export function SourcesTable() {
                     <dl className="kv">
                       <div><dt>Region</dt><dd>{s.region}</dd></div>
                       <div><dt>Names (incl. aliases)</dt><dd className="num">{none ? '—' : fmt(s.names)}</dd></div>
+                      <div><dt>Records published</dt><dd className="num">{none ? '—' : fmt(s.published)}</dd></div>
                       {s.delta != null && <div><dt>Change vs previous</dt><dd><Delta n={s.delta} /></dd></div>}
                       <div><dt>Countries linked</dt><dd className="num">{none ? '—' : fmt(s.countries)}</dd></div>
                       <div><dt>Type split</dt><dd className="small">{none ? '—' : `Ind ${Math.round(s.types[0] * 100)}% · Ent ${Math.round(s.types[1] * 100)}% · Ves ${Math.round(s.types[2] * 100)}% · Air ${Math.round(s.types[3] * 100)}%`}</dd></div>
@@ -60,6 +61,7 @@ export function SourcesTable() {
                       <div><dt>Publisher</dt><dd><a href={s.homepage} target="_blank" rel="noopener" className="cl" onClick={e => e.stopPropagation()}>{host(s.homepage)} <Icon name="ext" size={12} /></a></dd></div>
                       {s.listUri && <div><dt>Data file</dt><dd><a href={s.listUri} target="_blank" rel="noopener" className="cl" onClick={e => e.stopPropagation()}>{host(s.listUri)} <Icon name="ext" size={12} /></a></dd></div>}
                     </dl>
+                    {s.countsOnly && <div className="callout" style={{ marginTop: 14 }}><Icon name="info" size={18} /><span>{s.topics.map(([k]) => topicNoun(k)).join(' and ').replace(/^./, c => c.toUpperCase()) || 'These records'} are counted here, but their records are not published or searchable.</span></div>}
                     {s.status === 'needs-key' && <div className="callout" style={{ marginTop: 14 }}><Icon name="warn" size={18} /><span>Requires an API key from the authority. Set <span className="num">SIEVE_NSDC_API_KEY</span> for the nightly run and the list loads on the next snapshot.</span></div>}
                     {s.status === 'failed' && <div className="callout" style={{ marginTop: 14 }}><Icon name="warn" size={18} /><span>Tonight's fetch failed{s.error ? <>: <span className="num">{s.error}</span></> : '.'}</span></div>}
                   </td></tr>
