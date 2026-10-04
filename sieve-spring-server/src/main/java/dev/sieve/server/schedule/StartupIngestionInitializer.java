@@ -1,8 +1,8 @@
 package dev.sieve.server.schedule;
 
-import dev.sieve.core.index.EntityIndex;
 import dev.sieve.ingest.IngestionOrchestrator;
 import dev.sieve.ingest.IngestionReport;
+import dev.sieve.server.persistence.PersistentEntityIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -10,12 +10,12 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Performs a full sanctions list import on startup if the entity index is empty.
+ * Builds the screening index from PostgreSQL on startup, and runs a full import if the database is
+ * still empty.
  *
- * <p>Listens for {@link ApplicationReadyEvent} to ensure all beans (including the database
- * connection for PostgreSQL mode) are fully initialized before checking the index. If the index
- * already contains entities (e.g. persisted in PostgreSQL from a previous run), the import is
- * skipped.
+ * <p>Listens for {@link ApplicationReadyEvent} so the database connection and schema are ready.
+ * Entities stored by a previous run are served as soon as they are loaded; the scheduled refresh
+ * keeps them current.
  */
 @Component
 public class StartupIngestionInitializer {
@@ -23,25 +23,23 @@ public class StartupIngestionInitializer {
     private static final Logger log = LoggerFactory.getLogger(StartupIngestionInitializer.class);
 
     private final IngestionOrchestrator orchestrator;
-    private final EntityIndex entityIndex;
+    private final PersistentEntityIndex entityIndex;
 
     public StartupIngestionInitializer(
-            IngestionOrchestrator orchestrator, EntityIndex entityIndex) {
+            IngestionOrchestrator orchestrator, PersistentEntityIndex entityIndex) {
         this.orchestrator = orchestrator;
         this.entityIndex = entityIndex;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        int currentSize = entityIndex.size();
-        if (currentSize > 0) {
-            log.info(
-                    "Entity index already contains {} entities — skipping startup import",
-                    currentSize);
+        int loaded = entityIndex.load();
+        if (loaded > 0) {
+            log.info("Loaded stored entities, skipping startup import [entities={}]", loaded);
             return;
         }
 
-        log.info("Entity index is empty — starting full import from all providers");
+        log.info("Database is empty, starting full import from all providers");
         try {
             IngestionReport report = orchestrator.ingest(entityIndex);
             log.info(

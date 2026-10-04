@@ -19,8 +19,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public record SieveProperties(
         @Valid @NotNull Map<String, ListProperties> lists,
-        @Valid @NotNull ScreeningProperties screening,
-        @Valid @NotNull IndexProperties index) {
+        @Valid @NotNull ScreeningProperties screening) {
 
     /**
      * Configuration for an individual sanctions list source.
@@ -40,11 +39,4 @@ public record SieveProperties(
     public record ScreeningProperties(
             @DecimalMin("0.0") @DecimalMax("1.0") double defaultThreshold,
             @Min(1) @Max(1000) int maxResults) {}
-
-    /**
-     * Index configuration.
-     *
-     * @param type the index implementation type (currently only "in-memory")
-     */
-    public record IndexProperties(@NotNull String type) {}
 }

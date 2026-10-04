@@ -101,7 +101,7 @@ mvn verify  # JaCoCo reports at target/site/jacoco/index.html
 - Do NOT use Lombok
 - Do NOT use MapStruct
 - Do NOT add Spring Security (out of scope for Phase 1)
-- Do NOT add a database or JPA
+- Do NOT add a database outside `sieve-spring-server`; it keeps PostgreSQL (plain JDBC, no JPA) as the system of record, and the other modules stay in-memory
 - Do NOT use `var` excessively — spell out types when it aids readability
 
 ## Pull Request Process

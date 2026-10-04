@@ -44,14 +44,17 @@ Screening
 Index Storage
 -------------
 
+The Spring server stores every entity in PostgreSQL, its system of record, and builds the
+in-memory screening index from it at startup. PostgreSQL must be reachable when the server
+starts; Flyway creates and upgrades the schema.
+
 .. code-block:: yaml
 
-   sieve:
-     index:
-       type: in-memory           # Default: ConcurrentHashMap-based index
-
-   # For PostgreSQL persistence, activate the postgres profile:
-   # SPRING_PROFILES_ACTIVE=postgres
+   spring:
+     datasource:
+       url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sieve}?reWriteBatchedInserts=true
+       username: ${POSTGRES_USER:sieve}
+       password: ${POSTGRES_PASSWORD:sieve}
 
 Address Normalization
 ---------------------

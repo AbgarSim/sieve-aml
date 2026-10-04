@@ -33,7 +33,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
   and exported.
 - [x] 1.4 Provenance on every value: each name, date and identifier records its source, source URL,
   first seen and last seen.
-- [ ] 1.5 Postgres as the system of record, with the in-memory screening index built from it.
+- [x] 1.5 Postgres as the system of record, with the in-memory screening index built from it.
 
 ### Sanctions, done fully
 

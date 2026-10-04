@@ -215,7 +215,7 @@ cd dashboard && npm install && npm run dev                                     #
 
 ```bash
 # Spring Boot server (with PostgreSQL)
-docker compose up sieve-spring-server
+docker compose up sieve-spring
 
 # Vert.x server (standalone, in-memory)
 docker compose up sieve-server
