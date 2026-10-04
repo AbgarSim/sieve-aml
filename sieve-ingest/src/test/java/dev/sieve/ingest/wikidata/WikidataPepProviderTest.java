@@ -218,10 +218,20 @@ class WikidataPepProviderTest {
                             if (query.contains("wdt:P279* wd:Q5097014")) {
                                 return response(400, "timeout".getBytes());
                             }
+                            // the heads of first-level regions: Bavaria's Minister-President
+                            if (query.contains("?country wdt:P150 ?region")) {
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "office", WD + "Q1400",
+                                                        "country", WD + "Q183")));
+                            }
                             if (query.startsWith("SELECT DISTINCT ?office ?country")) {
                                 return response(200, bindings());
                             }
                             if (query.startsWith("SELECT ?office ?label")) {
+                                assertThat(query).contains("VALUES ?office { wd:Q1200 wd:Q1400 }");
                                 return response(
                                         200,
                                         bindings(
@@ -229,7 +239,12 @@ class WikidataPepProviderTest {
                                                         "office",
                                                         WD + "Q1200",
                                                         "label",
-                                                        "President of the Deutsche Bundesbank")));
+                                                        "President of the Deutsche Bundesbank"),
+                                                Map.of(
+                                                        "office",
+                                                        WD + "Q1400",
+                                                        "label",
+                                                        "Minister-President of Bavaria")));
                             }
                             // Germany's other offices; the United States fails and is skipped
                             if (query.contains("?office wdt:P1001 wd:Q183")) {
@@ -250,7 +265,8 @@ class WikidataPepProviderTest {
                             }
                             if (query.contains("?person p:P39 ?held")) {
                                 assertThat(query)
-                                        .contains("VALUES ?office { wd:Q1200 wd:Q4970706 }");
+                                        .contains(
+                                                "VALUES ?office { wd:Q1200 wd:Q1400 wd:Q4970706 }");
                                 return response(
                                         200,
                                         bindings(
@@ -266,9 +282,13 @@ class WikidataPepProviderTest {
                                                 Map.of(
                                                         "person", WD + "Q600",
                                                         "office", WD + "Q1200",
-                                                        "start", "2022-01-01T00:00:00Z")));
+                                                        "start", "2022-01-01T00:00:00Z"),
+                                                Map.of(
+                                                        "person", WD + "Q700",
+                                                        "office", WD + "Q1400",
+                                                        "start", "2018-03-16T00:00:00Z")));
                             }
-                            if (query.contains("VALUES ?person { wd:Q567 wd:Q600 }")) {
+                            if (query.contains("VALUES ?person { wd:Q567 wd:Q600 wd:Q700 }")) {
                                 return response(
                                         200,
                                         bindings(
@@ -280,7 +300,12 @@ class WikidataPepProviderTest {
                                                         "person",
                                                         WD + "Q600",
                                                         "name",
-                                                        "Joachim Nagel")));
+                                                        "Joachim Nagel"),
+                                                Map.of(
+                                                        "person",
+                                                        WD + "Q700",
+                                                        "name",
+                                                        "Markus Söder")));
                             }
                             throw new AssertionError("unexpected query: " + query);
                         });
@@ -289,7 +314,9 @@ class WikidataPepProviderTest {
                 new WikidataPepProvider(URI.create("https://query.example/sparql"), client, CLOCK)
                         .fetch();
 
-        assertThat(result).extracting(SanctionedEntity::id).containsExactly("wd-Q567", "wd-Q600");
+        assertThat(result)
+                .extracting(SanctionedEntity::id)
+                .containsExactly("wd-Q567", "wd-Q600", "wd-Q700");
         assertThat(result.get(1).programs())
                 .singleElement()
                 .satisfies(
@@ -298,9 +325,13 @@ class WikidataPepProviderTest {
                             assertThat(p.name()).isEqualTo("PEP tier 1");
                         });
         assertThat(result.get(1).nationalities()).containsExactly("DE");
-        // countries (twice), seven extra classes, labels, two countries' offices, Germany's
-        // holders, the people, and the request whose response is parsed
-        verify(client, times(15)).send(any(), any(HttpResponse.BodyHandler.class));
+        assertThat(result.get(2).programs())
+                .extracting(p -> p.code(), p -> p.name())
+                .containsExactly(tuple("Minister-President of Bavaria", "PEP tier 2"));
+        assertThat(result.get(2).nationalities()).containsExactly("DE");
+        // countries (twice), seven extra classes, regional heads, labels, two countries' offices,
+        // Germany's holders, the people, and the request whose response is parsed
+        verify(client, times(16)).send(any(), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
@@ -308,6 +339,21 @@ class WikidataPepProviderTest {
         assertThatThrownBy(() -> new WikidataPepProvider().parseResponse("{}".getBytes()))
                 .isInstanceOf(ListIngestionException.class)
                 .hasMessageContaining("no office holders");
+    }
+
+    @Test
+    void shouldFindRegionalHeadsThroughTheirRegionsOwnOffices() {
+        assertThat(WikidataPepProvider.REGIONAL_HEADS_QUERY)
+                .contains("?country wdt:P150 ?region . ?region wdt:P1313|wdt:P1906 ?office .")
+                .contains("?office wdt:P1001 ?region .");
+        assertThat(WikidataPepProvider.officeQueries())
+                .last()
+                .satisfies(
+                        q -> {
+                            assertThat(q.sparql())
+                                    .isEqualTo(WikidataPepProvider.REGIONAL_HEADS_QUERY);
+                            assertThat(q.tier()).isEqualTo(WikidataPepProvider.REGIONAL_TIER);
+                        });
     }
 
     @Test

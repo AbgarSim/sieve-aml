@@ -52,7 +52,7 @@
 | US FBI Wanted | U.S. Federal Bureau of Investigation — wanted persons (open posters naming a suspect) | JSON | ~500 |
 | EU Most Wanted | Europol / ENFAST — Europe's most wanted fugitives | HTML | ~50 |
 | World Bank Debarred | World Bank Group — firms and individuals debarred from Bank-financed contracts | JSON | ~1,500 |
-| Wikidata PEPs | Wikidata — living holders of national offices (heads of state and government, ministers, central bank governors, military chiefs, members of parliament, judges, deputy ministers, ambassadors, attorneys general, party leaders), current or within 5 years | JSON (SPARQL) | ~80,000 |
+| Wikidata PEPs | Wikidata — living holders of national offices (heads of state and government, ministers, central bank governors, military chiefs, members of parliament, judges, deputy ministers, ambassadors, attorneys general, party leaders) and the heads of first-level regions (state governors, regional premiers), current or within 5 years | JSON (SPARQL) | ~80,000 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
 | MD Terror | Moldova — Security and Intelligence Service | XLSX | ~710 |
 
