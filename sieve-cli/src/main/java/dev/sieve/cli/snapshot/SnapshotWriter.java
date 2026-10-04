@@ -5,6 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import dev.sieve.core.dedup.CanonicalEntity;
+import dev.sieve.core.dedup.DeduplicationResult;
+import dev.sieve.core.dedup.EntityDeduplicator;
 import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +59,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>An entity's key is {@code SOURCE/id}, because raw ids repeat across lists.
  *
+ * <p>One person or company is often listed by several authorities. The published records are
+ * matched across lists by name, identifiers and date of birth (see {@link EntityDeduplicator}), and
+ * every index entry of an entity found on more than one list carries the group's id in {@code g}:
+ * the key of the group's first record in list order. {@code overview.json} counts the distinct
+ * entities in {@code dedup}, and each list's row in {@code sources.json} says in {@code
+ * onOtherLists} how many of its records another list also carries.
+ *
  * <p>Politically exposed persons and their relatives or close associates are never written as
  * records or index entries: the public dashboard shows how many there are, not who they are. They
  * are counted in their list's row of {@code sources.json} (whose {@code published} field says how
@@ -72,6 +83,7 @@ public final class SnapshotWriter {
     private final ObjectMapper mapper;
     private final StatsAggregator aggregator;
     private final CountryNormalizer countries;
+    private final EntityDeduplicator deduplicator;
     private final int shardSize;
     private final Clock clock;
 
@@ -79,14 +91,20 @@ public final class SnapshotWriter {
      * Creates a writer.
      *
      * @param countries resolves free-text country values to ISO codes
+     * @param deduplicator finds the records that are one entity on several lists
      * @param shardSize entity records per shard file
      * @param clock source of the snapshot time
      */
-    public SnapshotWriter(CountryNormalizer countries, int shardSize, Clock clock) {
+    public SnapshotWriter(
+            CountryNormalizer countries,
+            EntityDeduplicator deduplicator,
+            int shardSize,
+            Clock clock) {
         if (shardSize < 1) {
             throw new IllegalArgumentException("shardSize must be positive");
         }
         this.countries = Objects.requireNonNull(countries, "countries must not be null");
+        this.deduplicator = Objects.requireNonNull(deduplicator, "deduplicator must not be null");
         this.aggregator = new StatsAggregator(countries);
         this.shardSize = shardSize;
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -114,22 +132,25 @@ public final class SnapshotWriter {
         Instant now = clock.instant();
 
         List<SanctionedEntity> all = fetched.stream().flatMap(f -> f.entities().stream()).toList();
+        List<SanctionedEntity> published = all.stream().filter(SnapshotWriter::isPublic).toList();
         DatasetStats everything = aggregator.aggregate(all);
-        DatasetStats stats =
-                aggregator.aggregate(all.stream().filter(SnapshotWriter::isPublic).toList());
+        DatasetStats stats = aggregator.aggregate(published);
+        Overlap overlap = Overlap.of(deduplicator.deduplicate(published));
 
         writeJson(
                 outDir.resolve("overview.json"),
-                overview(stats, byTopic(all), fetched, now, commit));
-        writeJson(outDir.resolve("sources.json"), sources(everything, fetched, now));
+                overview(stats, byTopic(all), overlap, fetched, now, commit));
+        writeJson(outDir.resolve("sources.json"), sources(everything, overlap, fetched, now));
         writeJson(outDir.resolve("countries.json"), countries(stats, now));
-        writeJson(outDir.resolve("search-index.json"), writeEntities(fetched, outDir, now));
-        writeHistory(outDir.resolve("history.json"), stats, everything, now);
+        writeJson(
+                outDir.resolve("search-index.json"), writeEntities(fetched, overlap, outDir, now));
+        writeHistory(outDir.resolve("history.json"), stats, everything, overlap, now);
 
         log.info(
-                "Snapshot written [dir={}, entities={}, countries={}]",
+                "Snapshot written [dir={}, entities={}, distinct={}, countries={}]",
                 outDir,
                 stats.totalEntities(),
+                overlap.distinctEntities(),
                 stats.byCountry().size());
         return stats;
     }
@@ -137,6 +158,7 @@ public final class SnapshotWriter {
     private Map<String, Object> overview(
             DatasetStats stats,
             Map<String, Integer> byTopic,
+            Overlap overlap,
             List<FetchedSource> fetched,
             Instant now,
             Optional<String> commit) {
@@ -159,11 +181,16 @@ public final class SnapshotWriter {
         map.put("identifiersByType", stats.identifiersByType());
         map.put("topPrograms", stats.topPrograms());
         map.put("ingest", Map.of("sumMs", sumMs, "longestMs", wallMs));
+        Map<String, Object> dedup = new LinkedHashMap<>();
+        dedup.put("distinctEntities", overlap.distinctEntities());
+        dedup.put("onSeveralLists", overlap.groups());
+        dedup.put("ms", overlap.result().duration().toMillis());
+        map.put("dedup", dedup);
         return map;
     }
 
     private Map<String, Object> sources(
-            DatasetStats stats, List<FetchedSource> fetched, Instant now) {
+            DatasetStats stats, Overlap overlap, List<FetchedSource> fetched, Instant now) {
         Map<ListSource, FetchedSource> bySource = new EnumMap<>(ListSource.class);
         fetched.forEach(f -> bySource.put(f.source(), f));
 
@@ -198,6 +225,7 @@ public final class SnapshotWriter {
                         outcome.map(FetchedSource::entities).orElse(List.of());
                 row.put("entities", sourceStats.entities());
                 row.put("published", entities.stream().filter(SnapshotWriter::isPublic).count());
+                row.put("onOtherLists", overlap.onOtherLists().getOrDefault(source, 0));
                 row.put("names", sourceStats.names());
                 row.put("byType", sourceStats.byType());
                 row.put("byTopic", byTopic(entities));
@@ -237,7 +265,8 @@ public final class SnapshotWriter {
         return row;
     }
 
-    private Map<String, Object> writeEntities(List<FetchedSource> fetched, Path outDir, Instant now)
+    private Map<String, Object> writeEntities(
+            List<FetchedSource> fetched, Overlap overlap, Path outDir, Instant now)
             throws IOException {
         Path entitiesDir = outDir.resolve("entities");
         List<Map<String, Object>> index = new ArrayList<>();
@@ -260,7 +289,7 @@ public final class SnapshotWriter {
                                 Math.min((shard + 1) * shardSize, sorted.size()));
                 writeJson(sourceDir.resolve(shard + ".json"), page);
                 for (SanctionedEntity entity : page) {
-                    index.add(indexEntry(entity, shard));
+                    index.add(indexEntry(entity, overlap, shard));
                 }
             }
         }
@@ -289,9 +318,10 @@ public final class SnapshotWriter {
         return byTopic;
     }
 
-    private Map<String, Object> indexEntry(SanctionedEntity entity, int shard) {
+    private Map<String, Object> indexEntry(SanctionedEntity entity, Overlap overlap, int shard) {
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("k", key(entity));
+        entry.put("g", overlap.groupOf().get(key(entity)));
         entry.put("n", entity.primaryName().fullName());
         entry.put(
                 "a",
@@ -308,7 +338,8 @@ public final class SnapshotWriter {
         return entry;
     }
 
-    private void writeHistory(Path file, DatasetStats stats, DatasetStats everything, Instant now)
+    private void writeHistory(
+            Path file, DatasetStats stats, DatasetStats everything, Overlap overlap, Instant now)
             throws IOException {
         List<Map<String, Object>> rows = new ArrayList<>();
         if (Files.exists(file)) {
@@ -322,6 +353,7 @@ public final class SnapshotWriter {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("date", today);
         row.put("totalEntities", stats.totalEntities());
+        row.put("distinctEntities", overlap.distinctEntities());
         row.put("totalNames", stats.totalNames());
         row.put("countries", stats.byCountry().size());
         row.put("bySource", bySource);
@@ -350,6 +382,55 @@ public final class SnapshotWriter {
      */
     public static String key(SanctionedEntity entity) {
         return entity.listSource().name() + "/" + entity.id();
+    }
+
+    /**
+     * The records that are one entity on several lists, from one deduplication of the published
+     * records.
+     *
+     * @param result the deduplication
+     * @param groupOf group id by record key, for the records of groups with more than one member
+     * @param onOtherLists per list, how many of its records another list also carries
+     */
+    private record Overlap(
+            DeduplicationResult result,
+            Map<String, String> groupOf,
+            Map<ListSource, Integer> onOtherLists) {
+
+        /** Lists in {@link ListSource} order, then ids, so a group's id is the same every night. */
+        private static final Comparator<SanctionedEntity> LEAD_FIRST =
+                Comparator.comparing(SanctionedEntity::listSource)
+                        .thenComparing(SanctionedEntity::id);
+
+        static Overlap of(DeduplicationResult result) {
+            Map<String, String> groupOf = new HashMap<>();
+            Map<ListSource, Integer> onOtherLists = new EnumMap<>(ListSource.class);
+            for (CanonicalEntity canonical : result.canonicalEntities().values()) {
+                if (canonical.sourceCount() < 2) {
+                    continue;
+                }
+                List<SanctionedEntity> members =
+                        canonical.sourceEntities().values().stream()
+                                .flatMap(List::stream)
+                                .sorted(LEAD_FIRST)
+                                .toList();
+                String group = key(members.getFirst());
+                for (SanctionedEntity member : members) {
+                    groupOf.put(key(member), group);
+                    onOtherLists.merge(member.listSource(), 1, Integer::sum);
+                }
+            }
+            return new Overlap(result, Map.copyOf(groupOf), Map.copyOf(onOtherLists));
+        }
+
+        int distinctEntities() {
+            return result.totalCanonicalEntities();
+        }
+
+        /** Entities found on more than one list. */
+        int groups() {
+            return result.mergedGroups();
+        }
     }
 
     private static String typeCode(EntityType type) {

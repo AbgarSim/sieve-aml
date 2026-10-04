@@ -7,6 +7,7 @@ import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.stats.DatasetStats;
 import dev.sieve.ingest.ProviderRegistry;
+import dev.sieve.match.dedup.SimilarityDeduplicator;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.EnumSet;
@@ -22,7 +23,7 @@ import picocli.CommandLine.Option;
         mixinStandardHelpOptions = true,
         description = {
             "Fetch all lists and write dashboard data: aggregate JSON, entity shards and a search"
-                    + " index.",
+                    + " index, with the records of one entity matched across lists.",
             "Exit code 0 when at least one list loaded, 2 when none did."
         })
 public class SnapshotCommand implements Callable<Integer> {
@@ -61,7 +62,11 @@ public class SnapshotCommand implements Callable<Integer> {
         List<FetchedSource> fetched = fetcher.fetch(only);
 
         SnapshotWriter writer =
-                new SnapshotWriter(CountryNormalizer.standard(), shardSize, Clock.systemUTC());
+                new SnapshotWriter(
+                        CountryNormalizer.standard(),
+                        new SimilarityDeduplicator(),
+                        shardSize,
+                        Clock.systemUTC());
         DatasetStats stats =
                 writer.write(fetched, out, Optional.ofNullable(System.getenv("GITHUB_SHA")));
 
