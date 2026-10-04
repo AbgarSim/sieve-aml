@@ -49,7 +49,8 @@ public final class FuzzyMatchEngine implements MatchEngine {
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
-        String normalizedQuery = NameNormalizer.normalize(request.name());
+        String normalizedQuery =
+                NameNormalizer.normalizeQuery(request.name(), request.entityType());
         int queryTokenCount = PartialNameMatch.tokenCount(normalizedQuery);
         Collection<SanctionedEntity> candidates =
                 resolveCandidates(request, index, normalizedQuery);
