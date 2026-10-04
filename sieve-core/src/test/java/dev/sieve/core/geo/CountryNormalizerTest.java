@@ -51,7 +51,14 @@ class CountryNormalizerTest {
                 "Crimea|UA",
                 "Hong Kong|HK",
                 "Palestinian|PS",
-                "Virgin Islands, British|VG"
+                "Virgin Islands, British|VG",
+                "DPR Korea|KP",
+                "Democratic Peoples Republic of Korea|KP",
+                "Congo DR|CD",
+                "BIRMANIE|MM",
+                "BIRMANIE/MYANMAR|MM",
+                "Region: Gaza|PS",
+                "KIRGIZISTAN|KG"
             })
     void shouldResolveKnownSpellingsWhenPublishedInDifferentForms(String raw, String expected) {
         assertThat(normalizer.toIso2(raw)).contains(expected);
@@ -59,7 +66,7 @@ class CountryNormalizerTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"   ", "Unknown", "Atlantis", "00"})
+    @ValueSource(strings = {"   ", "Unknown", "Atlantis", "00", "Russia/Ukraine"})
     void shouldReturnEmptyWhenValueIsBlankOrUnknown(String raw) {
         assertThat(normalizer.toIso2(raw)).isEmpty();
     }
