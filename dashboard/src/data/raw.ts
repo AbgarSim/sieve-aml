@@ -18,6 +18,8 @@ export interface RawOverview extends Header {
   countries: number;
   distinctPrograms: number;
   byType?: Partial<Record<RawType, number>>;
+  /** Entities per risk topic across every list, PEP and RCA records included; an entity counts for each of its topics. */
+  byTopic?: Record<string, number>;
   namesByScript?: Record<string, number>;
   identifiersByType?: Record<string, number>;
   topPrograms?: RawProgramCount[];
@@ -33,6 +35,8 @@ export interface RawSource {
   source: string; displayName: string; authority: string; jurisdiction: string; format: string; homepage: string;
   status: RawStatus; error?: string; fetchMs?: number; listUri?: string; lastFetched?: string; contentHash?: string; etag?: string;
   entities: number; names?: number; byType?: Partial<Record<RawType, number>>; countries?: number;
+  /** Entities whose records are in entities/ and the search index; PEP and RCA records are counted but never written. */
+  published?: number; byTopic?: Record<string, number>;
   completeness?: RawCompleteness; topPrograms?: RawProgramCount[];
 }
 export interface RawSources extends Header { sources: RawSource[] }

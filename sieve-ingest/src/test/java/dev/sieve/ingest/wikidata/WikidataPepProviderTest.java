@@ -17,18 +17,24 @@ import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class WikidataPepProviderTest {
@@ -46,22 +52,22 @@ class WikidataPepProviderTest {
 
     @Test
     void shouldKeepTermsThatAreCurrentOrEndedRecently() throws Exception {
-        Map<String, WikidataPepProvider.Person> people = new LinkedHashMap<>();
+        Map<String, List<WikidataPepProvider.Term>> terms = new LinkedHashMap<>();
         List<WikidataPepProvider.Office> offices = List.of(CHANCELLOR, MDB);
 
         WikidataPepProvider.addTerm(
-                people, holder("Q567", "Q4970706", "2005-11-22", "2021-12-08"), offices, TODAY);
+                terms, holder("Q567", "Q4970706", "2005-11-22", "2021-12-08"), offices, TODAY);
         WikidataPepProvider.addTerm(
-                people, holder("Q1", "Q1939555", "2009-10-27", "2017-10-24"), offices, TODAY);
+                terms, holder("Q1", "Q1939555", "2009-10-27", "2017-10-24"), offices, TODAY);
         WikidataPepProvider.addTerm(
-                people, holder("Q2", "Q1939555", "1969-10-20", null), offices, TODAY);
+                terms, holder("Q2", "Q1939555", "1969-10-20", null), offices, TODAY);
         WikidataPepProvider.addTerm(
-                people, holder("Q3", "Q1939555", "2021-10-26", null), offices, TODAY);
+                terms, holder("Q3", "Q1939555", "2021-10-26", null), offices, TODAY);
         WikidataPepProvider.addTerm(
-                people, holder("Q4", "Q999", "2021-10-26", null), offices, TODAY);
+                terms, holder("Q4", "Q999", "2021-10-26", null), offices, TODAY);
 
-        assertThat(people).containsOnlyKeys("Q567", "Q3");
-        assertThat(people.get("Q567").terms)
+        assertThat(terms).containsOnlyKeys("Q567", "Q3");
+        assertThat(terms.get("Q567"))
                 .singleElement()
                 .satisfies(
                         t -> {
@@ -180,80 +186,104 @@ class WikidataPepProviderTest {
     @SuppressWarnings("unchecked")
     void shouldQueryEachCountryAndSkipQueriesThatFail() throws Exception {
         HttpClient client = mock(HttpClient.class);
-        List<HttpResponse<byte[]>> responses = new ArrayList<>();
-        responses.add(
-                response(
-                        200,
-                        bindings(
-                                Map.of("country", WD + "Q183", "iso", "DE"),
-                                Map.of("country", WD + "Q30", "iso", "US"),
-                                Map.of("country", WD + "Q99999"))));
-        // central bank governors everywhere; chiefs of defence fail and are skipped
-        responses.add(
-                response(
-                        200,
-                        bindings(
-                                Map.of("office", WD + "Q1200", "country", WD + "Q183"),
-                                Map.of("office", WD + "Q1300", "country", WD + "Q99999"))));
-        responses.add(response(400, "timeout".getBytes()));
-        for (int i = 2; i < WikidataPepProvider.EXTRA_CLASSES.size(); i++) {
-            responses.add(response(200, bindings()));
-        }
-        responses.add(
-                response(
-                        200,
-                        bindings(
-                                Map.of(
-                                        "office",
-                                        WD + "Q1200",
-                                        "label",
-                                        "President of the Deutsche Bundesbank"))));
-        // Germany: its other offices, then their holders
-        responses.add(
-                response(
-                        200,
-                        bindings(
-                                Map.of(
-                                        "office", WD + "Q4970706",
-                                        "class", WD + "Q48352",
-                                        "label", "Federal Chancellor of Germany"),
-                                Map.of(
-                                        "office", WD + "Q4970706",
-                                        "class", WD + "Q2285706",
-                                        "label", "Federal Chancellor of Germany"))));
-        responses.add(
-                response(
-                        200,
-                        bindings(
-                                Map.of(
-                                        "person",
-                                        WD + "Q567",
-                                        "office",
-                                        WD + "Q4970706",
-                                        "start",
-                                        "2005-11-22T00:00:00Z",
-                                        "end",
-                                        "2021-12-08T00:00:00Z"),
-                                Map.of(
-                                        "person", WD + "Q600",
-                                        "office", WD + "Q1200",
-                                        "start", "2022-01-01T00:00:00Z"))));
-        // the United States fails and is skipped
-        responses.add(response(400, "bad query".getBytes()));
-        responses.add(
-                response(
-                        200,
-                        bindings(
-                                Map.of(
-                                        "person", WD + "Q567",
-                                        "name", "Angela Merkel",
-                                        "citizenship", "DE"),
-                                Map.of("person", WD + "Q600", "name", "Joachim Nagel"))));
-        responses.add(response(200, "{}".getBytes()));
+        AtomicBoolean throttled = new AtomicBoolean();
         when(client.send(any(), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(
-                        responses.get(0),
-                        responses.subList(1, responses.size()).toArray(HttpResponse[]::new));
+                .thenAnswer(
+                        invocation -> {
+                            String query = query(invocation.getArgument(0));
+                            if (query.startsWith("SELECT ?country ?iso")) {
+                                // the first query is throttled once, then answered
+                                if (throttled.compareAndSet(false, true)) {
+                                    return response(429, new byte[0], Map.of("Retry-After", "0"));
+                                }
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of("country", WD + "Q183", "iso", "DE"),
+                                                Map.of("country", WD + "Q30", "iso", "US"),
+                                                Map.of("country", WD + "Q99999")));
+                            }
+                            // central bank governors everywhere; chiefs of defence fail
+                            if (query.contains("wdt:P279* wd:Q107363151")) {
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "office", WD + "Q1200",
+                                                        "country", WD + "Q183"),
+                                                Map.of(
+                                                        "office", WD + "Q1300",
+                                                        "country", WD + "Q99999")));
+                            }
+                            if (query.contains("wdt:P279* wd:Q5097014")) {
+                                return response(400, "timeout".getBytes());
+                            }
+                            if (query.startsWith("SELECT DISTINCT ?office ?country")) {
+                                return response(200, bindings());
+                            }
+                            if (query.startsWith("SELECT ?office ?label")) {
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "office",
+                                                        WD + "Q1200",
+                                                        "label",
+                                                        "President of the Deutsche Bundesbank")));
+                            }
+                            // Germany's other offices; the United States fails and is skipped
+                            if (query.contains("?office wdt:P1001 wd:Q183")) {
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "office", WD + "Q4970706",
+                                                        "class", WD + "Q48352",
+                                                        "label", "Federal Chancellor of Germany"),
+                                                Map.of(
+                                                        "office", WD + "Q4970706",
+                                                        "class", WD + "Q2285706",
+                                                        "label", "Federal Chancellor of Germany")));
+                            }
+                            if (query.contains("?office wdt:P1001 wd:Q30")) {
+                                return response(400, "bad query".getBytes());
+                            }
+                            if (query.contains("?person p:P39 ?held")) {
+                                assertThat(query)
+                                        .contains("VALUES ?office { wd:Q1200 wd:Q4970706 }");
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "person",
+                                                        WD + "Q567",
+                                                        "office",
+                                                        WD + "Q4970706",
+                                                        "start",
+                                                        "2005-11-22T00:00:00Z",
+                                                        "end",
+                                                        "2021-12-08T00:00:00Z"),
+                                                Map.of(
+                                                        "person", WD + "Q600",
+                                                        "office", WD + "Q1200",
+                                                        "start", "2022-01-01T00:00:00Z")));
+                            }
+                            if (query.contains("VALUES ?person { wd:Q567 wd:Q600 }")) {
+                                return response(
+                                        200,
+                                        bindings(
+                                                Map.of(
+                                                        "person", WD + "Q567",
+                                                        "name", "Angela Merkel",
+                                                        "citizenship", "DE"),
+                                                Map.of(
+                                                        "person",
+                                                        WD + "Q600",
+                                                        "name",
+                                                        "Joachim Nagel")));
+                            }
+                            throw new AssertionError("unexpected query: " + query);
+                        });
 
         List<SanctionedEntity> result =
                 new WikidataPepProvider(URI.create("https://query.example/sparql"), client, CLOCK)
@@ -268,7 +298,9 @@ class WikidataPepProviderTest {
                             assertThat(p.name()).isEqualTo("PEP tier 1");
                         });
         assertThat(result.get(1).nationalities()).containsExactly("DE");
-        verify(client, times(responses.size())).send(any(), any(HttpResponse.BodyHandler.class));
+        // countries (twice), seven extra classes, labels, two countries' offices, Germany's
+        // holders, the people, and the request whose response is parsed
+        verify(client, times(15)).send(any(), any(HttpResponse.BodyHandler.class));
     }
 
     @Test
@@ -279,6 +311,13 @@ class WikidataPepProviderTest {
     }
 
     @Test
+    void shouldAskForACountrysOfficesInAStableOrder() {
+        assertThat(WikidataPepProvider.officesQuery("Q183"))
+                .contains("VALUES ?class { wd:Q16533 wd:Q2285706 wd:Q48352 wd:Q486839 wd:Q83307 }")
+                .contains("?office wdt:P1001 wd:Q183 . ?office wdt:P279* ?class .");
+    }
+
+    @Test
     void shouldLimitHoldersQueryToRecentTermsOfLivingPeople() {
         String query = WikidataPepProvider.holdersQuery(List.of(CHANCELLOR, MDB), TODAY);
 
@@ -286,6 +325,36 @@ class WikidataPepProviderTest {
                 .contains("VALUES ?office { wd:Q4970706 wd:Q1939555 }")
                 .contains("FILTER NOT EXISTS { ?person wdt:P570 ?died }")
                 .contains("\"2021-10-03T00:00:00Z\"^^xsd:dateTime");
+    }
+
+    /** The SPARQL query a request carries in its form body. */
+    private static String query(HttpRequest request) {
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        request.bodyPublisher()
+                .orElseThrow()
+                .subscribe(
+                        new Flow.Subscriber<ByteBuffer>() {
+                            @Override
+                            public void onSubscribe(Flow.Subscription subscription) {
+                                subscription.request(Long.MAX_VALUE);
+                            }
+
+                            @Override
+                            public void onNext(ByteBuffer item) {
+                                byte[] bytes = new byte[item.remaining()];
+                                item.get(bytes);
+                                body.writeBytes(bytes);
+                            }
+
+                            @Override
+                            public void onError(Throwable throwable) {}
+
+                            @Override
+                            public void onComplete() {}
+                        });
+        String form = body.toString(StandardCharsets.UTF_8);
+        assertThat(form).startsWith("query=");
+        return URLDecoder.decode(form.substring("query=".length()), StandardCharsets.UTF_8);
     }
 
     private static JsonNode holder(String person, String office, String start, String end) {
@@ -317,12 +386,19 @@ class WikidataPepProviderTest {
         return MAPPER.writeValueAsBytes(root);
     }
 
-    @SuppressWarnings("unchecked")
     private static HttpResponse<byte[]> response(int status, byte[] body) {
+        return response(status, body, Map.of());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse<byte[]> response(
+            int status, byte[] body, Map<String, String> headers) {
         HttpResponse<byte[]> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(status);
         when(response.body()).thenReturn(body);
-        when(response.headers()).thenReturn(HttpHeaders.of(Map.of(), (a, b) -> true));
+        Map<String, List<String>> values = new LinkedHashMap<>();
+        headers.forEach((k, v) -> values.put(k, List.of(v)));
+        when(response.headers()).thenReturn(HttpHeaders.of(values, (a, b) -> true));
         return response;
     }
 }
