@@ -16,6 +16,7 @@ import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.match.dedup.SimilarityDeduplicator;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -163,6 +164,38 @@ class SnapshotWriterTest {
     }
 
     @Test
+    void shouldGroupTheRecordsOfOneEntityAcrossLists() throws IOException {
+        List<FetchedSource> fetched = new ArrayList<>(fetch(Set.of()));
+        fetched.removeIf(f -> f.source() == ListSource.UN_CONSOLIDATED);
+        fetched.add(
+                new FetchedSource(
+                        ListSource.UN_CONSOLIDATED,
+                        FetchedSource.Status.LOADED,
+                        List.of(
+                                entity("7", ListSource.UN_CONSOLIDATED, "PETROV, Ivan", "RU"),
+                                entity("8", ListSource.UN_CONSOLIDATED, "Petr Ivanov", "RU")),
+                        Optional.empty(),
+                        Duration.ZERO,
+                        Optional.empty()));
+        write(fetched, NOW);
+
+        JsonNode entries = read("search-index.json").get("entries");
+        assertThat(entries).hasSize(4);
+        assertThat(entry(entries, "OFAC_SDN/1").get("g").asText()).isEqualTo("OFAC_SDN/1");
+        assertThat(entry(entries, "UN_CONSOLIDATED/7").get("g").asText()).isEqualTo("OFAC_SDN/1");
+        assertThat(entry(entries, "UN_CONSOLIDATED/8").has("g")).isFalse();
+        assertThat(entry(entries, "OFAC_SDN/2").has("g")).isFalse();
+
+        JsonNode dedup = read("overview.json").get("dedup");
+        assertThat(dedup.get("distinctEntities").asInt()).isEqualTo(3);
+        assertThat(dedup.get("onSeveralLists").asInt()).isEqualTo(1);
+        JsonNode sources = read("sources.json").get("sources");
+        assertThat(row(sources, "OFAC_SDN").get("onOtherLists").asInt()).isEqualTo(1);
+        assertThat(row(sources, "UN_CONSOLIDATED").get("onOtherLists").asInt()).isEqualTo(1);
+        assertThat(read("history.json").get(0).get("distinctEntities").asInt()).isEqualTo(3);
+    }
+
+    @Test
     void shouldSkipListsWhenFilterExcludesThem() {
         List<FetchedSource> fetched = fetch(Set.of(ListSource.UN_CONSOLIDATED));
 
@@ -186,7 +219,11 @@ class SnapshotWriterTest {
     }
 
     private void write(List<FetchedSource> fetched, Instant at) throws IOException {
-        new SnapshotWriter(CountryNormalizer.standard(), 2, Clock.fixed(at, ZoneOffset.UTC))
+        new SnapshotWriter(
+                        CountryNormalizer.standard(),
+                        new SimilarityDeduplicator(),
+                        2,
+                        Clock.fixed(at, ZoneOffset.UTC))
                 .write(fetched, out, Optional.of("abc123"));
     }
 
@@ -242,6 +279,15 @@ class SnapshotWriterTest {
 
     private JsonNode read(String file) throws IOException {
         return mapper.readTree(out.resolve(file).toFile());
+    }
+
+    private static JsonNode entry(JsonNode entries, String key) {
+        for (JsonNode entry : entries) {
+            if (key.equals(entry.get("k").asText())) {
+                return entry;
+            }
+        }
+        throw new AssertionError("No entry for " + key);
     }
 
     private static JsonNode row(JsonNode sources, String source) {
