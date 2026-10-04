@@ -109,7 +109,10 @@ public enum ListSource {
     WB_DEBARRED("World Bank Debarred"),
 
     /** Politically exposed persons from Wikidata. */
-    WIKIDATA_PEP("Wikidata PEPs");
+    WIKIDATA_PEP("Wikidata PEPs"),
+
+    /** Companies consolidated by government entities, from the GLEIF LEI register. */
+    GLEIF_STATE_OWNED("GLEIF State-Owned");
 
     private final String displayName;
 
