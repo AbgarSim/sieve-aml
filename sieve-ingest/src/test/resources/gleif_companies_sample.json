@@ -1,0 +1,49 @@
+{
+  "meta": {"goldenCopy": {"publishDate": "2026-10-04T16:00:00Z"}, "pagination": {"currentPage": 1, "perPage": 200, "from": 1, "to": 2, "total": 2, "lastPage": 1}},
+  "data": [
+    {
+      "type": "lei-records",
+      "id": "5493000000000000C001",
+      "attributes": {
+        "lei": "5493000000000000C001",
+        "entity": {
+          "legalName": {"name": "Exemple Énergie SA", "language": "fr"},
+          "otherNames": [{"name": "Énergie d'Exemple SA", "language": "fr", "type": "PREVIOUS_LEGAL_NAME"}],
+          "transliteratedOtherNames": [{"name": "Exemple Energie SA", "language": "fr", "type": "AUTO_ASCII_TRANSLITERATED_LEGAL"}],
+          "legalAddress": {"language": "fr", "addressLines": ["1 place de l'Énergie"], "city": "Paris", "region": "FR-75", "country": "FR", "postalCode": "75001"},
+          "headquartersAddress": {"language": "fr", "addressLines": ["10 quai Exemple", "Bâtiment B"], "city": "Lyon", "region": "FR-69", "country": "FR", "postalCode": "69002"},
+          "registeredAt": {"id": "RA000189", "other": null},
+          "registeredAs": "123 456 789",
+          "jurisdiction": "FR",
+          "category": "GENERAL",
+          "legalForm": {"id": "6CHY", "other": null},
+          "status": "ACTIVE"
+        },
+        "registration": {"initialRegistrationDate": "2013-12-01T00:00:00Z", "lastUpdateDate": "2025-12-01T00:00:00Z", "status": "LAPSED", "nextRenewalDate": "2025-12-01T00:00:00Z", "managingLou": "969500Q2MA9VBRNH2P08"},
+        "bic": ["EXEMFRPPXXX"]
+      }
+    },
+    {
+      "type": "lei-records",
+      "id": "5493000000000000C005",
+      "attributes": {
+        "lei": "5493000000000000C005",
+        "entity": {
+          "legalName": {"name": "Dormant Holding SAS", "language": "fr"},
+          "otherNames": [],
+          "transliteratedOtherNames": [],
+          "legalAddress": {"language": "fr", "addressLines": ["2 rue Close"], "city": "Paris", "region": "FR-75", "country": "FR", "postalCode": "75002"},
+          "headquartersAddress": {"language": "fr", "addressLines": ["2 rue Close"], "city": "Paris", "region": "FR-75", "country": "FR", "postalCode": "75002"},
+          "registeredAt": {"id": "RA000189", "other": null},
+          "registeredAs": "987 654 321",
+          "jurisdiction": "FR",
+          "category": "GENERAL",
+          "legalForm": {"id": "6CHY", "other": null},
+          "status": "INACTIVE"
+        },
+        "registration": {"initialRegistrationDate": "2013-12-01T00:00:00Z", "lastUpdateDate": "2025-12-01T00:00:00Z", "status": "RETIRED", "nextRenewalDate": "2025-12-01T00:00:00Z", "managingLou": "969500Q2MA9VBRNH2P08"},
+        "bic": null
+      }
+    }
+  ]
+}

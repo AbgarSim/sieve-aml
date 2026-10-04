@@ -14,7 +14,7 @@
 
 ## Supported Sanctions Lists
 
-**33 providers** across 24 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
+**34 providers** across 25 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
 
 ### International
 
@@ -53,6 +53,7 @@
 | EU Most Wanted | Europol / ENFAST — Europe's most wanted fugitives | HTML | ~50 |
 | World Bank Debarred | World Bank Group — firms and individuals debarred from Bank-financed contracts | JSON | ~1,500 |
 | Wikidata PEPs | Wikidata — living holders of national offices (heads of state and government, ministers, central bank governors, military chiefs, members of parliament, judges, deputy ministers, ambassadors, attorneys general, party leaders) and the heads of first-level regions (state governors, regional premiers), current or within 5 years, plus their living relatives and close associates (spouses, partners, children, parents, siblings, relatives, business partners), each linked to their PEP | JSON (SPARQL) | ~81,000 PEPs, ~7,500 RCAs |
+| GLEIF State-Owned | Global Legal Entity Identifier Foundation — companies whose direct or ultimate accounting parent in the LEI register is a government entity (states, regions, cities, sovereign and public pension funds), with their government owners and the ownership links between them; LEI, registration number and BIC as identifiers | JSON (API) + CSV (relationship file) | ~1,300 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
 | MD Terror | Moldova — Security and Intelligence Service | XLSX | ~710 |
 
@@ -203,7 +204,7 @@ curl http://localhost:8080/api/v1/health
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 33 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 34 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files
