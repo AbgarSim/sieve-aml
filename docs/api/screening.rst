@@ -77,7 +77,19 @@ Screen a name against all loaded sanctions lists.
            "programs": ["RUSSIA-EO14024"],
            "topics": ["SANCTION"],
            "remarks": "President of the Russian Federation",
-           "lastUpdated": "2024-01-15T00:00:00Z"
+           "lastUpdated": "2024-01-15T00:00:00Z",
+           "firstSeen": "2026-03-01T02:00:00Z",
+           "lastSeen": "2026-03-18T02:00:00Z",
+           "provenance": [
+             {
+               "kind": "NAME",
+               "value": "Vladimir PUTIN",
+               "source": "OFAC_SDN",
+               "sourceUrl": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML",
+               "firstSeen": "2026-03-01T02:00:00Z",
+               "lastSeen": "2026-03-18T02:00:00Z"
+             }
+           ]
          },
          "score": 0.9412,
          "matchedField": "alias[0]",
@@ -107,6 +119,16 @@ Screen a name against all loaded sanctions lists.
    * - ``results[]``
      - array
      - Match results sorted by score descending
+   * - ``results[].entity.provenance[]``
+     - array
+     - Where and when each value of the entity was seen: ``kind`` (``NAME``, ``BIRTH_DATE``,
+       ``IDENTIFIER``, ``ADDRESS``, ``PROGRAM`` and so on), ``value`` (an identifier reads
+       ``PASSPORT:123456``), the ``source`` list and ``sourceUrl`` it was read from, and when it was
+       ``firstSeen`` and ``lastSeen``. First seen is kept across refreshes while the value stays on
+       the list; it starts when the server first loads the list
+   * - ``results[].entity.firstSeen`` / ``lastSeen``
+     - ISO 8601
+     - Earliest first seen and latest last seen over the entity's values
    * - ``results[].score``
      - number
      - Match confidence score (0.0–1.0)
