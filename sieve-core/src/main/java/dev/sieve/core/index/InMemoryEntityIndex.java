@@ -13,7 +13,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,7 +161,7 @@ public final class InMemoryEntityIndex implements EntityIndex {
                     entity.listSource());
         }
         idsBySource
-                .computeIfAbsent(entity.listSource(), k -> new CopyOnWriteArraySet<>())
+                .computeIfAbsent(entity.listSource(), k -> ConcurrentHashMap.newKeySet())
                 .add(entity.id());
         touch();
     }
