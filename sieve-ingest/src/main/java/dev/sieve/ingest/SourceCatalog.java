@@ -276,6 +276,13 @@ public final class SourceCatalog {
                 "LE",
                 Format.JSON,
                 "https://www.gleif.org/en/lei-data/gleif-golden-copy");
+        put(
+                map,
+                ListSource.GLEIF_SANCTION_LINKED,
+                "Global Legal Entity Identifier Foundation",
+                "LE",
+                Format.JSON,
+                "https://www.gleif.org/en/lei-data/gleif-golden-copy");
         return Collections.unmodifiableMap(map);
     }
 

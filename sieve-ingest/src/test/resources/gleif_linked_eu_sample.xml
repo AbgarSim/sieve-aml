@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<export xmlns="http://eu.europa.ec/fpi/fsd/export" generationDate="2026-10-03T10:00:00.000+01:00" globalFileId="999999">
+    <!-- a listed company whose registration number is its LEI -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.1.77" logicalId="177250">
+        <regulation regulationType="regulation" organisationType="council" publicationDate="2022-04-08" entryIntoForceDate="2022-04-08" numberTitle="2022/581 (OJ L110)" programme="UKR" logicalId="700">
+            <publicationUrl>http://example.com/regulation</publicationUrl>
+        </regulation>
+        <subjectType code="enterprise" classificationCode="E"/>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Coral Energy PTE Ltd" function="" title="" nameLanguage="" strong="true" regulationLanguage="en" logicalId="7001">
+            <regulationSummary regulationType="regulation" publicationDate="2022-04-08" numberTitle="2022/581 (OJ L110)" publicationUrl="http://example.com/regulation"/>
+        </nameAlias>
+        <address city="Singapore" street="1 Example Quay" poBox="" zipCode="018989" region="" place="" asAtListingTime="false" countryIso2Code="SG" countryDescription="SINGAPORE" regulationLanguage="en" logicalId="7002">
+            <regulationSummary regulationType="regulation" publicationDate="2022-04-08" numberTitle="2022/581 (OJ L110)" publicationUrl="http://example.com/regulation"/>
+        </address>
+        <identification diplomatic="false" knownExpired="false" knownFalse="false" reportedLost="false" revokedByIssuer="false" issuedBy="" latinNumber="" nameOnDocument="" number="549300V3GQ2MCTQAIV68" region="" identificationTypeCode="regnumber" identificationTypeDescription="Registration number" countryIso2Code="SG" countryDescription="SINGAPORE" regulationLanguage="en" logicalId="7003">
+            <regulationSummary regulationType="regulation" publicationDate="2022-04-08" numberTitle="2022/581 (OJ L110)" publicationUrl="http://example.com/regulation"/>
+        </identification>
+    </sanctionEntity>
+
+    <!-- a listed company with an ordinary registration number -->
+    <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.2.10" logicalId="200">
+        <regulation regulationType="regulation" organisationType="commission" publicationDate="2023-06-15" entryIntoForceDate="2023-06-15" numberTitle="2023/1214 (OJ L159)" programme="RUS" logicalId="501">
+            <publicationUrl>http://example.com/regulation2</publicationUrl>
+        </regulation>
+        <subjectType code="enterprise" classificationCode="E"/>
+        <nameAlias firstName="" middleName="" lastName="" wholeName="Acme Trading GmbH" function="" title="" nameLanguage="" strong="true" regulationLanguage="en" logicalId="2001">
+            <regulationSummary regulationType="regulation" publicationDate="2022-04-08" numberTitle="2022/581 (OJ L110)" publicationUrl="http://example.com/regulation"/>
+        </nameAlias>
+        <identification diplomatic="false" knownExpired="false" knownFalse="false" reportedLost="false" revokedByIssuer="false" issuedBy="" latinNumber="" nameOnDocument="" number="FN-123456a" region="" identificationTypeCode="regnumber" identificationTypeDescription="Registration number" countryIso2Code="AT" countryDescription="AUSTRIA" regulationLanguage="en" logicalId="60">
+            <regulationSummary regulationType="regulation" publicationDate="2022-04-08" numberTitle="2022/581 (OJ L110)" publicationUrl="http://example.com/regulation"/>
+        </identification>
+    </sanctionEntity>
+</export>

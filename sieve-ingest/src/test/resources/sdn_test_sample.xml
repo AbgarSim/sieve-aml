@@ -82,6 +82,11 @@
         <idNumber>UK-123456</idNumber>
         <idCountry>GB</idCountry>
       </id>
+      <id>
+        <uid>2002</uid>
+        <idType>Legal Entity Number</idType>
+        <idNumber>549300LCJ1UJXHYBWI24</idNumber>
+      </id>
     </idList>
   </sdnEntry>
 

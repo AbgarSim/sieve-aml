@@ -11,6 +11,7 @@ import dev.sieve.ingest.eu.EuSanctionsMapProvider;
 import dev.sieve.ingest.eu.EuTravelBansProvider;
 import dev.sieve.ingest.europol.EuMostWantedProvider;
 import dev.sieve.ingest.fr.FrTresorProvider;
+import dev.sieve.ingest.gleif.GleifSanctionLinkedProvider;
 import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaProvider;
@@ -84,6 +85,7 @@ public final class ProviderRegistry {
                 new EuMostWantedProvider(),
                 new WorldBankDebarredProvider(),
                 new WikidataPepProvider(),
-                new GleifStateOwnedProvider());
+                new GleifStateOwnedProvider(),
+                new GleifSanctionLinkedProvider());
     }
 }
