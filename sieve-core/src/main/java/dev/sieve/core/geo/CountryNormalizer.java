@@ -1,9 +1,11 @@
 package dev.sieve.core.geo;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -53,7 +55,19 @@ public final class CountryNormalizer {
     private static final Pattern PARENTHESIZED = Pattern.compile("\\(([^)]*)\\)");
     private static final Pattern POSSESSIVE = Pattern.compile("['\u2019\u02bc]s\\b");
     private static final Pattern ALTERNATIVES = Pattern.compile("\\s*/\\s*");
-    private static final Set<String> FILLER_WORDS = Set.of("the", "and", "of");
+    private static final Pattern LIST_SEPARATORS = Pattern.compile(";|\\(\\d+\\)");
+    private static final Set<String> FILLER_WORDS =
+            Set.of(
+                    "the",
+                    "and",
+                    "of",
+                    "et",
+                    "ve",
+                    "ou",
+                    "possibly",
+                    "pretendument",
+                    "presume",
+                    "presumee");
 
     private final Map<String, String> lookup;
     private final Map<String, String> unorderedLookup;
@@ -147,9 +161,50 @@ public final class CountryNormalizer {
         // "Moscow, Russia" or "Region: Gaza" style values: try the part after the last separator
         int separator = Math.max(raw.lastIndexOf(','), raw.lastIndexOf(':'));
         if (separator > 0 && separator < raw.length() - 1) {
-            return toIso2(raw.substring(separator + 1));
+            Optional<String> last = toIso2(raw.substring(separator + 1));
+            if (last.isPresent()) {
+                return last;
+            }
+            // "RF, CHECHEN REGION": the country comes first
+            int first = raw.indexOf(',');
+            if (first > 0) {
+                return Optional.ofNullable(lookup.get(key(raw.substring(0, first))));
+            }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Splits a value that may name several countries into one part per country.
+     *
+     * <p>Lists join countries with semicolons, number them ({@code "(1) Russia (2) Cyprus"}) or
+     * separate them with a slash ({@code "Iraq/Syria"}). A slash is only split on when the whole
+     * part does not resolve, so {@code "BIRMANIE/MYANMAR"} stays one value.
+     *
+     * @param raw the value as published by a list, may be {@code null}
+     * @return the non-blank parts, in order; empty when the value is blank
+     */
+    public List<String> split(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        List<String> parts = new ArrayList<>();
+        for (String part : LIST_SEPARATORS.split(raw)) {
+            String trimmed = part.strip();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (toIso2(trimmed).isPresent()) {
+                parts.add(trimmed);
+                continue;
+            }
+            for (String alternative : ALTERNATIVES.split(trimmed)) {
+                if (!alternative.isBlank()) {
+                    parts.add(alternative.strip());
+                }
+            }
+        }
+        return parts;
     }
 
     private Optional<String> agreeing(String[] alternatives) {
@@ -195,8 +250,11 @@ public final class CountryNormalizer {
         folded = MARKS.matcher(folded).replaceAll("");
         folded = NON_ALNUM.matcher(folded.toLowerCase(Locale.ROOT)).replaceAll(" ").strip();
         StringBuilder sb = new StringBuilder(folded.length());
-        for (String token : folded.split(" ")) {
-            if (token.isEmpty() || FILLER_WORDS.contains(token)) {
+        String[] tokens = folded.split(" ");
+        // A lone filler word is a code ("ET" for Ethiopia, "AND" for Andorra), so it stays
+        boolean single = tokens.length == 1;
+        for (String token : tokens) {
+            if (token.isEmpty() || (!single && FILLER_WORDS.contains(token))) {
                 continue;
             }
             if (!sb.isEmpty()) {

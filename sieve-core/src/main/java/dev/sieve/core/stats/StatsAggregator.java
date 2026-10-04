@@ -173,18 +173,10 @@ public final class StatsAggregator {
     private void resolveInto(
             Collection<String> values, Set<String> codes, Map<String, Integer> unresolved) {
         for (String value : values) {
-            if (value == null || value.isBlank()) {
-                continue;
-            }
-            for (String part : value.split(";")) {
-                String trimmed = part.strip();
-                if (trimmed.isEmpty()) {
-                    continue;
-                }
+            for (String part : countries.split(value)) {
                 countries
-                        .toIso2(trimmed)
-                        .ifPresentOrElse(
-                                codes::add, () -> unresolved.merge(trimmed, 1, Integer::sum));
+                        .toIso2(part)
+                        .ifPresentOrElse(codes::add, () -> unresolved.merge(part, 1, Integer::sum));
             }
         }
     }
