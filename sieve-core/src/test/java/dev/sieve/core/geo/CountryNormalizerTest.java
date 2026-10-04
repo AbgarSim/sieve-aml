@@ -51,7 +51,25 @@ class CountryNormalizerTest {
                 "Crimea|UA",
                 "Hong Kong|HK",
                 "Palestinian|PS",
-                "Virgin Islands, British|VG"
+                "Virgin Islands, British|VG",
+                "DPR Korea|KP",
+                "Democratic Peoples Republic of Korea|KP",
+                "Congo DR|CD",
+                "BIRMANIE|MM",
+                "BIRMANIE/MYANMAR|MM",
+                "Region: Gaza|PS",
+                "KIRGIZISTAN|KG",
+                "KORE DEMOKRATİK HALK CUMHURİYETİ|KP",
+                "RÉPUBLIQUE DÉMOCRATIQUE DU CONGO|CD",
+                "TÜRKİYE CUMHURİYETİ|TR",
+                "BİRLEŞİK KRALLIK|GB",
+                "TRINIDAD ET TOBAGO|TT",
+                "prétendument RUSSIE|RU",
+                "RF, CHECHEN REGION|RU",
+                "Region: Crimea|UA",
+                "ET|ET",
+                "AND|AD",
+                "يمني|YE"
             })
     void shouldResolveKnownSpellingsWhenPublishedInDifferentForms(String raw, String expected) {
         assertThat(normalizer.toIso2(raw)).contains(expected);
@@ -59,9 +77,19 @@ class CountryNormalizerTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"   ", "Unknown", "Atlantis", "00"})
+    @ValueSource(strings = {"   ", "Unknown", "Atlantis", "00", "Russia/Ukraine"})
     void shouldReturnEmptyWhenValueIsBlankOrUnknown(String raw) {
         assertThat(normalizer.toIso2(raw)).isEmpty();
+    }
+
+    @Test
+    void shouldSplitIntoOnePartPerCountryWhenValueNamesSeveral() {
+        assertThat(normalizer.split("(1) Russia. (2) Ukraine"))
+                .containsExactly("Russia.", "Ukraine");
+        assertThat(normalizer.split("RU; CY")).containsExactly("RU", "CY");
+        assertThat(normalizer.split("Iraq/Syria")).containsExactly("Iraq", "Syria");
+        assertThat(normalizer.split("BIRMANIE/MYANMAR")).containsExactly("BIRMANIE/MYANMAR");
+        assertThat(normalizer.split("  ")).isEmpty();
     }
 
     @Test
