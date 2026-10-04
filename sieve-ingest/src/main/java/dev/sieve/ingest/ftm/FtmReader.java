@@ -9,12 +9,14 @@ import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Provenance;
 import dev.sieve.core.model.Relation;
 import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.model.SourcedValue;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -191,26 +193,67 @@ public final class FtmReader {
             topics.add(RiskTopic.SANCTION);
         }
 
-        return new SanctionedEntity(
-                id,
-                type,
-                source,
-                primary,
-                aliases,
-                addresses,
-                identifiers,
-                nationalities,
-                upper(values(node, "citizenship")),
-                dates(values(node, "birthDate")),
-                values(node, "birthPlace"),
-                String.join("\n", values(node, "notes")).strip().isEmpty()
-                        ? null
-                        : String.join("\n", values(node, "notes")),
-                programs.stream().distinct().toList(),
-                listed,
-                instant(first(node, "modifiedAt")),
-                topics,
-                relations);
+        SanctionedEntity entity =
+                new SanctionedEntity(
+                        id,
+                        type,
+                        source,
+                        primary,
+                        aliases,
+                        addresses,
+                        identifiers,
+                        nationalities,
+                        upper(values(node, "citizenship")),
+                        dates(values(node, "birthDate")),
+                        values(node, "birthPlace"),
+                        String.join("\n", values(node, "notes")).strip().isEmpty()
+                                ? null
+                                : String.join("\n", values(node, "notes")),
+                        programs.stream().distinct().toList(),
+                        listed,
+                        instant(first(node, "modifiedAt")),
+                        topics,
+                        relations);
+        return withSeen(entity, node);
+    }
+
+    /**
+     * Gives every value the entity's {@code first_seen} and {@code last_seen}, when the object has
+     * them; the format records them per entity, not per value.
+     */
+    private static SanctionedEntity withSeen(SanctionedEntity entity, JsonNode node) {
+        Instant firstSeen = timestamp(node.path("first_seen").asText(null));
+        Instant lastSeen = timestamp(node.path("last_seen").asText(null));
+        if (firstSeen == null) {
+            return entity;
+        }
+        if (lastSeen == null || lastSeen.isBefore(firstSeen)) {
+            lastSeen = firstSeen;
+        }
+        List<SourcedValue> provenance = new ArrayList<>();
+        for (SourcedValue.Key key : SourcedValue.keysOf(entity)) {
+            provenance.add(
+                    new SourcedValue(
+                            key.kind(),
+                            key.value(),
+                            new Provenance(entity.listSource(), null, firstSeen, lastSeen)));
+        }
+        return entity.withProvenance(provenance);
+    }
+
+    private static Instant timestamp(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(value);
+        } catch (java.time.DateTimeException e) {
+            try {
+                return java.time.LocalDateTime.parse(value).toInstant(ZoneOffset.UTC);
+            } catch (java.time.DateTimeException e2) {
+                return instant(Optional.of(value));
+            }
+        }
     }
 
     /** Gives each position held without a role the name of its {@code Position}. */

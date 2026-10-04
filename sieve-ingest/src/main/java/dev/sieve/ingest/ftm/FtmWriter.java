@@ -13,6 +13,7 @@ import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
+import dev.sieve.core.provenance.ProvenanceStamper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -38,6 +39,8 @@ import java.util.stream.Stream;
  * and a sanctioned entity's programs become one {@code Sanction} object. A position named by a
  * {@link RelationType#POSITION_HELD} relation is written once as a {@code Position}. Values a
  * schema has no property for are left out, so the output loads in FollowTheMoney tools unchanged.
+ * An entity with provenance carries {@code first_seen} and {@code last_seen}: the earliest and
+ * latest times any of its values was seen.
  */
 public final class FtmWriter {
 
@@ -143,6 +146,8 @@ public final class FtmWriter {
         if (entity.lastUpdated() != null) {
             props.add("modifiedAt", date(entity.lastUpdated()));
         }
+        ProvenanceStamper.firstSeen(entity).ifPresent(t -> node.put("first_seen", t.toString()));
+        ProvenanceStamper.lastSeen(entity).ifPresent(t -> node.put("last_seen", t.toString()));
         return node;
     }
 

@@ -13,8 +13,10 @@ import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Provenance;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.ScriptType;
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -165,6 +167,34 @@ class IngestionOrchestratorTest {
         assertThat(report.results().get(ListSource.OFAC_SDN).status())
                 .isEqualTo(ProviderResult.Status.FAILED);
         assertThat(index.findBySource(ListSource.OFAC_SDN)).hasSize(3);
+    }
+
+    @Test
+    void shouldRecordProvenanceAndKeepFirstSeenAcrossRefreshes() throws Exception {
+        ListProvider ofac = mockProvider(ListSource.OFAC_SDN, 1);
+        when(ofac.metadata())
+                .thenReturn(
+                        new ListMetadata(
+                                ListSource.OFAC_SDN,
+                                Instant.now(),
+                                null,
+                                null,
+                                URI.create("https://example.org/sdn.xml"),
+                                1));
+        IngestionOrchestrator orchestrator = new IngestionOrchestrator(List.of(ofac));
+        EntityIndex index = new InMemoryEntityIndex();
+        orchestrator.ingest(index);
+        Provenance first =
+                index.findById("OFAC_SDN-1").orElseThrow().provenance().getFirst().provenance();
+
+        orchestrator.ingest(index);
+        Provenance second =
+                index.findById("OFAC_SDN-1").orElseThrow().provenance().getFirst().provenance();
+
+        assertThat(first.sourceUrl()).isEqualTo("https://example.org/sdn.xml");
+        assertThat(first.source()).isEqualTo(ListSource.OFAC_SDN);
+        assertThat(second.firstSeen()).isEqualTo(first.firstSeen());
+        assertThat(second.lastSeen()).isAfterOrEqualTo(first.lastSeen());
     }
 
     private ListProvider mockProvider(ListSource source, int entityCount) {

@@ -4,6 +4,7 @@ import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.SanctionedEntity;
+import dev.sieve.core.provenance.ProvenanceStamper;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
@@ -103,7 +104,8 @@ public final class IngestionOrchestrator {
                                 ListSource source = provider.source();
                                 Instant providerStart = Instant.now();
                                 try {
-                                    List<SanctionedEntity> entities = provider.fetch();
+                                    List<SanctionedEntity> entities =
+                                            stamp(index, provider, provider.fetch(), Instant.now());
                                     int removed = replaceSource(index, source, entities);
                                     Duration providerDuration =
                                             Duration.between(providerStart, Instant.now());
@@ -210,6 +212,36 @@ public final class IngestionOrchestrator {
             return "FAILED";
         }
         return entityCount > 0 ? "LOADED" : "EMPTY";
+    }
+
+    /**
+     * Records the provenance of every fetched value, carrying first seen times over from the
+     * entities the index holds now.
+     */
+    private static List<SanctionedEntity> stamp(
+            EntityIndex index,
+            ListProvider provider,
+            List<SanctionedEntity> fetched,
+            Instant seenAt) {
+        ListMetadata metadata = provider.metadata();
+        String sourceUrl =
+                metadata == null || metadata.sourceUri() == null
+                        ? null
+                        : metadata.sourceUri().toString();
+        Map<String, SanctionedEntity> previous = new java.util.HashMap<>();
+        for (SanctionedEntity entity : index.findBySource(provider.source())) {
+            previous.put(entity.id(), entity);
+        }
+        List<SanctionedEntity> stamped = new java.util.ArrayList<>(fetched.size());
+        for (SanctionedEntity entity : fetched) {
+            stamped.add(
+                    ProvenanceStamper.stamp(
+                            entity,
+                            Optional.ofNullable(previous.get(entity.id())),
+                            sourceUrl,
+                            seenAt));
+        }
+        return stamped;
     }
 
     /**
