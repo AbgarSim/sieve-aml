@@ -34,6 +34,12 @@ public enum IdentifierType {
     /** Legal Entity Identifier (LEI). */
     LEI("LEI"),
 
+    /** International Securities Identification Number of a share or bond. */
+    ISIN("ISIN"),
+
+    /** A digital currency address, such as a Bitcoin or Ethereum address. */
+    CRYPTO_ADDRESS("Crypto address"),
+
     /** Company or business registration number. */
     BUSINESS_REGISTRATION("Business Registration"),
 

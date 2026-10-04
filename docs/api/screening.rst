@@ -44,7 +44,10 @@ Screen a name against all loaded sanctions lists.
    * - ``entityType``
      - string
      - No
-     - Filter by entity type: ``INDIVIDUAL``, ``ENTITY``, ``VESSEL``, ``AIRCRAFT``
+     - Filter by entity type: ``INDIVIDUAL``, ``ENTITY``, ``COMPANY``, ``ORGANIZATION``,
+       ``VESSEL``, ``AIRCRAFT``, ``CRYPTO_WALLET``, ``SECURITY``. ``ENTITY`` also returns
+       companies and organisations, and ``COMPANY`` or ``ORGANIZATION`` also return generic
+       entities, because most lists do not say which kind a legal entity is
    * - ``sources``
      - string[]
      - No

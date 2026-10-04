@@ -12,7 +12,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 class EntityTypeTest {
 
     @ParameterizedTest
-    @CsvSource({"INDIVIDUAL, Individual", "ENTITY, Entity", "VESSEL, Vessel", "AIRCRAFT, Aircraft"})
+    @CsvSource({
+        "INDIVIDUAL, Individual",
+        "ENTITY, Entity",
+        "VESSEL, Vessel",
+        "AIRCRAFT, Aircraft",
+        "COMPANY, Company",
+        "ORGANIZATION, Organization",
+        "CRYPTO_WALLET, Crypto wallet",
+        "SECURITY, Security"
+    })
     void shouldReturnCorrectDisplayName(String enumName, String expectedDisplay) {
         EntityType type = EntityType.valueOf(enumName);
         assertThat(type.displayName()).isEqualTo(expectedDisplay);
@@ -26,7 +35,14 @@ class EntityTypeTest {
         "ENTITY, ENTITY",
         "entity, ENTITY",
         "vessel, VESSEL",
-        "Aircraft, AIRCRAFT"
+        "Aircraft, AIRCRAFT",
+        "Person, INDIVIDUAL",
+        "Airplane, AIRCRAFT",
+        "LegalEntity, ENTITY",
+        "organisation, ORGANIZATION",
+        "crypto_wallet, CRYPTO_WALLET",
+        "Crypto wallet, CRYPTO_WALLET",
+        "CryptoWallet, CRYPTO_WALLET"
     })
     void shouldResolveFromString(String input, String expectedName) {
         assertThat(EntityType.fromString(input)).isEqualTo(EntityType.valueOf(expectedName));
@@ -48,7 +64,40 @@ class EntityTypeTest {
     }
 
     @Test
-    void shouldHaveFourValues() {
-        assertThat(EntityType.values()).hasSize(4);
+    void shouldHaveEightValues() {
+        assertThat(EntityType.values()).hasSize(8);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "ENTITY, COMPANY, true",
+        "COMPANY, ENTITY, true",
+        "ORGANIZATION, ENTITY, true",
+        "COMPANY, ORGANIZATION, false",
+        "INDIVIDUAL, ENTITY, false",
+        "VESSEL, VESSEL, true",
+        "CRYPTO_WALLET, ENTITY, false"
+    })
+    void shouldTreatGenericEntityAsCompatibleWithCompanyAndOrganization(
+            EntityType a, EntityType b, boolean expected) {
+        assertThat(a.isCompatibleWith(b)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "Person, INDIVIDUAL",
+        "Company, COMPANY",
+        "PublicBody, ORGANIZATION",
+        "Thing, ENTITY",
+        "Security, SECURITY"
+    })
+    void shouldResolveFromSchema(String schema, EntityType expected) {
+        assertThat(EntityType.fromSchema(schema)).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldRejectSchemaThatIsNotAnEntity() {
+        assertThatThrownBy(() -> EntityType.fromSchema("Ownership"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
