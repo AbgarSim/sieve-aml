@@ -13,6 +13,7 @@ import { countryName } from '../data/iso';
 import { host } from '../lib/format';
 import { useToast } from '../lib/useToast';
 import { entityPath } from './Search';
+import { AssociationGraph } from '../components/AssociationGraph';
 
 const SCRIPTS = ['LATIN', 'CYRILLIC', 'ARABIC', 'CJK', 'OTHER'];
 const SCRIPT_LABEL: Record<string, string> = { LATIN: 'Latin', CYRILLIC: 'Cyrillic', ARABIC: 'Arabic', CJK: 'CJK', OTHER: 'Other script' };
@@ -115,6 +116,7 @@ export default function Entity() {
           {src && <div className="callout"><Icon name="info" size={18} /><span>Published by {src.authority}: <a href={src.homepage} target="_blank" rel="noopener">{host(src.homepage)}</a>. Sieve normalises list data; the issuing authority's publication is authoritative.</span></div>}
         </div>
       </div>
+      <AssociationGraph entry={entry} ix={ix} />
       <p className="xs muted" style={{ marginTop: 24 }}>Snapshot {S.date} {S.time}{S.commit && ` · commit ${S.commit}`} · record <span className="num">{key}</span></p>
       {toast.node}
     </Shell>
