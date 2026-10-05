@@ -15,7 +15,10 @@ import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.server.ServerConfig;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.web.RoutingContext;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,126 +56,129 @@ public final class ScreeningHandler {
         this.auditEmitter = auditEmitter;
     }
 
+    /**
+     * Screens one name. Matching runs on a worker thread, not the event loop, so that requests are
+     * screened in parallel and a slow screening does not hold up other requests.
+     */
     public void handle(RoutingContext ctx) {
-        try {
-            Map<String, Object> body =
-                    objectMapper.readValue(ctx.body().buffer().getBytes(), Map.class);
+        byte[] requestBody = ctx.body().buffer().getBytes();
+        respond(ctx, () -> screen(requestBody), "Screening request failed");
+    }
 
-            String name = (String) body.get("name");
-            if (name == null || name.isBlank()) {
-                ctx.response()
-                        .setStatusCode(400)
-                        .putHeader("content-type", CONTENT_TYPE_JSON)
-                        .end("{\"error\":\"name is required\"}");
-                return;
-            }
+    /** Screens a batch of names on a worker thread, as {@link #handle} does for one. */
+    public void handleBatch(RoutingContext ctx) {
+        byte[] requestBody = ctx.body().buffer().getBytes();
+        respond(ctx, () -> screenBatch(requestBody), "Batch screening request failed");
+    }
 
-            double threshold = config.defaultThreshold();
-            if (body.containsKey("threshold")) {
-                threshold = ((Number) body.get("threshold")).doubleValue();
-            }
+    private void respond(RoutingContext ctx, Callable<Reply> work, String failure) {
+        ctx.vertx()
+                .executeBlocking(work, false)
+                .onSuccess(
+                        reply ->
+                                ctx.response()
+                                        .setStatusCode(reply.status())
+                                        .putHeader("content-type", CONTENT_TYPE_JSON)
+                                        .putHeader(
+                                                "content-length",
+                                                String.valueOf(reply.body().length))
+                                        .end(Buffer.buffer(reply.body())))
+                .onFailure(
+                        e -> {
+                            log.error(failure, e);
+                            String message = String.valueOf(e.getMessage()).replace("\"", "'");
+                            ctx.response()
+                                    .setStatusCode(500)
+                                    .putHeader("content-type", CONTENT_TYPE_JSON)
+                                    .end("{\"error\":\"" + message + "\"}");
+                        });
+    }
 
-            Optional<EntityType> entityType = Optional.empty();
-            if (body.containsKey("entityType") && body.get("entityType") != null) {
-                entityType = Optional.of(EntityType.fromString((String) body.get("entityType")));
-            }
-
-            Optional<Set<ListSource>> sources = Optional.empty();
-            if (body.containsKey("sources") && body.get("sources") != null) {
-                @SuppressWarnings("unchecked")
-                List<String> sourceList = (List<String>) body.get("sources");
-                sources =
-                        Optional.of(
-                                sourceList.stream()
-                                        .map(ListSource::fromString)
-                                        .collect(Collectors.toSet()));
-            }
-
-            ScreeningRequest request = new ScreeningRequest(name, entityType, sources, threshold);
-            long startNanos = System.nanoTime();
-            List<MatchResult> results = matchEngine.screen(request, entityIndex);
-            long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
-
-            // Build response directly — no intermediate DTO allocation
-            int limit = Math.min(results.size(), config.maxResults());
-            List<Map<String, Object>> resultMaps = new java.util.ArrayList<>(limit);
-            for (int i = 0; i < limit; i++) {
-                resultMaps.add(toMatchMap(results.get(i)));
-            }
-
-            Instant now = Instant.now();
-            Map<String, Object> response = new HashMap<>(4);
-            response.put("query", name);
-            response.put("totalMatches", resultMaps.size());
-            response.put("screenedAt", now);
-            response.put("results", resultMaps);
-
-            emitAuditEvent(name, threshold, results, now, durationMs);
-
-            byte[] json = objectMapper.writeValueAsBytes(response);
-            ctx.response()
-                    .setStatusCode(200)
-                    .putHeader("content-type", CONTENT_TYPE_JSON)
-                    .putHeader("content-length", String.valueOf(json.length))
-                    .end(io.vertx.core.buffer.Buffer.buffer(json));
-
-        } catch (Exception e) {
-            log.error("Screening request failed", e);
-            ctx.response()
-                    .setStatusCode(500)
-                    .putHeader("content-type", CONTENT_TYPE_JSON)
-                    .end("{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}");
+    private record Reply(int status, byte[] body) {
+        static Reply error(String message) {
+            return new Reply(
+                    400, ("{\"error\":\"" + message + "\"}").getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    public void handleBatch(RoutingContext ctx) {
-        try {
-            Map<String, Object> body =
-                    objectMapper.readValue(ctx.body().buffer().getBytes(), Map.class);
+    private Reply screen(byte[] requestBody) throws IOException {
+        Map<String, Object> body = objectMapper.readValue(requestBody, Map.class);
 
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("requests");
-            if (items == null || items.isEmpty()) {
-                ctx.response()
-                        .setStatusCode(400)
-                        .putHeader("content-type", CONTENT_TYPE_JSON)
-                        .end("{\"error\":\"requests array is required and must not be empty\"}");
-                return;
-            }
-
-            int maxBatchSize = config.maxBatchSize();
-            if (items.size() > maxBatchSize) {
-                ctx.response()
-                        .setStatusCode(400)
-                        .putHeader("content-type", CONTENT_TYPE_JSON)
-                        .end("{\"error\":\"batch size exceeds maximum of " + maxBatchSize + "\"}");
-                return;
-            }
-
-            List<Map<String, Object>> batchResults = new java.util.ArrayList<>(items.size());
-            for (Map<String, Object> item : items) {
-                batchResults.add(screenSingle(item));
-            }
-
-            Map<String, Object> response = new HashMap<>(3);
-            response.put("totalRequests", items.size());
-            response.put("screenedAt", Instant.now());
-            response.put("results", batchResults);
-
-            byte[] json = objectMapper.writeValueAsBytes(response);
-            ctx.response()
-                    .setStatusCode(200)
-                    .putHeader("content-type", CONTENT_TYPE_JSON)
-                    .putHeader("content-length", String.valueOf(json.length))
-                    .end(io.vertx.core.buffer.Buffer.buffer(json));
-
-        } catch (Exception e) {
-            log.error("Batch screening request failed", e);
-            ctx.response()
-                    .setStatusCode(500)
-                    .putHeader("content-type", CONTENT_TYPE_JSON)
-                    .end("{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}");
+        String name = (String) body.get("name");
+        if (name == null || name.isBlank()) {
+            return Reply.error("name is required");
         }
+
+        double threshold = config.defaultThreshold();
+        if (body.containsKey("threshold")) {
+            threshold = ((Number) body.get("threshold")).doubleValue();
+        }
+
+        Optional<EntityType> entityType = Optional.empty();
+        if (body.containsKey("entityType") && body.get("entityType") != null) {
+            entityType = Optional.of(EntityType.fromString((String) body.get("entityType")));
+        }
+
+        Optional<Set<ListSource>> sources = Optional.empty();
+        if (body.containsKey("sources") && body.get("sources") != null) {
+            @SuppressWarnings("unchecked")
+            List<String> sourceList = (List<String>) body.get("sources");
+            sources =
+                    Optional.of(
+                            sourceList.stream()
+                                    .map(ListSource::fromString)
+                                    .collect(Collectors.toSet()));
+        }
+
+        ScreeningRequest request = new ScreeningRequest(name, entityType, sources, threshold);
+        long startNanos = System.nanoTime();
+        List<MatchResult> results = matchEngine.screen(request, entityIndex);
+        long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        // Build response directly — no intermediate DTO allocation
+        int limit = Math.min(results.size(), config.maxResults());
+        List<Map<String, Object>> resultMaps = new java.util.ArrayList<>(limit);
+        for (int i = 0; i < limit; i++) {
+            resultMaps.add(toMatchMap(results.get(i)));
+        }
+
+        Instant now = Instant.now();
+        Map<String, Object> response = new HashMap<>(4);
+        response.put("query", name);
+        response.put("totalMatches", resultMaps.size());
+        response.put("screenedAt", now);
+        response.put("results", resultMaps);
+
+        emitAuditEvent(name, threshold, results, now, durationMs);
+
+        return new Reply(200, objectMapper.writeValueAsBytes(response));
+    }
+
+    private Reply screenBatch(byte[] requestBody) throws IOException {
+        Map<String, Object> body = objectMapper.readValue(requestBody, Map.class);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("requests");
+        if (items == null || items.isEmpty()) {
+            return Reply.error("requests array is required and must not be empty");
+        }
+
+        int maxBatchSize = config.maxBatchSize();
+        if (items.size() > maxBatchSize) {
+            return Reply.error("batch size exceeds maximum of " + maxBatchSize);
+        }
+
+        List<Map<String, Object>> batchResults = new java.util.ArrayList<>(items.size());
+        for (Map<String, Object> item : items) {
+            batchResults.add(screenSingle(item));
+        }
+
+        Map<String, Object> response = new HashMap<>(3);
+        response.put("totalRequests", items.size());
+        response.put("screenedAt", Instant.now());
+        response.put("results", batchResults);
+
+        return new Reply(200, objectMapper.writeValueAsBytes(response));
     }
 
     @SuppressWarnings("unchecked")
