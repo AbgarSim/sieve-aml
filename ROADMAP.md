@@ -43,13 +43,19 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
   the owner.
 - [x] 1.8 Relations already in the lists: OFAC "linked to", UN and EU associated entities, vessel
   owners and operators.
-- [ ] 1.9 More sanctions and export-control lists: US BIS Entity List and Military End User list as
+- [x] 1.9 More sanctions and export-control lists: US BIS Entity List and Military End User list as
   their own sources, Singapore, Hong Kong, India, Kazakhstan, Argentina, and Ukraine with an API key.
+  Done except where the source is out of reach: Ukraine's NSDC list waits on an API key,
+  Kazakhstan's sanctions site is unreachable, and Singapore and Hong Kong republish the UN list
+  that is already covered.
 
 ### New risk types
 
-- [ ] 1.10 Crime, wanted and debarment: World Bank and other development bank debarments, Interpol
+- [x] 1.10 Crime, wanted and debarment: World Bank and other development bank debarments, Interpol
   red notices, FBI and Europol most wanted, US SAM exclusions.
+  Done except where the source is out of reach: Interpol's robots.txt forbids fetching red notices,
+  the AfDB, IDB, ADB and EBRD debarment lists sit behind bot protection, OAuth or failing downloads,
+  and US SAM exclusions need an api.sam.gov key.
 - [x] 1.11 PEPs from Wikidata: holders of national and regional positions (heads of state,
   ministers, members of parliament, senior judges, central bankers, military leaders), with start
   and end dates and a PEP tier per position.
