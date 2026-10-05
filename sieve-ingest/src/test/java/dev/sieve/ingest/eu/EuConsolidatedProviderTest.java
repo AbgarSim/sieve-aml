@@ -3,6 +3,7 @@ package dev.sieve.ingest.eu;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
@@ -124,6 +125,13 @@ class EuConsolidatedProviderTest {
     void shouldParseRemarks() throws IOException {
         SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
         assertThat(ivanov.remarks()).isEqualTo("Test individual entry for unit testing.");
+    }
+
+    @Test
+    void shouldKeepTheGenderOfTheNameAlias() throws IOException {
+        SanctionedEntity ivanov = findById(loadEntities(), "eu-EU.10.42");
+        assertThat(ivanov.gender()).isEqualTo(Gender.MALE);
+        assertThat(ivanov.deceased()).isNull();
     }
 
     @Test

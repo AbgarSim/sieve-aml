@@ -230,6 +230,10 @@ public final class ScreeningHandler {
         entityMap.put("programs", entity.programs().stream().map(SanctionsProgram::code).toList());
         entityMap.put("topics", entity.topics().stream().map(RiskTopic::name).toList());
         entityMap.put("remarks", entity.remarks());
+        entityMap.put("gender", entity.gender());
+        entityMap.put("deceased", entity.deceased());
+        entityMap.put("listingReasons", entity.listingReasons());
+        entityMap.put("vessel", entity.vessel());
 
         Map<String, Object> map = new HashMap<>(4);
         map.put("entity", entityMap);

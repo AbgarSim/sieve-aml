@@ -37,7 +37,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
 
 ### Sanctions, done fully
 
-- [ ] 1.6 Keep fields providers already read: gender, deceased, listing reasons, vessel flag and
+- [x] 1.6 Keep fields providers already read: gender, deceased, listing reasons, vessel flag and
   tonnage.
 - [x] 1.7 Crypto wallets from OFAC's digital currency addresses, as their own entity kind linked to
   the owner.

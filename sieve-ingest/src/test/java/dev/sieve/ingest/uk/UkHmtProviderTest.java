@@ -3,12 +3,14 @@ package dev.sieve.ingest.uk;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.model.VesselDetails;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -135,7 +137,9 @@ class UkHmtProviderTest {
     @Test
     void shouldParseRemarks() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.remarks()).isEqualTo("Test individual for unit testing purposes.");
+        assertThat(smith.listingReasons())
+                .containsExactly("Test individual for unit testing purposes.");
+        assertThat(smith.remarks()).as("other information is nil for every row").isNull();
     }
 
     @Test
@@ -195,6 +199,31 @@ class UkHmtProviderTest {
         assertThat(vessel.identifiers()).hasSize(1);
         assertThat(vessel.identifiers().get(0).type()).isEqualTo(IdentifierType.IMO_NUMBER);
         assertThat(vessel.identifiers().get(0).value()).isEqualTo("1234567");
+    }
+
+    @Test
+    void shouldKeepTheShipFlagTypeAndTonnage() throws IOException {
+        SanctionedEntity vessel = findById(loadEntities(), "uk-RUS0300");
+
+        assertThat(vessel.vessel())
+                .isEqualTo(new VesselDetails("Panama", "Cargo", null, 5_100, null));
+        assertThat(vessel.listingReasons()).containsExactly("Test vessel entry.");
+        assertThat(vessel.gender()).isNull();
+    }
+
+    @Test
+    void shouldKeepTheGenderAndOtherInformation() throws IOException {
+        List<SanctionedEntity> entities = loadEntities();
+
+        SanctionedEntity smith = findById(entities, "uk-GHR0100");
+        assertThat(smith.gender()).isEqualTo(Gender.MALE);
+        assertThat(smith.deceased()).isNull();
+        assertThat(smith.vessel()).isNull();
+
+        SanctionedEntity acme = findById(entities, "uk-RUS0200");
+        assertThat(acme.remarks()).isEqualTo("Formerly known as Acme Corp.");
+        assertThat(acme.listingReasons()).containsExactly("Test entity for unit testing.");
+        assertThat(acme.gender()).isNull();
     }
 
     // ---- Group 400: Non-Latin script alias ---------------------------------

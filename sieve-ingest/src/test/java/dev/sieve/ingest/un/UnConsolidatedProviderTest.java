@@ -3,6 +3,7 @@ package dev.sieve.ingest.un;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
@@ -133,6 +134,13 @@ class UnConsolidatedProviderTest {
     void shouldParseRemarks() throws IOException {
         SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
         assertThat(eric.remarks()).startsWith("Test individual for unit testing purposes.");
+    }
+
+    @Test
+    void shouldKeepTheGenderAndSayNothingAboutDeathUnlessTheCommentsDo() throws IOException {
+        SanctionedEntity eric = findById(loadEntities(), "un-CDi.001");
+        assertThat(eric.gender()).isEqualTo(Gender.MALE);
+        assertThat(eric.deceased()).isNull();
     }
 
     @Test
