@@ -308,3 +308,4 @@ tr[aria-expanded="true"] .cv{transform:rotate(90deg)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 .boot{min-height:60vh;display:grid;place-items:center;color:var(--muted);font-size:13px}
+.news-note{margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
