@@ -63,7 +63,17 @@ final class FtmProperties {
         ACCEPTED.put(EntityType.ORGANIZATION, union(LEGAL_ENTITY, Set.of("imoNumber")));
         ACCEPTED.put(
                 EntityType.VESSEL,
-                union(THING, Set.of("imoNumber", "mmsi", "registrationNumber", "flag")));
+                union(
+                        THING,
+                        Set.of(
+                                "imoNumber",
+                                "mmsi",
+                                "registrationNumber",
+                                "flag",
+                                "type",
+                                "callSign",
+                                "tonnage",
+                                "grossRegisteredTonnage")));
         ACCEPTED.put(EntityType.AIRCRAFT, union(THING, Set.of("registrationNumber")));
         ACCEPTED.put(EntityType.CRYPTO_WALLET, union(THING, Set.of("publicKey", "currency")));
         ACCEPTED.put(

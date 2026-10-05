@@ -3,6 +3,7 @@ package dev.sieve.ingest.uk;
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
@@ -12,9 +13,11 @@ import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.model.VesselDetails;
 import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.remarks.Deceased;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -291,7 +294,12 @@ public final class UkHmtProvider implements ListProvider {
         List<LocalDate> datesOfBirth = new ArrayList<>();
         Set<String> placesOfBirth = new LinkedHashSet<>();
         Set<String> regimes = new LinkedHashSet<>();
-        String remarks = primary.statementOfReasons;
+        Set<String> reasons = new LinkedHashSet<>();
+        Set<String> otherInformation = new LinkedHashSet<>();
+        Gender gender = null;
+        String shipFlag = null;
+        String shipType = null;
+        Integer shipTonnage = null;
         Instant listedDate = parseInstant(primary.dateListed);
         Instant lastUpdated = parseInstant(primary.lastUpdated);
 
@@ -345,6 +353,22 @@ public final class UkHmtProvider implements ListProvider {
                 regimes.add(row.regimeName.strip());
             }
 
+            // Merge the statement of reasons, other information, gender and ship details
+            addIfPresent(reasons, row.statementOfReasons);
+            addIfPresent(otherInformation, row.otherInformation);
+            if (gender == null) {
+                gender = Gender.parse(row.gender).orElse(null);
+            }
+            if (shipFlag == null) {
+                shipFlag = strip(row.shipFlag);
+            }
+            if (shipType == null) {
+                shipType = strip(row.shipType);
+            }
+            if (shipTonnage == null) {
+                shipTonnage = VesselDetails.tons(row.shipTonnage);
+            }
+
             // Use latest update timestamp
             Instant rowUpdated = parseInstant(row.lastUpdated);
             if (rowUpdated != null && (lastUpdated == null || rowUpdated.isAfter(lastUpdated))) {
@@ -375,22 +399,32 @@ public final class UkHmtProvider implements ListProvider {
                                 ? primary.ukSanctionsListRef
                                 : "group-" + groupId);
 
+        String remarks = otherInformation.isEmpty() ? null : String.join("; ", otherInformation);
+        boolean individual = entityType == EntityType.INDIVIDUAL;
+
         return new SanctionedEntity(
-                entityId,
-                entityType,
-                ListSource.UK_HMT,
-                primaryName,
-                aliases,
-                addresses,
-                identifiers,
-                new ArrayList<>(nationalities),
-                new ArrayList<>(citizenships),
-                datesOfBirth,
-                new ArrayList<>(placesOfBirth),
-                remarks,
-                programs,
-                listedDate,
-                lastUpdated);
+                        entityId,
+                        entityType,
+                        ListSource.UK_HMT,
+                        primaryName,
+                        aliases,
+                        addresses,
+                        identifiers,
+                        new ArrayList<>(nationalities),
+                        new ArrayList<>(citizenships),
+                        datesOfBirth,
+                        new ArrayList<>(placesOfBirth),
+                        remarks,
+                        programs,
+                        listedDate,
+                        lastUpdated)
+                .withGender(individual ? gender : null)
+                .withDeceased(individual ? Deceased.statedIn(remarks) : null)
+                .withListingReasons(new ArrayList<>(reasons))
+                .withVessel(
+                        entityType == EntityType.VESSEL
+                                ? VesselDetails.of(shipFlag, shipType, null, shipTonnage, null)
+                                : null);
     }
 
     // ---- Row parsing -------------------------------------------------------
@@ -439,6 +473,7 @@ public final class UkHmtProvider implements ListProvider {
         String shipImoNumber;
         String shipFlag;
         String shipType;
+        String shipTonnage;
         String lastUpdated;
         String groupId;
         String grpStatus;
@@ -495,6 +530,7 @@ public final class UkHmtProvider implements ListProvider {
                     case "Ship_IMONumber" -> row.shipImoNumber = readText(reader);
                     case "Ship_Flag" -> row.shipFlag = readText(reader);
                     case "Ship_Type" -> row.shipType = readText(reader);
+                    case "Ship_Tonnage" -> row.shipTonnage = readText(reader);
                     case "LastUpdated" -> row.lastUpdated = readText(reader);
                     case "GroupID" -> row.groupId = readText(reader);
                     case "GrpStatus" -> row.grpStatus = readText(reader);

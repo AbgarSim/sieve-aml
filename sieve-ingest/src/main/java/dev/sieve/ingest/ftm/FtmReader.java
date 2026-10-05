@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
@@ -17,6 +18,7 @@ import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
 import dev.sieve.core.model.SourcedValue;
+import dev.sieve.core.model.VesselDetails;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -214,7 +216,29 @@ public final class FtmReader {
                         instant(first(node, "modifiedAt")),
                         topics,
                         relations);
+        entity = entity.withGender(first(node, "gender").flatMap(Gender::parse).orElse(null));
+        if (type == EntityType.VESSEL) {
+            entity =
+                    entity.withVessel(
+                            VesselDetails.of(
+                                    first(node, "flag").map(String::toUpperCase).orElse(null),
+                                    first(node, "type").orElse(null),
+                                    first(node, "callSign").orElse(null),
+                                    integer(first(node, "tonnage")),
+                                    integer(first(node, "grossRegisteredTonnage"))));
+        }
+        List<String> reasons =
+                sanctions.stream().flatMap(s -> values(s, "reason").stream()).distinct().toList();
+        entity = entity.withListingReasons(reasons);
         return withSeen(entity, node);
+    }
+
+    private static Integer integer(Optional<String> value) {
+        try {
+            return value.map(String::strip).map(Integer::valueOf).orElse(null);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

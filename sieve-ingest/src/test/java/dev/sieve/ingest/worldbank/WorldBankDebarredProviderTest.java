@@ -70,6 +70,7 @@ class WorldBankDebarredProviderTest {
         assertThat(firm.listedDate()).isEqualTo(Instant.parse("2014-05-28T00:00:00Z"));
         assertThat(firm.remarks())
                 .isEqualTo("Ineligible from 2014-05-28, with no end date\nIneligibility: Ongoing");
+        assertThat(firm.listingReasons()).containsExactly("Procurement Guidelines, 1.14(a)(ii)");
     }
 
     @Test

@@ -12,6 +12,7 @@ import dev.sieve.core.model.Relation;
 import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
+import dev.sieve.core.model.VesselDetails;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -280,6 +281,25 @@ class OfacSdnProviderTest {
         assertThat(vessel.identifiers()).hasSize(1);
         assertThat(vessel.identifiers().get(0).type()).isEqualTo(IdentifierType.IMO_NUMBER);
         assertThat(vessel.identifiers().get(0).value()).isEqualTo("9876543");
+    }
+
+    @Test
+    void shouldKeepTheVesselInfoFlagTypeCallSignAndTonnage() throws IOException {
+        List<SanctionedEntity> entities =
+                provider.parseXml(loadTestResource("sdn_test_sample.xml"));
+
+        SanctionedEntity vessel = byId(entities, "ofac-sdn-3001");
+        assertThat(vessel.vessel())
+                .isEqualTo(new VesselDetails("Panama", "Bulk Carrier", "3EXY9", null, 52_000));
+        assertThat(byId(entities, "ofac-sdn-1001").vessel()).isNull();
+    }
+
+    @Test
+    void shouldSayNothingAboutDeathUnlessTheRemarksDo() throws IOException {
+        List<SanctionedEntity> entities =
+                provider.parseXml(loadTestResource("sdn_test_sample.xml"));
+
+        assertThat(entities).allSatisfy(e -> assertThat(e.deceased()).isNull());
     }
 
     @Test

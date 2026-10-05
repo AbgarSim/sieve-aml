@@ -159,6 +159,10 @@ public final class ListHandler {
         map.put("programs", entity.programs().stream().map(SanctionsProgram::code).toList());
         map.put("topics", entity.topics().stream().map(RiskTopic::name).toList());
         map.put("remarks", entity.remarks());
+        map.put("gender", entity.gender());
+        map.put("deceased", entity.deceased());
+        map.put("listingReasons", entity.listingReasons());
+        map.put("vessel", entity.vessel());
         map.put("lastUpdated", entity.lastUpdated());
         return map;
     }

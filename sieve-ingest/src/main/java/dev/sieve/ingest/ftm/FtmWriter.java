@@ -14,6 +14,7 @@ import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
+import dev.sieve.core.model.VesselDetails;
 import dev.sieve.core.provenance.ProvenanceStamper;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,6 +27,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -117,6 +119,9 @@ public final class FtmWriter {
         props.add("lastName", primary.familyName());
         props.add("middleName", primary.middleName());
         props.add("title", primary.title());
+        if (entity.gender() != null) {
+            props.add("gender", entity.gender().name().toLowerCase(Locale.ROOT));
+        }
         for (LocalDate date : entity.datesOfBirth()) {
             props.add("birthDate", date.toString());
         }
@@ -137,6 +142,14 @@ public final class FtmWriter {
             if (identifier.type() == IdentifierType.CRYPTO_ADDRESS) {
                 props.add("currency", identifier.remarks());
             }
+        }
+        VesselDetails vessel = entity.vessel();
+        if (vessel != null) {
+            props.add("flag", country(vessel.flag()));
+            props.add("type", vessel.type());
+            props.add("callSign", vessel.callSign());
+            props.add("tonnage", number(vessel.tonnage()));
+            props.add("grossRegisteredTonnage", number(vessel.grossRegisteredTonnage()));
         }
         props.add("notes", entity.remarks());
         entity.topics().forEach(t -> props.add("topics", t.code()));
@@ -170,6 +183,7 @@ public final class FtmWriter {
         if (entity.listedDate() != null) {
             add(node, "listingDate", date(entity.listedDate()));
         }
+        entity.listingReasons().forEach(reason -> add(node, "reason", reason));
         return Optional.of(node);
     }
 
@@ -242,7 +256,14 @@ public final class FtmWriter {
     }
 
     private String country(String raw) {
+        if (raw == null) {
+            return null;
+        }
         return countries.toIso2(raw).map(String::toLowerCase).orElse(null);
+    }
+
+    private static String number(Integer value) {
+        return value == null ? null : value.toString();
     }
 
     private static String date(java.time.Instant instant) {

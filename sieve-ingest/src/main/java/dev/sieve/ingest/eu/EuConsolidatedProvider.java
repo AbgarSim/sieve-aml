@@ -3,6 +3,7 @@ package dev.sieve.ingest.eu;
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
@@ -16,6 +17,7 @@ import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
 import dev.sieve.ingest.relations.RemarkRelations;
+import dev.sieve.ingest.remarks.Deceased;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -397,23 +399,39 @@ public final class EuConsolidatedProvider implements ListProvider {
                         .map(p -> new SanctionsProgram(p, p, ListSource.EU_CONSOLIDATED))
                         .toList();
 
+        String remarks = ctx.remarks.isEmpty() ? null : ctx.remarks.toString();
+        boolean individual = ctx.entityType == EntityType.INDIVIDUAL;
+
         // EU list doesn't have separate nationality field — use citizenships for both
         return new SanctionedEntity(
-                entityId,
-                ctx.entityType,
-                ListSource.EU_CONSOLIDATED,
-                primaryName,
-                aliases,
-                ctx.addresses,
-                ctx.identifiers,
-                new ArrayList<>(ctx.citizenships),
-                new ArrayList<>(ctx.citizenships),
-                ctx.datesOfBirth,
-                new ArrayList<>(ctx.placesOfBirth),
-                ctx.remarks.isEmpty() ? null : ctx.remarks.toString(),
-                sanctionsPrograms,
-                ctx.entryIntoForceDate,
-                null);
+                        entityId,
+                        ctx.entityType,
+                        ListSource.EU_CONSOLIDATED,
+                        primaryName,
+                        aliases,
+                        ctx.addresses,
+                        ctx.identifiers,
+                        new ArrayList<>(ctx.citizenships),
+                        new ArrayList<>(ctx.citizenships),
+                        ctx.datesOfBirth,
+                        new ArrayList<>(ctx.placesOfBirth),
+                        remarks,
+                        sanctionsPrograms,
+                        ctx.entryIntoForceDate,
+                        null)
+                .withGender(individual ? gender(ctx.nameAliases) : null)
+                .withDeceased(individual ? Deceased.statedIn(remarks) : null);
+    }
+
+    /** The gender the first name alias that states one gives ({@code gender="M"} or "F"). */
+    private static Gender gender(List<NameAlias> aliases) {
+        for (NameAlias alias : aliases) {
+            Gender gender = Gender.parse(alias.gender).orElse(null);
+            if (gender != null) {
+                return gender;
+            }
+        }
+        return null;
     }
 
     // ---- Child element parsers ---------------------------------------------

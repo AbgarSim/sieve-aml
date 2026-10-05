@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
@@ -18,6 +19,7 @@ import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.model.VesselDetails;
 import dev.sieve.core.provenance.ProvenanceStamper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -132,6 +134,56 @@ class FtmRoundTripTest {
                 .containsExactly("RUSSIA-EO14024");
         assertThat(back.relations()).containsExactlyInAnyOrderElementsOf(original.relations());
         assertThat(back.listedDate()).isEqualTo(Instant.parse("2022-04-06T00:00:00Z"));
+    }
+
+    @Test
+    void shouldWriteGenderReasonsAndVesselDetailsAndReadThemBack() throws IOException {
+        SanctionedEntity person =
+                person().withGender(Gender.FEMALE)
+                        .withDeceased(Boolean.TRUE)
+                        .withListingReasons(List.of("Statement of reasons"));
+        SanctionedEntity vessel =
+                new SanctionedEntity(
+                                "ofac-sdn-5",
+                                EntityType.VESSEL,
+                                ListSource.OFAC_SDN,
+                                name("SEA STAR"),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of(),
+                                null,
+                                null)
+                        .withVessel(
+                                new VesselDetails("Panama", "Bulk Carrier", "3EXY9", null, 52_000));
+
+        String json = writer.writeToString(List.of(person, vessel));
+        List<JsonNode> nodes = lines(json);
+
+        JsonNode personProps = bySchema(nodes).get("Person").get("properties");
+        assertThat(texts(personProps, "gender")).containsExactly("female");
+        assertThat(texts(bySchema(nodes).get("Sanction").get("properties"), "reason"))
+                .containsExactly("Statement of reasons");
+        JsonNode vesselProps = bySchema(nodes).get("Vessel").get("properties");
+        assertThat(texts(vesselProps, "flag")).containsExactly("pa");
+        assertThat(texts(vesselProps, "type")).containsExactly("Bulk Carrier");
+        assertThat(texts(vesselProps, "callSign")).containsExactly("3EXY9");
+        assertThat(texts(vesselProps, "grossRegisteredTonnage")).containsExactly("52000");
+        assertThat(vesselProps.has("tonnage")).isFalse();
+
+        Map<String, SanctionedEntity> back =
+                read(json).stream()
+                        .collect(Collectors.toMap(SanctionedEntity::id, Function.identity()));
+        assertThat(back.get(person.id()).gender()).isEqualTo(Gender.FEMALE);
+        assertThat(back.get(person.id()).listingReasons()).containsExactly("Statement of reasons");
+        assertThat(back.get(person.id()).deceased()).as("the format has no field for it").isNull();
+        assertThat(back.get("ofac-sdn-5").vessel())
+                .isEqualTo(new VesselDetails("PA", "Bulk Carrier", "3EXY9", null, 52_000));
     }
 
     @Test

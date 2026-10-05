@@ -220,23 +220,24 @@ public final class WorldBankDebarredProvider extends AbstractListProvider {
                         : List.of(new SanctionsProgram(reason, reason, ListSource.WB_DEBARRED));
 
         return new SanctionedEntity(
-                "wb-" + id,
-                type,
-                ListSource.WB_DEBARRED,
-                primary,
-                aliases,
-                addresses,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                remarks(row, from, to),
-                programs,
-                from == null ? null : from.atStartOfDay(ZoneOffset.UTC).toInstant(),
-                Instant.now(),
-                Set.of(RiskTopic.DEBARMENT),
-                List.of());
+                        "wb-" + id,
+                        type,
+                        ListSource.WB_DEBARRED,
+                        primary,
+                        aliases,
+                        addresses,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        remarks(row, from, to),
+                        programs,
+                        from == null ? null : from.atStartOfDay(ZoneOffset.UTC).toInstant(),
+                        Instant.now(),
+                        Set.of(RiskTopic.DEBARMENT),
+                        List.of())
+                .withListingReasons(reason == null ? List.of() : List.of(reason));
     }
 
     private static String remarks(JsonNode row, LocalDate from, LocalDate to) {

@@ -17,6 +17,8 @@ import { entityPath } from './Search';
 const SCRIPTS = ['LATIN', 'CYRILLIC', 'ARABIC', 'CJK', 'OTHER'];
 const SCRIPT_LABEL: Record<string, string> = { LATIN: 'Latin', CYRILLIC: 'Cyrillic', ARABIC: 'Arabic', CJK: 'CJK', OTHER: 'Other script' };
 const NAME_TYPE: Record<string, string> = { AKA: 'a.k.a.', FKA: 'f.k.a.', MAIDEN: 'maiden name', PRIMARY: 'primary' };
+const GENDER: Record<string, string> = { MALE: 'Male', FEMALE: 'Female', OTHER: 'Other' };
+const tons = (n: number) => n.toLocaleString('en-US');
 const ID_TYPE: Record<string, string> = { PASSPORT: 'Passport', NATIONAL_ID: 'National ID', TAX_ID: 'Tax ID', IMO_NUMBER: 'IMO number', MMSI: 'MMSI', REGISTRATION_NUMBER: 'Registration number', SWIFT_BIC: 'SWIFT/BIC', LEI: 'LEI', BUSINESS_REGISTRATION: 'Business registration', OTHER: 'Other' };
 const Lbl = ({ children }: { children: React.ReactNode }) => <div className="xs muted" style={{ textTransform: 'uppercase', letterSpacing: '.04em' }}>{children}</div>;
 const day = (iso?: string) => (iso ? iso.slice(0, 10) : '—');
@@ -72,9 +74,17 @@ export default function Entity() {
             <Row k="Aliases">{byScript.length ? byScript.map(([s, as]) => <Fragment key={s}><div className="scr">{SCRIPT_LABEL[s]}</div><ul>{as.map(nameRow)}</ul></Fragment>) : <span className="muted">None recorded</span>}</Row>
             {isPerson && (rec.datesOfBirth?.length ?? 0) > 0 && <Row k="Date of birth"><ul>{rec.datesOfBirth!.map(d => <li key={d} className="num">{d}</li>)}</ul></Row>}
             {isPerson && (rec.placesOfBirth?.length ?? 0) > 0 && <Row k="Place of birth">{rec.placesOfBirth!.join(' · ')}</Row>}
+            {isPerson && rec.gender && <Row k="Gender">{GENDER[rec.gender] ?? rec.gender}</Row>}
+            {isPerson && rec.deceased && <Row k="Deceased">Reported dead by the list</Row>}
+            {rec.vessel?.flag && <Row k="Flag">{rec.vessel.flag}</Row>}
+            {rec.vessel?.type && <Row k="Vessel type">{rec.vessel.type}</Row>}
+            {rec.vessel?.callSign && <Row k="Call sign"><span className="num">{rec.vessel.callSign}</span></Row>}
+            {rec.vessel?.tonnage != null && <Row k="Tonnage"><span className="num">{tons(rec.vessel.tonnage)}</span></Row>}
+            {rec.vessel?.grossRegisteredTonnage != null && <Row k="Gross registered tonnage"><span className="num">{tons(rec.vessel.grossRegisteredTonnage)}</span></Row>}
             {nats.length > 0 && <Row k="Nationality"><ul>{nats.map(n => <li key={n}>{n}</li>)}</ul></Row>}
             {addrs.length > 0 && <Row k="Addresses"><ul>{addrs.map(a => <li key={a}>{a}</li>)}</ul></Row>}
             {ids.length > 0 && <Row k="Identifiers"><table style={{ borderCollapse: 'collapse', fontSize: 13 }}><tbody>{ids.map((i, n) => <tr key={n}><td style={{ padding: '2px 14px 2px 0', color: 'var(--muted)' }}>{ID_TYPE[i.type] ?? i.type}</td><td className="num" style={{ padding: '2px 10px 2px 0' }}>{i.value}</td><td className="small muted">{i.issuingCountry}</td></tr>)}</tbody></table></Row>}
+            {(rec.listingReasons?.length ?? 0) > 0 && <Row k="Listing reasons">{rec.listingReasons!.length === 1 ? rec.listingReasons![0] : <ul>{rec.listingReasons!.map(r => <li key={r}>{r}</li>)}</ul>}</Row>}
             {rec.remarks && <Row k="Remarks">{rec.remarks}</Row>}
             {entry.countries.length > 0 && <Row k="Linked countries"><span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{entry.countries.map(c => <Badge key={c} cc={c}>{D.countryByCc[c]?.name ?? countryName(c)}</Badge>)}</span></Row>}
           </tbody></table>

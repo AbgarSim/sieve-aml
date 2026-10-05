@@ -83,7 +83,11 @@ The unified domain model represents sanctioned entities from all list sources:
            +List~Identifier~ identifiers
            +List~SanctionsProgram~ programs
            +List~String~ nationalities
+           +Gender gender
+           +Boolean deceased
            +String remarks
+           +List~String~ listingReasons
+           +VesselDetails vessel
            +Instant lastUpdated
        }
 

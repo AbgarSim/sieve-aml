@@ -316,7 +316,7 @@
     <Ship_Flag>Panama</Ship_Flag>
     <Ship_PreviousFlags i:nil="true" />
     <Ship_Type>Cargo</Ship_Type>
-    <Ship_Tonnage i:nil="true" />
+    <Ship_Tonnage>5,100</Ship_Tonnage>
     <Ship_Length i:nil="true" />
     <Ship_YearBuilt i:nil="true" />
     <Ship_HullIdentificationNumber i:nil="true" />

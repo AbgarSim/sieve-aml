@@ -16,7 +16,12 @@ import java.util.List;
  * @param nationalities known nationalities
  * @param programs sanctions programs the entity is listed under
  * @param topics why the entity is of interest (SANCTION, PEP, DEBARMENT and so on)
+ * @param gender the gender the list records (MALE, FEMALE, OTHER), {@code null} if none
+ * @param deceased {@code true} when the list says the person is dead, {@code null} if it says
+ *     nothing about it
  * @param remarks free-text remarks
+ * @param listingReasons the reasons the list gives for the listing
+ * @param vessel what the list says about a vessel, {@code null} for anything else
  * @param lastUpdated last modification timestamp
  * @param firstSeen when Sieve first saw any value of the entity, {@code null} if unknown
  * @param lastSeen when Sieve last saw the entity on its list, {@code null} if unknown
@@ -33,7 +38,12 @@ public record EntityDto(
         @Schema(description = "Known nationalities") List<String> nationalities,
         @Schema(description = "Sanctions programs") List<String> programs,
         @Schema(description = "Risk topics", example = "[\"SANCTION\"]") List<String> topics,
+        @Schema(description = "Gender the list records", example = "MALE") String gender,
+        @Schema(description = "True when the list says the person is dead, absent otherwise")
+                Boolean deceased,
         @Schema(description = "Remarks") String remarks,
+        @Schema(description = "Reasons the list gives for the listing") List<String> listingReasons,
+        @Schema(description = "What the list says about a vessel") VesselDto vessel,
         @Schema(description = "Last updated timestamp") Instant lastUpdated,
         @Schema(description = "When any value of the entity was first seen") Instant firstSeen,
         @Schema(description = "When the entity was last seen on its list") Instant lastSeen,

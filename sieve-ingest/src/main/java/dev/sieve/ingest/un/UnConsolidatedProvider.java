@@ -3,6 +3,7 @@ package dev.sieve.ingest.un;
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
@@ -16,6 +17,7 @@ import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
 import dev.sieve.ingest.relations.RemarkRelations;
+import dev.sieve.ingest.remarks.Deceased;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -395,21 +397,23 @@ public final class UnConsolidatedProvider implements ListProvider {
         Instant updated = parseIsoDate(lastUpdated);
 
         return new SanctionedEntity(
-                entityId,
-                EntityType.INDIVIDUAL,
-                ListSource.UN_CONSOLIDATED,
-                primaryName,
-                new ArrayList<>(aliasNames),
-                addresses,
-                identifiers,
-                new ArrayList<>(nationalities),
-                new ArrayList<>(nationalities),
-                datesOfBirth,
-                new ArrayList<>(placesOfBirth),
-                comments,
-                programs,
-                listed,
-                updated);
+                        entityId,
+                        EntityType.INDIVIDUAL,
+                        ListSource.UN_CONSOLIDATED,
+                        primaryName,
+                        new ArrayList<>(aliasNames),
+                        addresses,
+                        identifiers,
+                        new ArrayList<>(nationalities),
+                        new ArrayList<>(nationalities),
+                        datesOfBirth,
+                        new ArrayList<>(placesOfBirth),
+                        comments,
+                        programs,
+                        listed,
+                        updated)
+                .withGender(Gender.parse(gender).orElse(null))
+                .withDeceased(Deceased.statedIn(comments));
     }
 
     // ---- ENTITY parsing ----------------------------------------------------
