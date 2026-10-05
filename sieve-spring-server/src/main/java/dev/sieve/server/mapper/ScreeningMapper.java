@@ -17,7 +17,9 @@ import dev.sieve.ingest.ProviderResult;
 import dev.sieve.server.dto.AddressDto;
 import dev.sieve.server.dto.EntityDto;
 import dev.sieve.server.dto.EntityPageDto;
+import dev.sieve.server.dto.ImageDto;
 import dev.sieve.server.dto.IndexStatsDto;
+import dev.sieve.server.dto.LinkDto;
 import dev.sieve.server.dto.MatchResultDto;
 import dev.sieve.server.dto.ProvenanceDto;
 import dev.sieve.server.dto.ProviderResultDto;
@@ -124,6 +126,19 @@ public class ScreeningMapper {
                                                 v.provenance().sourceUrl(),
                                                 v.provenance().firstSeen(),
                                                 v.provenance().lastSeen()))
+                        .toList(),
+                entity.images().stream()
+                        .map(
+                                i ->
+                                        new ImageDto(
+                                                i.url(),
+                                                i.thumbnailUrl(),
+                                                i.pageUrl(),
+                                                i.credit(),
+                                                i.licence()))
+                        .toList(),
+                entity.links().stream()
+                        .map(l -> new LinkDto(l.url(), l.title(), l.kind().name(), l.date()))
                         .toList());
     }
 

@@ -354,7 +354,7 @@ public final class SnapshotWriter {
         byte[] json = mapper.writeValueAsBytes(entity);
         ObjectNode node = (ObjectNode) mapper.readTree(json);
         String key = key(entity);
-        String[] dates = seen.stamp(key, digest(json));
+        String[] dates = seen.stamp(key, digest(contentOf(json, node)));
         node.put("firstSeen", dates[0]);
         node.put("lastSeen", seen.today().toString());
         node.put("lastChange", dates[1]);
@@ -370,6 +370,21 @@ public final class SnapshotWriter {
             node.set("linkedFrom", mapper.readTree(mapper.writeValueAsBytes(incoming)));
         }
         return node;
+    }
+
+    /**
+     * The bytes a record's change date is computed from: its fields without the pictures and links,
+     * which say where the entity is shown or written about rather than what the list states, so
+     * adding them never marks a record as changed.
+     */
+    private byte[] contentOf(byte[] json, ObjectNode record) throws IOException {
+        if (!record.has("images") && !record.has("links")) {
+            return json;
+        }
+        ObjectNode content = record.deepCopy();
+        content.remove("images");
+        content.remove("links");
+        return mapper.writeValueAsBytes(content);
     }
 
     private static String digest(byte[] bytes) {

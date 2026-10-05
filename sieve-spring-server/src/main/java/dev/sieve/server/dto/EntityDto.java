@@ -26,6 +26,8 @@ import java.util.List;
  * @param firstSeen when Sieve first saw any value of the entity, {@code null} if unknown
  * @param lastSeen when Sieve last saw the entity on its list, {@code null} if unknown
  * @param provenance where and when each value was seen
+ * @param images pictures of the entity the list publishes
+ * @param links pages about the entity, such as its listing page or the acts that listed it
  */
 @Schema(description = "Sanctioned entity from a sanctions list")
 public record EntityDto(
@@ -48,4 +50,7 @@ public record EntityDto(
         @Schema(description = "When any value of the entity was first seen") Instant firstSeen,
         @Schema(description = "When the entity was last seen on its list") Instant lastSeen,
         @Schema(description = "Where and when each name, date, identifier and other value was seen")
-                List<ProvenanceDto> provenance) {}
+                List<ProvenanceDto> provenance,
+        @Schema(description = "Pictures of the entity, each with its credit and licence")
+                List<ImageDto> images,
+        @Schema(description = "Pages about the entity") List<LinkDto> links) {}

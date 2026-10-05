@@ -57,23 +57,23 @@
     <!-- Entity 3: Individual with year-only birthdate and multiple citizenships -->
     <sanctionEntity designationDetails="" unitedNationId="" euReferenceNumber="EU.30.77" logicalId="300">
         <regulation regulationType="regulation" organisationType="commission" publicationDate="2003-07-08" entryIntoForceDate="2003-07-07" numberTitle="1210/2003 (OJ L169)" programme="IRQ" logicalId="503">
-            <publicationUrl>http://example.com/regulation4</publicationUrl>
+            <publicationUrl>http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF</publicationUrl>
         </regulation>
         <subjectType code="person" classificationCode="P"/>
         <nameAlias firstName="Ahmed" middleName="" lastName="Al-Hassan" wholeName="Ahmed Al-Hassan" function="" gender="M" title="" nameLanguage="" strong="true" regulationLanguage="en" logicalId="3001">
-            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF"/>
         </nameAlias>
         <citizenship region="" countryIso2Code="IQ" countryDescription="IRAQ" regulationLanguage="en" logicalId="70">
-            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF"/>
         </citizenship>
         <citizenship region="" countryIso2Code="JO" countryDescription="JORDAN" regulationLanguage="en" logicalId="71">
-            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF"/>
         </citizenship>
         <birthdate circa="false" calendarType="GREGORIAN" city="Baghdad" zipCode="" year="1965" region="" place="" countryIso2Code="IQ" countryDescription="IRAQ" regulationLanguage="en" logicalId="80">
-            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF"/>
         </birthdate>
         <birthdate circa="false" calendarType="GREGORIAN" city="Baghdad" zipCode="" year="1966" region="" place="" countryIso2Code="IQ" countryDescription="IRAQ" regulationLanguage="en" logicalId="81">
-            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://example.com/regulation4"/>
+            <regulationSummary regulationType="regulation" publicationDate="2003-07-08" numberTitle="1210/2003 (OJ L169)" publicationUrl="http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF"/>
         </birthdate>
     </sanctionEntity>
 
