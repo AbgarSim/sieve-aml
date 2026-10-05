@@ -14,6 +14,7 @@ available when the server is running)
 
    screening
    lists
+   pep
    health
 
 Error Handling

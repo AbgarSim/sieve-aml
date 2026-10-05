@@ -14,6 +14,8 @@ import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.AbstractListProvider;
+import dev.sieve.ingest.pep.PublicFunctionCatalog;
+import dev.sieve.ingest.pep.PublicFunctionCategory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -62,6 +64,10 @@ import java.util.stream.Collectors;
  * business partners) are tagged {@link RiskTopic#RCA}, with a {@link Relation} to each holder they
  * are linked to; a relative who holds an office is both. Programs and remarks name each office and
  * each link.
+ *
+ * <p>Each office class falls under a category of Article 3(9) of Directive (EU) 2015/849, and a
+ * PEP's listing reasons cite that category and, for an EU member state, the state's own entry for
+ * the office in the EU list of prominent public functions that {@link PublicFunctionCatalog} ships.
  *
  * <p>The query service limits each query to a minute and each client to a few queries at once, so
  * the work is split into small queries that run {@link #PARALLEL_QUERIES} at a time: one query
@@ -130,6 +136,30 @@ public final class WikidataPepProvider extends AbstractListProvider {
     static final int REGIONAL_TIER = 2;
 
     /**
+     * The category of Article 3(9) of Directive (EU) 2015/849 each office class falls under, which
+     * the catalogue of prominent public functions cites. Attorneys general sit with the high
+     * courts, as most member states list them.
+     */
+    static final Map<String, PublicFunctionCategory> OFFICE_CATEGORIES =
+            Map.ofEntries(
+                    Map.entry("Q48352", PublicFunctionCategory.HEADS_OF_STATE_AND_GOVERNMENT),
+                    Map.entry("Q2285706", PublicFunctionCategory.HEADS_OF_STATE_AND_GOVERNMENT),
+                    Map.entry("Q83307", PublicFunctionCategory.HEADS_OF_STATE_AND_GOVERNMENT),
+                    Map.entry("Q26204040", PublicFunctionCategory.HEADS_OF_STATE_AND_GOVERNMENT),
+                    Map.entry("Q486839", PublicFunctionCategory.LEGISLATORS),
+                    Map.entry("Q1553195", PublicFunctionCategory.PARTY_GOVERNING_BODIES),
+                    Map.entry("Q16533", PublicFunctionCategory.HIGH_COURTS),
+                    Map.entry("Q1501926", PublicFunctionCategory.HIGH_COURTS),
+                    Map.entry("Q107363151", PublicFunctionCategory.AUDITORS_AND_CENTRAL_BANKS),
+                    Map.entry("Q5097014", PublicFunctionCategory.DIPLOMATS_AND_ARMED_FORCES),
+                    Map.entry("Q380782", PublicFunctionCategory.DIPLOMATS_AND_ARMED_FORCES),
+                    Map.entry("Q121998", PublicFunctionCategory.DIPLOMATS_AND_ARMED_FORCES));
+
+    /** The category of the heads of a country's first-level regions: heads of government. */
+    static final PublicFunctionCategory REGIONAL_CATEGORY =
+            PublicFunctionCategory.HEADS_OF_STATE_AND_GOVERNMENT;
+
+    /**
      * The offices held by the head of government ({@code P1313}) or head of state ({@code P1906})
      * of each first-level region ({@code P150}) of a country: state governors, regional premiers
      * and the like. Only an office whose own jurisdiction is that region counts, which leaves out
@@ -176,11 +206,15 @@ public final class WikidataPepProvider extends AbstractListProvider {
         this.clock = clock;
     }
 
-    /** An office in one country. */
-    record Office(String id, String label, String country, int tier) {}
+    /** An office in one country, with its PEP tier and its directive category, if any. */
+    record Office(
+            String id, String label, String country, int tier, PublicFunctionCategory category) {}
 
-    /** A query that finds offices in every country at once, and the tier its offices get. */
-    record OfficeQuery(String what, String sparql, int tier) {}
+    /**
+     * A query that finds offices in every country at once, and the tier and category its offices
+     * get.
+     */
+    record OfficeQuery(String what, String sparql, int tier, PublicFunctionCategory category) {}
 
     /** One holder's term in an office. */
     record Term(Office office, LocalDate start, LocalDate end) {}
@@ -360,8 +394,11 @@ public final class WikidataPepProvider extends AbstractListProvider {
                                 new OfficeQuery(
                                         "office class " + officeClass,
                                         extraOfficesQuery(officeClass),
-                                        tier)));
-        queries.add(new OfficeQuery("regional heads", REGIONAL_HEADS_QUERY, REGIONAL_TIER));
+                                        tier,
+                                        OFFICE_CATEGORIES.get(officeClass))));
+        queries.add(
+                new OfficeQuery(
+                        "regional heads", REGIONAL_HEADS_QUERY, REGIONAL_TIER, REGIONAL_CATEGORY));
         return queries;
     }
 
@@ -378,6 +415,7 @@ public final class WikidataPepProvider extends AbstractListProvider {
         }
         Map<String, String> officeCountry = new LinkedHashMap<>();
         Map<String, Integer> officeTier = new LinkedHashMap<>();
+        Map<String, PublicFunctionCategory> officeCategory = new LinkedHashMap<>();
         for (Map.Entry<OfficeQuery, Future<List<JsonNode>>> query : queries.entrySet()) {
             List<JsonNode> rows = await(query.getValue(), query.getKey().what());
             if (rows == null) {
@@ -389,7 +427,11 @@ public final class WikidataPepProvider extends AbstractListProvider {
                 String country = id(value(row, "country"));
                 if (office != null && countries.containsKey(country)) {
                     officeCountry.putIfAbsent(office, country);
-                    officeTier.merge(office, tier, Math::min);
+                    Integer known = officeTier.get(office);
+                    if (known == null || tier < known) {
+                        officeTier.put(office, tier);
+                        officeCategory.put(office, query.getKey().category());
+                    }
                 }
             }
         }
@@ -419,7 +461,8 @@ public final class WikidataPepProvider extends AbstractListProvider {
                                                 office,
                                                 labels.getOrDefault(office, office),
                                                 countries.get(country),
-                                                officeTier.get(office))));
+                                                officeTier.get(office),
+                                                officeCategory.get(office))));
         return offices;
     }
 
@@ -488,10 +531,18 @@ public final class WikidataPepProvider extends AbstractListProvider {
         Map<String, Office> offices = new LinkedHashMap<>();
         for (JsonNode row : select(client, officesQuery(countryId))) {
             String office = id(value(row, "office"));
-            Integer tier = OFFICE_CLASSES.get(id(value(row, "class")));
+            String officeClass = id(value(row, "class"));
+            Integer tier = OFFICE_CLASSES.get(officeClass);
             String label = value(row, "label");
             if (office != null && tier != null) {
-                keep(offices, new Office(office, label == null ? office : label, iso, tier));
+                keep(
+                        offices,
+                        new Office(
+                                office,
+                                label == null ? office : label,
+                                iso,
+                                tier,
+                                OFFICE_CATEGORIES.get(officeClass)));
             }
         }
         return new ArrayList<>(offices.values());
@@ -671,9 +722,15 @@ public final class WikidataPepProvider extends AbstractListProvider {
         Set<String> countries = new LinkedHashSet<>(person.citizenships);
         Set<RiskTopic> topics = EnumSet.noneOf(RiskTopic.class);
         List<Relation> relations = new ArrayList<>();
+        Set<String> reasons = new LinkedHashSet<>();
         for (Term term : person.terms) {
             topics.add(RiskTopic.PEP);
             Office office = term.office();
+            if (office.category() != null) {
+                reasons.add(
+                        PublicFunctionCatalog.bundled()
+                                .reason(office.category(), office.country(), office.label()));
+            }
             programs.putIfAbsent(
                     office.id(),
                     new SanctionsProgram(
@@ -721,23 +778,24 @@ public final class WikidataPepProvider extends AbstractListProvider {
         remarks.add("Source: https://www.wikidata.org/wiki/" + person.id);
 
         return new SanctionedEntity(
-                "wd-" + person.id,
-                EntityType.INDIVIDUAL,
-                ListSource.WIKIDATA_PEP,
-                primary,
-                aliases,
-                List.of(),
-                List.of(),
-                new ArrayList<>(countries),
-                List.of(),
-                new ArrayList<>(person.datesOfBirth),
-                List.of(),
-                remarks.toString(),
-                new ArrayList<>(programs.values()),
-                null,
-                Instant.now(),
-                topics,
-                relations);
+                        "wd-" + person.id,
+                        EntityType.INDIVIDUAL,
+                        ListSource.WIKIDATA_PEP,
+                        primary,
+                        aliases,
+                        List.of(),
+                        List.of(),
+                        new ArrayList<>(countries),
+                        List.of(),
+                        new ArrayList<>(person.datesOfBirth),
+                        List.of(),
+                        remarks.toString(),
+                        new ArrayList<>(programs.values()),
+                        null,
+                        Instant.now(),
+                        topics,
+                        relations)
+                .withListingReasons(new ArrayList<>(reasons));
     }
 
     /** Whether a person will be published as a PEP: named, with at least one office. */

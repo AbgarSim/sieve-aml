@@ -5,6 +5,7 @@ import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.ScreeningException;
 import dev.sieve.core.SieveException;
 import java.net.URI;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Global exception handler mapping domain exceptions to RFC 7807 Problem Detail responses. */
 @RestControllerAdvice
@@ -55,6 +57,30 @@ public class GlobalExceptionHandler {
         problem.setType(URI.create(SIEVE_ERROR_TYPE + "/bad-request"));
         problem.setTitle("Bad Request");
         problem.setDetail(ex.getMessage());
+        return problem;
+    }
+
+    /**
+     * Handles a status a controller raised itself, such as 404 for a jurisdiction without a list.
+     *
+     * @param ex the exception
+     * @return a problem detail with the exception's status
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        ProblemDetail problem = ProblemDetail.forStatus(ex.getStatusCode());
+        problem.setType(
+                URI.create(
+                        SIEVE_ERROR_TYPE
+                                + "/"
+                                + (status == null
+                                        ? "error"
+                                        : status.name()
+                                                .toLowerCase(Locale.ROOT)
+                                                .replace('_', '-'))));
+        problem.setTitle(status == null ? "Error" : status.getReasonPhrase());
+        problem.setDetail(ex.getReason());
         return problem;
     }
 

@@ -53,7 +53,7 @@
 | US FBI Wanted | U.S. Federal Bureau of Investigation — wanted persons (open posters naming a suspect) | JSON | ~500 |
 | EU Most Wanted | Europol / ENFAST — Europe's most wanted fugitives | HTML | ~50 |
 | World Bank Debarred | World Bank Group — firms and individuals debarred from Bank-financed contracts | JSON | ~1,500 |
-| Wikidata PEPs | Wikidata — living holders of national offices (heads of state and government, ministers, central bank governors, military chiefs, members of parliament, judges, deputy ministers, ambassadors, attorneys general, party leaders) and the heads of first-level regions (state governors, regional premiers), current or within 5 years, plus their living relatives and close associates (spouses, partners, children, parents, siblings, relatives, business partners), each linked to their PEP | JSON (SPARQL) | ~81,000 PEPs, ~7,500 RCAs |
+| Wikidata PEPs | Wikidata — living holders of national offices (heads of state and government, ministers, central bank governors, military chiefs, members of parliament, judges, deputy ministers, ambassadors, attorneys general, party leaders) and the heads of first-level regions (state governors, regional premiers), current or within 5 years, plus their living relatives and close associates (spouses, partners, children, parents, siblings, relatives, business partners), each linked to their PEP; each PEP's listing reasons cite the directive category of the office and the state's own entry in the EU list of prominent public functions (OJ C/2023/724), which Sieve ships as a reference table | JSON (SPARQL) | ~81,000 PEPs, ~7,500 RCAs |
 | GLEIF State-Owned | Global Legal Entity Identifier Foundation — companies whose direct or ultimate accounting parent in the LEI register is a government entity (states, regions, cities, sovereign and public pension funds), with their government owners and the ownership links between them; LEI, registration number and BIC as identifiers | JSON (API) + CSV (relationship file) | ~1,300 |
 | GLEIF Sanction-Linked | Global Legal Entity Identifier Foundation — companies whose accounts a party on the OFAC SDN or EU consolidated list consolidates, directly or through other companies, found by following the LEI register's relationship records down from the LEIs those lists state (the OFAC and EU 50% rules); each carries a link to the listed owner's record and is left out when it is listed itself | JSON (API) + CSV (relationship file) | ~70 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
@@ -194,6 +194,10 @@ curl -X POST http://localhost:8080/api/v1/lists/refresh
 
 # Health check
 curl http://localhost:8080/api/v1/health
+
+# The EU list of prominent public functions: a summary, then one jurisdiction's functions of one category
+curl http://localhost:8080/api/v1/pep/functions
+curl "http://localhost:8080/api/v1/pep/functions/DE?category=a"
 ```
 
 ## Matching Algorithms
