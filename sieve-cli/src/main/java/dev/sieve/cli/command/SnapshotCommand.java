@@ -3,10 +3,12 @@ package dev.sieve.cli.command;
 import dev.sieve.cli.snapshot.FetchedSource;
 import dev.sieve.cli.snapshot.SnapshotFetcher;
 import dev.sieve.cli.snapshot.SnapshotWriter;
+import dev.sieve.cli.snapshot.WikidataStep;
 import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.stats.DatasetStats;
 import dev.sieve.ingest.ProviderRegistry;
+import dev.sieve.ingest.wikidata.WikidataLinks;
 import dev.sieve.match.dedup.SimilarityDeduplicator;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -48,6 +50,13 @@ public class SnapshotCommand implements Callable<Integer> {
             description = "Entity records per shard file (default: ${DEFAULT-VALUE})")
     private int shardSize;
 
+    @Option(
+            names = "--no-wikidata",
+            description =
+                    "Skip looking up pictures and Wikipedia articles on Wikidata for records it"
+                            + " knows by LEI, IMO number, BIC or ISIN")
+    private boolean noWikidata;
+
     @Override
     public Integer call() throws Exception {
         Set<ListSource> only = EnumSet.noneOf(ListSource.class);
@@ -60,6 +69,9 @@ public class SnapshotCommand implements Callable<Integer> {
                         ProviderRegistry.defaults(),
                         source -> source == ListSource.UA_NSDC && nsdcKeyMissing);
         List<FetchedSource> fetched = fetcher.fetch(only);
+        if (!noWikidata) {
+            fetched = WikidataStep.addTo(fetched, new WikidataLinks());
+        }
 
         SnapshotWriter writer =
                 new SnapshotWriter(

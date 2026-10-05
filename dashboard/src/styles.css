@@ -237,6 +237,7 @@ tr[aria-expanded="true"] .cv{transform:rotate(90deg)}
 .ehd h1{font-size:26px;letter-spacing:-.02em}
 .ephoto{flex:0 0 auto;display:grid;gap:4px;width:112px}
 .ephoto img{display:block;width:112px;height:140px;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--border);background:var(--surface-2)}
+.ephoto.logo img{object-fit:contain;object-position:center;padding:10px;background:#fff}
 .ephoto figcaption{line-height:1.3;overflow-wrap:anywhere}
 .links{display:grid;gap:14px}
 .links ul{list-style:none;display:flex;flex-direction:column;gap:6px}
