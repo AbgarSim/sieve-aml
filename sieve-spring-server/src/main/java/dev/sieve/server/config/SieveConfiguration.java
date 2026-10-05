@@ -7,6 +7,7 @@ import dev.sieve.ingest.IngestionOrchestrator;
 import dev.sieve.ingest.ListProvider;
 import dev.sieve.ingest.eu.EuConsolidatedProvider;
 import dev.sieve.ingest.ofac.OfacSdnProvider;
+import dev.sieve.ingest.pep.PublicFunctionCatalog;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import dev.sieve.match.CompositeMatchEngine;
@@ -141,6 +142,17 @@ public class SieveConfiguration {
      *
      * @return the composite match engine
      */
+    /**
+     * The EU list of prominent public functions the ingest module ships, which the PEP endpoints
+     * serve.
+     *
+     * @return the bundled catalogue
+     */
+    @Bean
+    public PublicFunctionCatalog publicFunctionCatalog() {
+        return PublicFunctionCatalog.bundled();
+    }
+
     @Bean
     public MatchEngine matchEngine() {
         NormalizedNameCache nameCache = new NormalizedNameCache();

@@ -55,7 +55,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
   and end dates and a PEP tier per position.
 - [x] 1.12 Relatives and close associates from Wikidata family and associate links, tied to their
   PEP.
-- [ ] 1.13 National PEP lists: the lists of prominent public functions that EU member states publish
+- [x] 1.13 National PEP lists: the lists of prominent public functions that EU member states publish
   under AMLD5, used to decide which positions count.
 - [x] 1.14 Corporate ownership from GLEIF: LEI parent and child relations, which also give a first
   set of state-owned companies.

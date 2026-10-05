@@ -13,12 +13,14 @@ import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.ingest.pep.PublicFunctionCatalog;
 import dev.sieve.match.CompositeMatchEngine;
 import dev.sieve.match.ExactMatchEngine;
 import dev.sieve.match.FuzzyMatchEngine;
 import dev.sieve.match.NgramIndex;
 import dev.sieve.match.NormalizedNameCache;
 import dev.sieve.server.handler.HealthHandler;
+import dev.sieve.server.handler.PublicFunctionHandler;
 import dev.sieve.server.handler.ScreeningHandler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -74,9 +76,14 @@ class SieveServerTest {
                         config,
                         dev.sieve.core.audit.ScreeningAuditEmitter.noop());
         HealthHandler healthHandler = new HealthHandler(entityIndex, objectMapper);
+        PublicFunctionHandler publicFunctionHandler =
+                new PublicFunctionHandler(PublicFunctionCatalog.bundled(), objectMapper);
 
         router.post("/api/v1/screen").handler(screeningHandler::handle);
         router.get("/api/v1/health").handler(healthHandler::handle);
+        router.get("/api/v1/pep/functions").handler(publicFunctionHandler::handleGetSummary);
+        router.get("/api/v1/pep/functions/:jurisdiction")
+                .handler(publicFunctionHandler::handleGetJurisdiction);
 
         vertx.createHttpServer()
                 .requestHandler(router)
@@ -157,6 +164,91 @@ class SieveServerTest {
                             testContext.verify(
                                     () -> {
                                         assertThat(resp.statusCode()).isEqualTo(400);
+                                        testContext.completeNow();
+                                    });
+                        })
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void publicFunctionsEndpointSummarisesTheCatalogue(Vertx vertx, VertxTestContext testContext)
+            throws Exception {
+        HttpClient client = vertx.createHttpClient();
+
+        client.request(HttpMethod.GET, actualPort, "localhost", "/api/v1/pep/functions")
+                .compose(req -> req.send())
+                .compose(HttpClientResponse::body)
+                .onSuccess(
+                        body -> {
+                            testContext.verify(
+                                    () -> {
+                                        Map<String, Object> json =
+                                                objectMapper.readValue(body.getBytes(), Map.class);
+                                        assertThat(json.get("reference")).isEqualTo("C/2023/724");
+                                        assertThat(json.get("published")).isEqualTo("2023-11-10");
+                                        assertThat((Integer) json.get("total")).isGreaterThan(2000);
+                                        assertThat((List<?>) json.get("jurisdictions")).hasSize(28);
+                                        testContext.completeNow();
+                                    });
+                        })
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void publicFunctionsEndpointListsOneCategoryOfAJurisdiction(
+            Vertx vertx, VertxTestContext testContext) throws Exception {
+        HttpClient client = vertx.createHttpClient();
+
+        client.request(
+                        HttpMethod.GET,
+                        actualPort,
+                        "localhost",
+                        "/api/v1/pep/functions/de?category=a")
+                .compose(req -> req.send())
+                .compose(HttpClientResponse::body)
+                .onSuccess(
+                        body -> {
+                            testContext.verify(
+                                    () -> {
+                                        Map<String, Object> json =
+                                                objectMapper.readValue(body.getBytes(), Map.class);
+                                        assertThat(json.get("jurisdiction")).isEqualTo("DE");
+                                        @SuppressWarnings("unchecked")
+                                        List<Map<String, Object>> functions =
+                                                (List<Map<String, Object>>) json.get("functions");
+                                        assertThat(functions)
+                                                .isNotEmpty()
+                                                .allSatisfy(
+                                                        f ->
+                                                                assertThat(f.get("category"))
+                                                                        .isEqualTo("a"))
+                                                .extracting(f -> f.get("function"))
+                                                .contains("Federal Chancellor (Bundeskanzler)");
+                                        assertThat(json.get("count")).isEqualTo(functions.size());
+                                        testContext.completeNow();
+                                    });
+                        })
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void publicFunctionsEndpointReturns404ForAJurisdictionWithoutAList(
+            Vertx vertx, VertxTestContext testContext) throws Exception {
+        HttpClient client = vertx.createHttpClient();
+
+        client.request(HttpMethod.GET, actualPort, "localhost", "/api/v1/pep/functions/US")
+                .compose(req -> req.send())
+                .onSuccess(
+                        resp -> {
+                            testContext.verify(
+                                    () -> {
+                                        assertThat(resp.statusCode()).isEqualTo(404);
                                         testContext.completeNow();
                                     });
                         })
