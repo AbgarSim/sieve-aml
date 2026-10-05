@@ -235,4 +235,64 @@ class SanctionedEntityTest {
                 topics,
                 relations);
     }
+
+    @Test
+    void shouldHaveNoGenderDeathReasonsOrVesselUnlessGiven() {
+        SanctionedEntity entity =
+                new SanctionedEntity(
+                        "12345",
+                        EntityType.INDIVIDUAL,
+                        ListSource.OFAC_SDN,
+                        PRIMARY_NAME,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(),
+                        null,
+                        Instant.now());
+
+        assertThat(entity.gender()).isNull();
+        assertThat(entity.deceased()).isNull();
+        assertThat(entity.listingReasons()).isEmpty();
+        assertThat(entity.vessel()).isNull();
+    }
+
+    @Test
+    void shouldKeepGenderDeathReasonsAndVesselAcrossCopies() {
+        VesselDetails vessel = new VesselDetails("Panama", "Bulk Carrier", "3EXY9", null, 52_000);
+        SanctionedEntity entity =
+                new SanctionedEntity(
+                                "3001",
+                                EntityType.VESSEL,
+                                ListSource.OFAC_SDN,
+                                PRIMARY_NAME,
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                null,
+                                List.of(),
+                                null,
+                                Instant.now())
+                        .withGender(Gender.FEMALE)
+                        .withDeceased(Boolean.TRUE)
+                        .withListingReasons(List.of("Statement of reasons"))
+                        .withVessel(vessel);
+
+        SanctionedEntity copy = entity.withRelations(List.of()).withProvenance(List.of());
+
+        assertThat(copy.gender()).isEqualTo(Gender.FEMALE);
+        assertThat(copy.deceased()).isTrue();
+        assertThat(copy.listingReasons()).containsExactly("Statement of reasons");
+        assertThat(copy.vessel()).isEqualTo(vessel);
+        assertThat(copy.withListingReasons(null).listingReasons()).isEmpty();
+    }
 }

@@ -15,6 +15,8 @@ import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.core.model.ScriptType;
+import dev.sieve.core.model.VesselDetails;
+import dev.sieve.ingest.remarks.Deceased;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -149,7 +151,7 @@ final class OfacXmlParser {
         String sdnType = null;
         String remarks = null;
         String title = null;
-        String vesselOwner = null;
+        VesselInfo vesselInfo = null;
         List<SanctionsProgram> programs = new ArrayList<>();
         List<NameInfo> aliases = new ArrayList<>();
         List<Address> addresses = new ArrayList<>();
@@ -179,7 +181,7 @@ final class OfacXmlParser {
                     case "citizenshipList" -> citizenships = parseCitizenshipList(reader);
                     case "dateOfBirthList" -> datesOfBirth = parseDateOfBirthList(reader);
                     case "placeOfBirthList" -> placesOfBirth = parsePlaceOfBirthList(reader);
-                    case "vesselInfo" -> vesselOwner = parseVesselOwner(reader);
+                    case "vesselInfo" -> vesselInfo = parseVesselInfo(reader);
                     default -> {
                         /* skip unknown elements */
                     }
@@ -196,8 +198,8 @@ final class OfacXmlParser {
         }
 
         String id = idPrefix + uid;
-        if (vesselOwner != null) {
-            vesselOwners.put(id, vesselOwner);
+        if (vesselInfo != null && vesselInfo.owner() != null) {
+            vesselOwners.put(id, vesselInfo.owner());
         }
         String fullName = buildFullName(firstName, lastName);
         EntityType entityType = mapSdnType(sdnType);
@@ -226,23 +228,28 @@ final class OfacXmlParser {
         }
         SanctionedEntity holder =
                 new SanctionedEntity(
-                        id,
-                        entityType,
-                        source,
-                        primaryName,
-                        aliases,
-                        addresses,
-                        identifiers,
-                        nationalities,
-                        citizenships,
-                        datesOfBirth,
-                        placesOfBirth,
-                        remarks,
-                        programs,
-                        null,
-                        Instant.now(),
-                        Set.of(RiskTopic.SANCTION),
-                        relations);
+                                id,
+                                entityType,
+                                source,
+                                primaryName,
+                                aliases,
+                                addresses,
+                                identifiers,
+                                nationalities,
+                                citizenships,
+                                datesOfBirth,
+                                placesOfBirth,
+                                remarks,
+                                programs,
+                                null,
+                                Instant.now(),
+                                Set.of(RiskTopic.SANCTION),
+                                relations)
+                        .withDeceased(
+                                entityType == EntityType.INDIVIDUAL
+                                        ? Deceased.statedIn(remarks)
+                                        : null)
+                        .withVessel(vesselInfo == null ? null : vesselInfo.details());
 
         List<SanctionedEntity> entities = new ArrayList<>();
         entities.add(holder);
@@ -461,20 +468,43 @@ final class OfacXmlParser {
         return new Address(address1, city, stateOrProvince, postalCode, country, fullAddress);
     }
 
-    /** Reads the owner named in a {@code vesselInfo} element, skipping its other fields for now. */
-    private String parseVesselOwner(XMLStreamReader reader) throws XMLStreamException {
+    /** What a {@code vesselInfo} element says: the owner it names and the vessel's own details. */
+    record VesselInfo(String owner, VesselDetails details) {}
+
+    /**
+     * Reads a {@code vesselInfo} element: the owner (kept for {@link OfacLinks}), the call sign,
+     * type, flag and the tonnage figures.
+     */
+    private VesselInfo parseVesselInfo(XMLStreamReader reader) throws XMLStreamException {
         String owner = null;
+        String callSign = null;
+        String type = null;
+        String flag = null;
+        Integer tonnage = null;
+        Integer grossRegisteredTonnage = null;
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == XMLStreamConstants.START_ELEMENT
-                    && "vesselOwner".equals(reader.getLocalName())) {
-                owner = readText(reader);
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                switch (reader.getLocalName()) {
+                    case "vesselOwner" -> owner = readText(reader);
+                    case "callSign" -> callSign = readText(reader);
+                    case "vesselType" -> type = readText(reader);
+                    case "vesselFlag" -> flag = readText(reader);
+                    case "tonnage" -> tonnage = VesselDetails.tons(readText(reader));
+                    case "grossRegisteredTonnage" ->
+                            grossRegisteredTonnage = VesselDetails.tons(readText(reader));
+                    default -> {
+                        /* skip */
+                    }
+                }
             } else if (event == XMLStreamConstants.END_ELEMENT
                     && "vesselInfo".equals(reader.getLocalName())) {
                 break;
             }
         }
-        return owner;
+        return new VesselInfo(
+                owner == null || owner.isBlank() ? null : owner,
+                VesselDetails.of(flag, type, callSign, tonnage, grossRegisteredTonnage));
     }
 
     private List<Identifier> parseIdList(XMLStreamReader reader) throws XMLStreamException {
