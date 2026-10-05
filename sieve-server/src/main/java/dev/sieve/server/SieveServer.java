@@ -35,6 +35,7 @@ import dev.sieve.ingest.md.MdTerrorProvider;
 import dev.sieve.ingest.nz.NzRussiaProvider;
 import dev.sieve.ingest.ofac.OfacNonSdnProvider;
 import dev.sieve.ingest.ofac.OfacSdnProvider;
+import dev.sieve.ingest.pep.PublicFunctionCatalog;
 import dev.sieve.ingest.pl.PlMswiaProvider;
 import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
@@ -57,6 +58,7 @@ import dev.sieve.match.TokenMatchEngine;
 import dev.sieve.server.handler.AddressScreeningHandler;
 import dev.sieve.server.handler.HealthHandler;
 import dev.sieve.server.handler.ListHandler;
+import dev.sieve.server.handler.PublicFunctionHandler;
 import dev.sieve.server.handler.ScreeningHandler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
@@ -141,6 +143,8 @@ public final class SieveServer {
                 new AddressScreeningHandler(addressMatchService, entityIndex, objectMapper, config);
         HealthHandler healthHandler = new HealthHandler(entityIndex, objectMapper);
         ListHandler listHandler = new ListHandler(entityIndex, orchestrator, objectMapper);
+        PublicFunctionHandler publicFunctionHandler =
+                new PublicFunctionHandler(PublicFunctionCatalog.bundled(), objectMapper);
 
         router.post("/api/v1/screen").handler(screeningHandler::handle);
         router.post("/api/v1/screen/batch").handler(screeningHandler::handleBatch);
@@ -149,6 +153,9 @@ public final class SieveServer {
         router.get("/api/v1/lists").handler(listHandler::handleGetLists);
         router.get("/api/v1/lists/:source/entities").handler(listHandler::handleGetEntities);
         router.post("/api/v1/lists/refresh").handler(ctx -> listHandler.handleRefresh(ctx, vertx));
+        router.get("/api/v1/pep/functions").handler(publicFunctionHandler::handleGetSummary);
+        router.get("/api/v1/pep/functions/:jurisdiction")
+                .handler(publicFunctionHandler::handleGetJurisdiction);
 
         // Start server
         HttpServerOptions serverOptions =
