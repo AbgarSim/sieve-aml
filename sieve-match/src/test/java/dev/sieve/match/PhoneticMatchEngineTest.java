@@ -7,6 +7,8 @@ import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.*;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -74,12 +76,62 @@ class PhoneticMatchEngineTest {
         assertThat(results.getFirst().score()).isEqualTo(0.95);
     }
 
+    @Test
+    void shouldFindEntitiesAddedAfterTheFirstScreening() {
+        index.addAll(List.of(createEntity("1", "PUTIN, Vladimir", "Vladimir", "PUTIN")));
+        engine.screen(ScreeningRequest.of("Putin Vladimir", 0.80), index);
+
+        index.addAll(List.of(createEntity("2", "GADDAFI, Muammar", "Muammar", "GADDAFI")));
+        List<MatchResult> results =
+                engine.screen(ScreeningRequest.of("Qadhafi Moammar", 0.80), index);
+
+        assertThat(results).extracting(r -> r.entity().id()).containsExactly("2");
+    }
+
+    @Test
+    void shouldOnlyReturnEntitiesOfRequestedSources() {
+        index.addAll(
+                List.of(
+                        createEntity("1", "GADDAFI, Muammar", "Muammar", "GADDAFI"),
+                        createEntity(
+                                "2",
+                                "GADDAFI, Muammar",
+                                "Muammar",
+                                "GADDAFI",
+                                ListSource.UN_CONSOLIDATED)));
+
+        ScreeningRequest request =
+                new ScreeningRequest(
+                        "Qadhafi Moammar",
+                        Optional.empty(),
+                        Optional.of(Set.of(ListSource.UN_CONSOLIDATED)),
+                        0.80);
+        List<MatchResult> results = engine.screen(request, index);
+
+        assertThat(results).extracting(r -> r.entity().id()).containsExactly("2");
+    }
+
+    @Test
+    void shouldMatchAWordOnlyItsAlternateCodeShares() {
+        // "Schmidt" and "Smith" share only an alternate Double Metaphone code
+        index.addAll(List.of(createEntity("1", "Hans Smith", "Hans", "Smith")));
+
+        List<MatchResult> results = engine.screen(ScreeningRequest.of("Hans Schmidt", 0.80), index);
+
+        assertThat(results).hasSize(1);
+    }
+
     private static SanctionedEntity createEntity(
             String id, String fullName, String givenName, String familyName) {
+        return createEntity(id, fullName, givenName, familyName, ListSource.OFAC_SDN);
+    }
+
+    private static SanctionedEntity createEntity(
+            String id, String fullName, String givenName, String familyName, ListSource source) {
         return new SanctionedEntity(
                 id,
                 EntityType.INDIVIDUAL,
-                ListSource.OFAC_SDN,
+                source,
                 new NameInfo(
                         fullName,
                         givenName,
