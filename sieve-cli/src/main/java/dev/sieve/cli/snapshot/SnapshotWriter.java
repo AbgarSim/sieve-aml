@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dev.sieve.core.dedup.CanonicalEntity;
 import dev.sieve.core.dedup.DeduplicationResult;
@@ -12,6 +14,7 @@ import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
+import dev.sieve.core.model.Relation;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
@@ -25,6 +28,8 @@ import dev.sieve.ingest.SourceInfo;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -34,11 +39,14 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +64,7 @@ import org.slf4j.LoggerFactory;
  *   entities/SOURCE/N.json    full entity records, sorted by id, {@code shardSize} per file
  *   history.json              one row per day with totals per list; rows are kept across runs
  *   relations.json            links between published records, and the country each is placed at
+ *   seen.json                 when each record was first seen and last changed; kept across runs
  * </pre>
  *
  * <p>An entity's key is {@code SOURCE/id}, because raw ids repeat across lists.
@@ -73,6 +82,14 @@ import org.slf4j.LoggerFactory;
  * many of a list's records were written), in the history and in the overview's {@code byTopic}, but
  * stay out of the headline totals, the country map and the top programs, which describe the
  * sanctions-style lists.
+ *
+ * <p>Each record in the entity shards carries, besides the entity's own fields, the dates of its
+ * history in {@code firstSeen}, {@code lastSeen} and {@code lastChange}, read from and kept in
+ * {@code seen.json} (records whose list did not load keep their row). A relation whose target is a
+ * published record carries that record's key in {@code targetKey}, looked up on the holder's own
+ * list first and then by id across lists, and the target lists the relation in {@code linkedFrom}.
+ * Index entries carry the record's risk topics in {@code o}, left out for a record that is only
+ * sanctioned, the topic of nearly every record.
  *
  * <p>{@code relations.json} holds the links the lists state between records (ownership,
  * directorship, family, associate and plain links), for the association graph; see {@link
@@ -147,8 +164,15 @@ public final class SnapshotWriter {
                 overview(stats, byTopic(all), overlap, fetched, now, commit));
         writeJson(outDir.resolve("sources.json"), sources(everything, overlap, fetched, now));
         writeJson(outDir.resolve("countries.json"), countries(stats, now));
+        Links links = Links.of(published);
+        Path seenFile = outDir.resolve("seen.json");
+        Seen seen = Seen.read(mapper, seenFile, fetched, LocalDate.ofInstant(now, ZoneOffset.UTC));
         writeJson(
-                outDir.resolve("search-index.json"), writeEntities(fetched, overlap, outDir, now));
+                outDir.resolve("search-index.json"),
+                writeEntities(fetched, overlap, links, seen, outDir, now));
+        Map<String, Object> seenJson = header(now);
+        seenJson.put("records", seen.rows());
+        writeJson(seenFile, seenJson);
         writeHistory(outDir.resolve("history.json"), stats, everything, overlap, now);
         RelationGraph graph = RelationGraph.of(all, published, countries);
         Map<String, Object> relations = header(now);
@@ -156,12 +180,17 @@ public final class SnapshotWriter {
         writeJson(outDir.resolve("relations.json"), relations);
 
         log.info(
-                "Snapshot written [dir={}, entities={}, distinct={}, links={}, countries={}]",
+                "Snapshot written [dir={}, entities={}, distinct={}, links={}, countries={},"
+                        + " relations={}, linkedRecords={}, newRecords={}, changedRecords={}]",
                 outDir,
                 stats.totalEntities(),
                 overlap.distinctEntities(),
                 graph.edges().size(),
-                stats.byCountry().size());
+                stats.byCountry().size(),
+                published.stream().mapToInt(e -> e.relations().size()).sum(),
+                links.linkedFrom().size(),
+                seen.added(),
+                seen.changed());
         return stats;
     }
 
@@ -218,6 +247,7 @@ public final class SnapshotWriter {
             row.put("jurisdiction", info.jurisdiction());
             row.put("format", info.format());
             row.put("homepage", info.homepage());
+            row.put("description", info.description());
             row.put(
                     "status",
                     outcome.map(FetchedSource::status).orElse(FetchedSource.Status.SKIPPED));
@@ -276,7 +306,12 @@ public final class SnapshotWriter {
     }
 
     private Map<String, Object> writeEntities(
-            List<FetchedSource> fetched, Overlap overlap, Path outDir, Instant now)
+            List<FetchedSource> fetched,
+            Overlap overlap,
+            Links links,
+            Seen seen,
+            Path outDir,
+            Instant now)
             throws IOException {
         Path entitiesDir = outDir.resolve("entities");
         List<Map<String, Object>> index = new ArrayList<>();
@@ -297,10 +332,12 @@ public final class SnapshotWriter {
                         sorted.subList(
                                 shard * shardSize,
                                 Math.min((shard + 1) * shardSize, sorted.size()));
-                writeJson(sourceDir.resolve(shard + ".json"), page);
+                List<ObjectNode> records = new ArrayList<>(page.size());
                 for (SanctionedEntity entity : page) {
+                    records.add(record(entity, links, seen));
                     index.add(indexEntry(entity, overlap, shard));
                 }
+                writeJson(sourceDir.resolve(shard + ".json"), records);
             }
         }
 
@@ -308,6 +345,40 @@ public final class SnapshotWriter {
         map.put("shardSize", shardSize);
         map.put("entries", index);
         return map;
+    }
+
+    /** An entity's record as published: its fields, its history and its resolved relations. */
+    private ObjectNode record(SanctionedEntity entity, Links links, Seen seen) throws IOException {
+        // Through bytes rather than valueToTree, which needs a newer jackson-core than the
+        // classpath has
+        byte[] json = mapper.writeValueAsBytes(entity);
+        ObjectNode node = (ObjectNode) mapper.readTree(json);
+        String key = key(entity);
+        String[] dates = seen.stamp(key, digest(json));
+        node.put("firstSeen", dates[0]);
+        node.put("lastSeen", seen.today().toString());
+        node.put("lastChange", dates[1]);
+        if (node.get("relations") instanceof ArrayNode relations) {
+            for (int i = 0; i < entity.relations().size(); i++) {
+                int at = i;
+                links.target(entity, entity.relations().get(i))
+                        .ifPresent(t -> ((ObjectNode) relations.get(at)).put("targetKey", t));
+            }
+        }
+        List<Map<String, Object>> incoming = links.linkedFrom().get(key);
+        if (incoming != null) {
+            node.set("linkedFrom", mapper.readTree(mapper.writeValueAsBytes(incoming)));
+        }
+        return node;
+    }
+
+    private static String digest(byte[] bytes) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
+            return HexFormat.of().formatHex(hash, 0, 8);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 
     /** Whether an entity's record may be published; PEP and RCA records are counted only. */
@@ -344,6 +415,9 @@ public final class SnapshotWriter {
         entry.put("s", entity.listSource().name());
         entry.put("c", aggregator.countryCodes(entity));
         entry.put("p", entity.programs().stream().map(SanctionsProgram::code).distinct().toList());
+        if (!entity.topics().equals(Set.of(RiskTopic.SANCTION))) {
+            entry.put("o", entity.topics().stream().map(RiskTopic::name).toList());
+        }
         entry.put("f", shard);
         return entry;
     }
@@ -440,6 +514,153 @@ public final class SnapshotWriter {
         /** Entities found on more than one list. */
         int groups() {
             return result.mergedGroups();
+        }
+    }
+
+    /**
+     * Resolves relation targets to published records, and collects every record's incoming links.
+     *
+     * @param byKey published records by key
+     * @param keysById keys of the published records with each raw id
+     * @param linkedFrom per target key, the links pointing at it: holder key, type, role, share and
+     *     dates
+     */
+    private record Links(
+            Set<String> byKey,
+            Map<String, List<String>> keysById,
+            Map<String, List<Map<String, Object>>> linkedFrom) {
+
+        static Links of(List<SanctionedEntity> published) {
+            Set<String> keys = new HashSet<>();
+            Map<String, List<String>> keysById = new HashMap<>();
+            for (SanctionedEntity entity : published) {
+                keys.add(key(entity));
+                keysById.computeIfAbsent(entity.id(), id -> new ArrayList<>()).add(key(entity));
+            }
+            Links links = new Links(keys, keysById, new HashMap<>());
+            for (SanctionedEntity holder : published) {
+                for (Relation relation : holder.relations()) {
+                    links.target(holder, relation)
+                            .ifPresent(
+                                    target -> {
+                                        Map<String, Object> link = new LinkedHashMap<>();
+                                        link.put("key", key(holder));
+                                        link.put("type", relation.type().name());
+                                        link.put("role", relation.role());
+                                        link.put("sharePercentage", relation.sharePercentage());
+                                        link.put("startDate", relation.startDate());
+                                        link.put("endDate", relation.endDate());
+                                        links.linkedFrom
+                                                .computeIfAbsent(target, t -> new ArrayList<>())
+                                                .add(link);
+                                    });
+                }
+            }
+            return links;
+        }
+
+        /** The key of a relation's target, if it is a published record other than the holder. */
+        Optional<String> target(SanctionedEntity holder, Relation relation) {
+            String sameList = holder.listSource().name() + "/" + relation.targetId();
+            String target = null;
+            if (byKey.contains(sameList)) {
+                target = sameList;
+            } else {
+                List<String> candidates = keysById.get(relation.targetId());
+                if (candidates != null && candidates.size() == 1) {
+                    target = candidates.getFirst();
+                }
+            }
+            return Optional.ofNullable(target).filter(t -> !t.equals(key(holder)));
+        }
+    }
+
+    /**
+     * When each record was first seen and last changed, carried over from the previous snapshot's
+     * {@code seen.json}. A row is the first seen date, the last change date and a digest of the
+     * record's content.
+     */
+    private static final class Seen {
+
+        private final Map<String, List<String>> previous;
+        private final Map<String, List<String>> rows = new TreeMap<>();
+        private final LocalDate today;
+        private int added;
+        private int changed;
+
+        private Seen(Map<String, List<String>> previous, LocalDate today) {
+            this.previous = previous;
+            this.today = today;
+        }
+
+        /**
+         * Reads the previous rows; rows of lists that did not load tonight are kept as they are.
+         */
+        static Seen read(
+                ObjectMapper mapper, Path file, List<FetchedSource> fetched, LocalDate today) {
+            Map<String, List<String>> previous = new HashMap<>();
+            if (Files.exists(file)) {
+                try {
+                    mapper.readTree(file.toFile())
+                            .path("records")
+                            .fields()
+                            .forEachRemaining(
+                                    e -> {
+                                        List<String> row = new ArrayList<>();
+                                        e.getValue().forEach(v -> row.add(v.asText()));
+                                        if (row.size() == 3 && e.getKey().contains("/")) {
+                                            previous.put(e.getKey(), row);
+                                        }
+                                    });
+                } catch (IOException e) {
+                    log.warn("Ignoring unreadable record history [file={}]", file, e);
+                }
+            }
+            Seen seen = new Seen(previous, today);
+            Set<String> loaded = new HashSet<>();
+            fetched.stream()
+                    .filter(f -> f.status() == FetchedSource.Status.LOADED)
+                    .forEach(f -> loaded.add(f.source().name()));
+            previous.forEach(
+                    (key, row) -> {
+                        if (!loaded.contains(key.substring(0, key.indexOf('/')))) {
+                            seen.rows.put(key, row);
+                        }
+                    });
+            return seen;
+        }
+
+        /** Records a record's digest and returns its first seen and last change dates. */
+        String[] stamp(String key, String digest) {
+            List<String> old = previous.get(key);
+            String now = today.toString();
+            String first = old == null ? now : old.get(0);
+            String change = old == null || !digest.equals(old.get(2)) ? now : old.get(1);
+            if (old == null) {
+                added++;
+            } else if (!digest.equals(old.get(2))) {
+                changed++;
+            }
+            rows.put(key, List.of(first, change, digest));
+            return new String[] {first, change};
+        }
+
+        /** Records first seen tonight. */
+        int added() {
+            return added;
+        }
+
+        /** Records seen before whose content changed tonight. */
+        int changed() {
+            return changed;
+        }
+
+        LocalDate today() {
+            return today;
+        }
+
+        Map<String, List<String>> rows() {
+            return rows;
         }
     }
 

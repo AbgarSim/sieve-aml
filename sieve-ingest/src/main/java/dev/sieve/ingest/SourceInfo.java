@@ -13,9 +13,15 @@ import java.util.Objects;
  * @param jurisdiction ISO 3166-1 alpha-2 code of the issuing country, or {@code EU} or {@code UN}
  * @param format the download format the provider parses
  * @param homepage the publisher's page for the list
+ * @param description a few sentences on what the list is and who is on it
  */
 public record SourceInfo(
-        ListSource source, String authority, String jurisdiction, Format format, URI homepage) {
+        ListSource source,
+        String authority,
+        String jurisdiction,
+        Format format,
+        URI homepage,
+        String description) {
 
     /** Download formats of the published lists. */
     public enum Format {
@@ -33,5 +39,6 @@ public record SourceInfo(
         Objects.requireNonNull(jurisdiction, "jurisdiction must not be null");
         Objects.requireNonNull(format, "format must not be null");
         Objects.requireNonNull(homepage, "homepage must not be null");
+        Objects.requireNonNull(description, "description must not be null");
     }
 }
