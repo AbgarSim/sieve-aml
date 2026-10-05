@@ -38,6 +38,12 @@ import org.slf4j.LoggerFactory;
  *   # JMH microbenchmarks (synthetic data, reproducible)
  *   java -jar sieve-benchmark.jar jmh
  *
+ *   # Every list fetched live: memory, latency, throughput and a labelled matching evaluation
+ *   java -jar sieve-benchmark.jar real --exclude UA_NSDC --out report
+ *
+ *   # HTTP load test against a running server, cycling through the names real wrote
+ *   java -jar sieve-benchmark.jar http --url http://localhost:8080/api/v1/screen --names report/names.txt
+ *
  *   # HTTP load testing — use JMeter (see README)
  * </pre>
  */
@@ -49,6 +55,14 @@ public final class BenchmarkRunner {
         // Check for subcommands first
         if (args.length > 0 && "jmh".equals(args[0])) {
             runJmh(Arrays.copyOfRange(args, 1, args.length));
+            return;
+        }
+        if (args.length > 0 && "real".equals(args[0])) {
+            RealDataBenchmark.fromArgs(Arrays.copyOfRange(args, 1, args.length)).run();
+            return;
+        }
+        if (args.length > 0 && "http".equals(args[0])) {
+            HttpLoadBenchmark.fromArgs(Arrays.copyOfRange(args, 1, args.length)).run();
             return;
         }
         boolean runDownload = false;
@@ -158,8 +172,17 @@ public final class BenchmarkRunner {
                 "  jmh [JMH options]  Run JMH microbenchmarks (synthetic data, reproducible)");
         System.out.println(
                 "                     e.g. jmh -f 1 -wi 2 -i 3 -rf json -rff jmh-results.json");
+        System.out.println(
+                "  real [options]     Fetch every list, then measure memory, latency, throughput"
+                        + " and matching accuracy");
+        System.out.println(
+                "                     --exclude A,B | --source A,B, --out dir, --seed n,"
+                        + " --queries n, --load-seconds n");
+        System.out.println(
+                "  http [options]     HTTP load test against a running server: --url, --names"
+                        + " file, --concurrency 1,4,16, --seconds n, --threshold t");
         System.out.println();
-        System.out.println("HTTP load testing:");
+        System.out.println("HTTP load testing with JMeter:");
         System.out.println("  Use JMeter test plans in src/test/jmeter/ (see README.md)");
         System.out.println();
         System.out.println("Options (offline benchmark mode):");

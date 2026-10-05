@@ -24,6 +24,13 @@ java -jar $JAR --download
 # Matching stress test only (fetches lists first, then benchmarks matching)
 java -jar $JAR --match
 
+# Every list fetched live: memory, latency, throughput and a labelled matching evaluation
+# (writes report.md, queries.tsv and names.txt to --out)
+java -Xmx10g -jar $JAR real --exclude UA_NSDC --out benchmark-report
+
+# HTTP load test against a running server, cycling through the names `real` wrote
+java -jar $JAR http --url http://localhost:8080/api/v1/screen --names benchmark-report/names.txt
+
 # JMH microbenchmarks (synthetic data, reproducible, no network needed)
 java -jar $JAR jmh
 
@@ -51,6 +58,24 @@ Loads all sanctions entities into an in-memory index and benchmarks the matching
 - **Single-threaded latency** — per-call latency (mean, P50, P99, max) for exact, fuzzy, and composite engines
 - **Throughput vs threshold** — how match threshold affects queries/sec and result count
 - **Concurrent stress test** — throughput and latency at 1, 4, 16, 64, and 256 concurrent virtual threads
+
+### Real lists and matching evaluation (`real`)
+
+Fetches every list from its publisher (`--source` keeps only the named lists, `--exclude` leaves some out), indexes them with the same four-engine composite the servers use, and reports:
+
+- **Fetch and parse** time and record count per list
+- **Index** build time and heap in use after GC
+- **Matching evaluation** on three generated query sets, `--queries` each (default 2,000), sampled with `--seed` (default 20261005):
+  - *same entity on another list*: pairs of records from different lists tied by a shared passport, national id, IMO number, LEI, SWIFT/BIC, tax or registration number; one record's name must find the other
+  - *spelling variants*: listed names with a typo, swapped or dropped letter, transliteration change, reversed word order or dropped middle word
+  - *unlisted customers*: generated person and company names from `src/main/resources/eval/`; any alert is a false positive
+- **Latency** of one screening, single thread, and **throughput** at 1 to 64 threads for `--load-seconds` each
+
+`queries.tsv` lists every query with its expected record, that record's score and the best hit. The [Benchmark workflow](../.github/workflows/benchmark.yml) runs it on a GitHub runner; published runs are in [docs/performance/benchmarks.rst](../docs/performance/benchmarks.rst).
+
+### HTTP load test (`http`)
+
+Posts `/api/v1/screen` requests from N virtual-thread clients for `--seconds` per level (default 20, after a 5 s warm-up) at each `--concurrency` level (default `1,4,16,64,256`), with `--threshold` (default 0.80), and prints requests per second, p50, p95, p99 and errors.
 
 ### JMH Microbenchmarks (`jmh`)
 
