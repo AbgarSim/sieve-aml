@@ -19,6 +19,17 @@ sieve:
   screening:
     default-threshold: 0.80
     max-results: 50
+  # Experimental: candidate news articles about a name, served at POST /api/v1/adverse-media and
+  # never part of screening results. Off by default because it reads GDELT's public news index.
+  adverse-media:
+    enabled: false
+    index: gkg                # gkg (local window of GDELT news files) or doc-api (GDELT search API)
+    lookback-days: 90
+    max-articles: 25
+    backfill-hours: 6         # gkg: hours of news files read at startup
+    retention-hours: 72       # gkg: how long articles are kept
+    include-translated: true  # gkg: also read machine-translated non-English news
+    name-threshold: 0.92      # gkg: least name similarity taken as the same name
   address:
     libpostal-enabled: false
     libpostal-data-dir: /opt/libpostal-data
