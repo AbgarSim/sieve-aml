@@ -64,6 +64,33 @@ jobs:
               jq -r '.sources[] | "| \(.source) | \(.status) | \(.entities // 0) | \(.fetchMs // "") |"' snapshot/sources.json
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: TEMP relations report
+        if: always()
+        run: |
+          ls -la snapshot/relations.json snapshot/search-index.json
+          python3 - <<'PY'
+          import json, collections
+          r=json.load(open('snapshot/relations.json')); ix=json.load(open('snapshot/search-index.json'))
+          name={e['k']:e['n'] for e in ix['entries']}; grp={e['k']:e.get('g',e['k']) for e in ix['entries']}
+          print('stats', json.dumps(r['stats']))
+          E=r['edges']; H=r['home']
+          print('by holder list', collections.Counter(e['f'].split('/')[0] for e in E).most_common())
+          print('cross-list edges', sum(e['f'].split('/')[0]!=e['t'].split('/')[0] for e in E))
+          ends=set(); [ends.update((e['f'],e['t'])) for e in E]
+          print('nodes', len(ends), 'with home', sum(k in H for k in ends))
+          deg=collections.Counter(); [deg.update([grp.get(e['f'],e['f']),grp.get(e['t'],e['t'])]) for e in E]
+          print('degree dist', sorted(collections.Counter(min(v,200)//10*10 for v in deg.values()).items()))
+          print('top degree', [(name.get(k,k)[:40], v) for k,v in deg.most_common(12)])
+          pairs=collections.Counter(tuple(sorted((H.get(e['f'],'?'),H.get(e['t'],'?')))) for e in E)
+          print('country pairs', pairs.most_common(25))
+          print('roles', collections.Counter((e['r'],(e.get('l') or '')[:30]) for e in E).most_common(25))
+          ex=[e for e in E if {H.get(e['f']),H.get(e['t'])}=={'RU','AE'}][:8]
+          for e in ex: print('RU-AE', e['f'], name.get(e['f']), '|', e['r'], e.get('l'), '|', e['t'], name.get(e['t']))
+          ex=[e for e in E if e['f'].startswith('UK_HMT')][:12]
+          for e in ex: print('UK', name.get(e['f']), '|', e.get('l'), '|', name.get(e['t']))
+          ex=[e for e in E if e['f'].startswith('CH_SECO')][:6]
+          for e in ex: print('CH', name.get(e['f']), '|', name.get(e['t']))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
