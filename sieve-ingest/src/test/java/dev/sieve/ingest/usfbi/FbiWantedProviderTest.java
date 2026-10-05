@@ -8,7 +8,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.model.EntityImage;
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.RiskTopic;
@@ -61,12 +64,27 @@ class FbiWantedProviderTest {
         assertThat(person.programs())
                 .extracting(p -> p.code())
                 .containsExactly("Ten Most Wanted Fugitives");
-        assertThat(person.remarks())
-                .isEqualTo(
-                        "Conspiracy to Commit Bank Fraud; Money Laundering\n"
-                                + "Poster: https://www.fbi.gov/wanted/topten/john-quincy-example");
+        assertThat(person.remarks()).isEqualTo("Conspiracy to Commit Bank Fraud; Money Laundering");
         assertThat(person.listedDate()).isEqualTo(Instant.parse("2026-02-17T11:44:00Z"));
         assertThat(person.lastUpdated()).isEqualTo(Instant.parse("2026-10-02T20:55:45Z"));
+    }
+
+    @Test
+    void shouldKeepThePosterPhotoAndLinkWhenThePosterHasThem() throws Exception {
+        SanctionedEntity person = parseSamples().get(0);
+        String poster = "https://www.fbi.gov/wanted/topten/john-quincy-example";
+
+        assertThat(person.images())
+                .containsExactly(
+                        new EntityImage(
+                                poster + "/@@images/image/large",
+                                poster + "/@@images/image/thumb",
+                                poster,
+                                "FBI",
+                                null));
+        assertThat(person.links())
+                .containsExactly(
+                        new EntityLink(poster, "FBI wanted poster", LinkKind.SOURCE_PAGE, null));
     }
 
     @Test

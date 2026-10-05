@@ -7,7 +7,7 @@ import { Badge, Chip, TopicBadge, TopicBadges, TypeBadge } from '../components/B
 import { Icon, TYPE_ICON } from '../lib/icons';
 import { RAW_TYPE, SIEVE, TYPE_LABEL, byTopicOrder, type Source } from '../data/snapshot';
 import { loadGroup, type Entry, type Index } from '../data/search';
-import type { RawEntity, RawName } from '../data/raw';
+import type { RawEntity, RawImage, RawLink, RawLinkKind, RawName } from '../data/raw';
 import { useIndex } from '../data/useIndex';
 import { countryName } from '../data/iso';
 import { host } from '../lib/format';
@@ -26,6 +26,8 @@ const REL: Record<string, [string, string]> = {
   OWNERSHIP: ['Owns', 'Owned by'], DIRECTORSHIP: ['Director of', 'Director'], FAMILY: ['Family', 'Family'],
   ASSOCIATE: ['Associate', 'Associate'], LINKED: ['Linked to', 'Linked to'], POSITION_HELD: ['Position held', 'Held by'],
 };
+/** Link groups in the order they are shown, with how each reads as a heading. */
+const LINK_KINDS: [RawLinkKind, string][] = [['SOURCE_PAGE', 'Listing pages'], ['LEGAL_ACT', 'Legal acts'], ['ENCYCLOPEDIA', 'Encyclopedia'], ['WEBSITE', 'Website']];
 const tons = (n: number) => n.toLocaleString('en-US');
 const day = (iso?: string) => (iso ? iso.slice(0, 10) : undefined);
 const address = (a: NonNullable<RawEntity['addresses']>[number]) => a.fullAddress || [a.street, a.city, a.stateOrProvince, a.postalCode, a.country].filter(Boolean).join(', ');
@@ -118,6 +120,10 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
     else relMap.set(k, { dir, type: l.type, role: l.role, share: l.sharePercentage, start: l.startDate, end: l.endDate, other, otherId, refs: [x.n] });
   }
   const rels = [...relMap.values()];
+  // The photo of the record that was opened comes first, then the other lists' photos
+  const images = collect<RawImage>([here, ...recs.filter(x => x !== here)], r => r.images, i => i.url);
+  const pages = collect<RawLink>(recs, r => r.links, l => l.url).sort((a, b) => (a.v.date ?? '').localeCompare(b.v.date ?? ''));
+  const pageGroups = LINK_KINDS.map(([k, label]) => [label, pages.filter(p => p.v.kind === k)] as const).filter(g => g[1].length);
   const firstSeen = minOf(recs.map(x => x.r.firstSeen)), lastSeen = maxOf(recs.map(x => x.r.lastSeen)), lastChange = maxOf(recs.map(x => x.r.lastChange));
   const firstListed = minOf(recs.map(x => day(x.r.listedDate)));
   const programCount = new Set(listings.filter(l => l.p).map(l => `${l.x.e.source}:${l.p!.code}`)).size;
@@ -141,6 +147,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
     <>
       <nav className="small muted" style={{ marginBottom: 14 }} aria-label="Breadcrumb"><Link to="/search">Search</Link> <span style={{ margin: '0 6px' }}>/</span> <span className="num">{entry.key}</span></nav>
       <div className="ehd">
+        {images.length > 0 && <Photo img={images[0].v} name={name} />}
         <div style={{ flex: '1 1 480px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}><TypeBadge type={type} /><TopicBadges topics={topics} /></div>
           <h1>{name}</h1>
@@ -191,6 +198,24 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
             </div>
           </div>
 
+          {pageGroups.length > 0 && (
+            <div className="card">
+              <div className="card-h"><h3>Sources and articles</h3><span className="xs muted">{pages.length} page{pages.length === 1 ? '' : 's'} about this {TYPE_LABEL[type].toLowerCase()}</span></div>
+              <div className="card-b links">{pageGroups.map(([label, xs]) => (
+                <div key={label}>
+                  <div className="flab">{label}</div>
+                  <ul>{xs.map(({ v: l, refs }) => (
+                    <li key={l.url}>
+                      <a href={l.url} target="_blank" rel="noopener noreferrer" className="cl">{l.title ?? host(l.url)} <Icon name="ext" size={12} /></a>
+                      <span className="xs muted">{host(l.url)}{l.date && <> · <span className="num">{l.date}</span></>}</span>
+                      <Refs refs={refs} recs={recs} />
+                    </li>))}
+                  </ul>
+                </div>))}
+              </div>
+            </div>
+          )}
+
           {rels.length > 0 && (
             <div className="card">
               <div className="card-h"><h3>Relations</h3><span className="xs muted">{rels.length} link{rels.length === 1 ? '' : 's'} stated by the lists</span></div>
@@ -237,6 +262,24 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
       <p className="xs muted" style={{ marginTop: 24 }}>Snapshot {S.date} {S.time}{S.commit && ` · commit ${S.commit}`} · record <span className="num">{entry.key}</span></p>
       {toast.node}
     </>
+  );
+}
+
+/**
+ * The entity's photo or logo, loaded from its publisher only when the page is open and without telling the publisher which
+ * page asked, with the credit and licence the publisher requires.
+ */
+function Photo({ img, name }: { img: RawImage; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  const credit = [img.credit, img.licence].filter(Boolean).join(' · ');
+  return (
+    <figure className="ephoto">
+      <a href={img.pageUrl ?? img.url} target="_blank" rel="noopener noreferrer" title="Open the publisher's page">
+        <img src={img.thumbnailUrl ?? img.url} alt={`Picture of ${name}`} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+      </a>
+      {credit && <figcaption className="xs muted">{credit}</figcaption>}
+    </figure>
   );
 }
 

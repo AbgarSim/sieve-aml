@@ -2,10 +2,12 @@ package dev.sieve.ingest.eu;
 
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.model.Address;
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.Identifier;
 import dev.sieve.core.model.IdentifierType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
@@ -31,13 +33,17 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.StringJoiner;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
@@ -301,6 +307,11 @@ public final class EuConsolidatedProvider implements ListProvider {
         final List<LocalDate> datesOfBirth = new ArrayList<>();
         final Set<String> placesOfBirth = new LinkedHashSet<>();
         final Set<String> programs = new LinkedHashSet<>();
+        final Map<String, EntityLink> acts = new LinkedHashMap<>();
+
+        /** The {@code <regulation>} being read, waiting for its {@code <publicationUrl>}. */
+        Act regulation;
+
         final StringBuilder remarks = new StringBuilder();
         Instant entryIntoForceDate = null;
     }
@@ -329,9 +340,26 @@ public final class EuConsolidatedProvider implements ListProvider {
             case "identification" -> addIfNonNull(ctx.identifiers, parseIdentification(reader));
             case "citizenship" -> parseCitizenship(reader, ctx.citizenships);
             case "birthdate" -> parseBirthdate(reader, ctx.datesOfBirth, ctx.placesOfBirth);
-            case "regulation" ->
-                    ctx.entryIntoForceDate =
-                            parseRegulation(reader, ctx.programs, ctx.entryIntoForceDate);
+            case "regulation" -> {
+                ctx.entryIntoForceDate =
+                        parseRegulation(reader, ctx.programs, ctx.entryIntoForceDate);
+                // the address of the act follows in a <publicationUrl> child
+                ctx.regulation = Act.of(reader);
+            }
+            case "publicationUrl" -> {
+                String url = readText(reader);
+                if (ctx.regulation != null && url != null) {
+                    ctx.acts.putIfAbsent(https(url), ctx.regulation.at(https(url)));
+                }
+                ctx.regulation = null;
+            }
+            case "regulationSummary" -> {
+                // each name, address and date cites the acts that state it, address included
+                String url = attr(reader, "publicationUrl");
+                if (url != null && !url.isBlank()) {
+                    ctx.acts.putIfAbsent(https(url), Act.of(reader).at(https(url)));
+                }
+            }
             case "remark" -> appendRemark(reader, ctx.remarks);
             default -> {
                 /* skip */
@@ -367,6 +395,52 @@ public final class EuConsolidatedProvider implements ListProvider {
             return parsed;
         }
         return currentEarliest;
+    }
+
+    /**
+     * An Official Journal act as a {@code <regulation>} or {@code <regulationSummary>} element
+     * names it.
+     *
+     * @param title such as "Council Regulation 2014/269 (OJ L78)"
+     * @param published when the act was published, may be {@code null}
+     */
+    record Act(String title, LocalDate published) {
+
+        static Act of(XMLStreamReader reader) {
+            StringJoiner title = new StringJoiner(" ");
+            for (String part :
+                    new String[] {
+                        capitalise(attr(reader, "organisationType")),
+                        capitalise(attr(reader, "regulationType")),
+                        attr(reader, "numberTitle")
+                    }) {
+                if (part != null && !part.isBlank()) {
+                    title.add(part.strip());
+                }
+            }
+            Instant published = parseDate(attr(reader, "publicationDate"));
+            return new Act(
+                    title.length() == 0 ? null : title.toString(),
+                    published == null ? null : LocalDate.ofInstant(published, ZoneOffset.UTC));
+        }
+
+        EntityLink at(String url) {
+            return new EntityLink(url, title, LinkKind.LEGAL_ACT, published);
+        }
+    }
+
+    /** Old acts are linked over plain HTTP; EUR-Lex serves them over HTTPS too. */
+    private static String https(String url) {
+        return url.strip()
+                .replaceFirst("^http://eur-lex\\.europa\\.eu/", "https://eur-lex.europa.eu/");
+    }
+
+    private static String capitalise(String word) {
+        if (word == null || word.isBlank()) {
+            return null;
+        }
+        String w = word.strip();
+        return Character.toUpperCase(w.charAt(0)) + w.substring(1);
     }
 
     private void appendRemark(XMLStreamReader reader, StringBuilder remarks)
@@ -420,7 +494,8 @@ public final class EuConsolidatedProvider implements ListProvider {
                         ctx.entryIntoForceDate,
                         null)
                 .withGender(individual ? gender(ctx.nameAliases) : null)
-                .withDeceased(individual ? Deceased.statedIn(remarks) : null);
+                .withDeceased(individual ? Deceased.statedIn(remarks) : null)
+                .withLinks(new ArrayList<>(ctx.acts.values()));
     }
 
     /** The gender the first name alias that states one gives ({@code gender="M"} or "F"). */

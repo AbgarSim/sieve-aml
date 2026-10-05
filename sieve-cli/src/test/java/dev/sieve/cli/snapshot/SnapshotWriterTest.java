@@ -7,7 +7,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.Address;
+import dev.sieve.core.model.EntityImage;
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameType;
@@ -361,6 +364,36 @@ class SnapshotWriterTest {
         JsonNode records = read("seen.json").get("records");
         assertThat(records.get("UN_CONSOLIDATED/u1").get(0).asText()).isEqualTo("2026-10-01");
         assertThat(records.size()).isEqualTo(4);
+    }
+
+    @Test
+    void shouldPublishPhotosAndLinksWithoutMarkingTheRecordChanged() throws IOException {
+        SanctionedEntity plain = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia");
+        write(List.of(loaded(ListSource.OFAC_SDN, plain)), Instant.parse("2026-10-01T03:00:00Z"));
+
+        SanctionedEntity pictured =
+                plain.withImages(
+                                List.of(
+                                        new EntityImage(
+                                                "https://example.org/large.jpg",
+                                                "https://example.org/thumb.jpg",
+                                                "https://example.org/poster",
+                                                "FBI",
+                                                null)))
+                        .withLinks(
+                                List.of(
+                                        new EntityLink(
+                                                "https://example.org/poster",
+                                                "Poster",
+                                                LinkKind.SOURCE_PAGE,
+                                                null)));
+        write(List.of(loaded(ListSource.OFAC_SDN, pictured)), NOW);
+
+        JsonNode record = read("entities/OFAC_SDN/0.json").get(0);
+        assertThat(record.get("images").get(0).get("thumbnailUrl").asText())
+                .isEqualTo("https://example.org/thumb.jpg");
+        assertThat(record.get("links").get(0).get("kind").asText()).isEqualTo("SOURCE_PAGE");
+        assertThat(record.get("lastChange").asText()).isEqualTo("2026-10-01");
     }
 
     @Test

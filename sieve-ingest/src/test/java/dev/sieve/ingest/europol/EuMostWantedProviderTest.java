@@ -8,7 +8,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.RiskTopic;
@@ -123,8 +125,14 @@ class EuMostWantedProviderTest {
                 .isEqualTo(
                         "Wanted by: Sweden (SE)\n"
                                 + "State of case: Sentenced to 4 years 11 months of prison\n"
-                                + "Probable locations: Spain\n"
-                                + "Poster: https://eumostwanted.eu/example-jorgen");
+                                + "Probable locations: Spain");
+        assertThat(person.links())
+                .containsExactly(
+                        new EntityLink(
+                                "https://eumostwanted.eu/example-jorgen",
+                                "Europe's Most Wanted poster",
+                                LinkKind.SOURCE_PAGE,
+                                null));
     }
 
     @Test
