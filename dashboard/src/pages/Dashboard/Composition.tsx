@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { HBar } from '../../components/HBar';
 import { Flag } from '../../components/Flag';
 import { Badge } from '../../components/Badges';
@@ -24,7 +25,7 @@ export function Composition() {
       <div className="card">
         <div className="card-h"><h3>Entities by source</h3><span className="small muted num">{fmt(D.totalEntities)} total</span></div>
         <div className="card-b">
-          {srt.map(s => <HBar key={s.id} label={<><Flag cc={s.cc} />{s.name}</>} pct={(s.entities / smax) * 100} value={s.entities ? fmt(s.entities) : <span className="muted">{s.status === 'needs-key' ? 'key' : '—'}</span>} />)}
+          {srt.map(s => <HBar key={s.id} label={<><Flag cc={s.cc} /><Link to={`/source/${s.id}`} style={{ color: 'inherit' }}>{s.name}</Link></>} pct={(s.entities / smax) * 100} value={s.entities ? fmt(s.entities) : <span className="muted">{s.status === 'needs-key' ? 'key' : '—'}</span>} />)}
           {counted.map(s => <p key={s.id} className="small muted" style={{ marginTop: 12 }}><Flag cc={s.cc} /> {s.name}: {s.topics.length ? s.topics.map(([k, n], i) => <span key={k}>{i > 0 && ' and '}<span className="num">{fmt(n)}</span> {topicNoun(k)}</span>) : <><span className="num">{fmt(s.entities)}</span> records</>}, counted but not published.</p>)}
         </div>
       </div>
@@ -46,7 +47,7 @@ export function Composition() {
         <div className="card">
           <div className="card-h"><h3>Risk topics</h3><span className="small muted">entities per topic, all lists</span></div>
           <div className="card-b">
-            {topics.map(([k, n]) => <HBar key={k} label={topicLabel(k)} pct={(n / tmax) * 100} value={fmt(n)} />)}
+            {topics.map(([k, n]) => <HBar key={k} label={k === 'PEP' || k === 'RCA' ? topicLabel(k) : <Link to={`/search?topic=${k}`}>{topicLabel(k)}</Link>} pct={(n / tmax) * 100} value={fmt(n)} />)}
             {!topics.length && <span className="muted small">No topic data in this snapshot.</span>}
           </div>
         </div>

@@ -24,6 +24,17 @@ class SourceCatalogTest {
     }
 
     @Test
+    void shouldGiveEverySourceADescriptionWhenCatalogIsBuilt() {
+        assertThat(SourceCatalog.all())
+                .allSatisfy(
+                        info ->
+                                assertThat(info.description())
+                                        .isNotBlank()
+                                        .endsWith(".")
+                                        .hasSizeLessThan(400));
+    }
+
+    @Test
     void shouldCreateOneProviderPerSourceWhenUsingDefaults() {
         assertThat(ProviderRegistry.defaults())
                 .extracting(ListProvider::source)

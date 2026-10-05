@@ -7,6 +7,8 @@ const T: Record<RawIndexEntry['t'], EntityType> = { I: 'individual', E: 'entity'
 
 export interface Entry {
   key: string; source: string; id: string; name: string; aliases: string[]; type: EntityType; countries: string[]; programs: string[]; shard: number;
+  /** Risk topics; a record the index gives none for is sanctioned. */
+  topics: string[];
   /** The entity this record is one listing of: shared by its records on other lists, or the record's own key. */
   group: string;
 }
@@ -33,7 +35,7 @@ export function loadIndex(): Promise<Index> {
 export function build(raw: RawIndex): Index {
   const entries: Entry[] = (raw.entries ?? []).map(e => {
     const slash = e.k.indexOf('/');
-    return { key: e.k, source: e.s, id: e.k.slice(slash + 1), name: e.n, aliases: e.a ?? [], type: T[e.t], countries: e.c ?? [], programs: e.p ?? [], shard: e.f, group: e.g ?? e.k };
+    return { key: e.k, source: e.s, id: e.k.slice(slash + 1), name: e.n, aliases: e.a ?? [], type: T[e.t], countries: e.c ?? [], programs: e.p ?? [], topics: e.o ?? ['SANCTION'], shard: e.f, group: e.g ?? e.k };
   });
   const names: string[][] = [];
   const vocab = new Map<string, number[]>();
@@ -94,6 +96,13 @@ export async function loadEntity(e: Entry): Promise<RawEntity | undefined> {
   let p = shards.get(path);
   if (!p) { p = fetchJson<RawEntity[]>(path); shards.set(path, p); p.catch(() => shards.delete(path)); }
   return (await p).find(r => r.id === e.id);
+}
+
+/** The full records of an entity on every list that carries it, in list order. */
+export async function loadGroup(ix: Index, e: Entry): Promise<{ e: Entry; r: RawEntity }[]> {
+  const members = (ix.byGroup.get(e.group) ?? []).map(i => ix.entries[i]);
+  const recs = await Promise.all(members.map(m => loadEntity(m).then(r => (r ? { e: m, r } : null), () => null)));
+  return recs.filter((x): x is { e: Entry; r: RawEntity } => x !== null);
 }
 
 export const entityType = (r: RawEntity) => RAW_TYPE[r.entityType];

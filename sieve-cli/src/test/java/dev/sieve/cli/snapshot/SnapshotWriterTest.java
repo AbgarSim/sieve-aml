@@ -235,6 +235,135 @@ class SnapshotWriterTest {
     }
 
     @Test
+    void shouldResolveRelationTargetsAndListIncomingLinksWhenTargetsArePublished()
+            throws IOException {
+        SanctionedEntity owner =
+                entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia")
+                        .withRelations(
+                                List.of(
+                                        new Relation(
+                                                RelationType.OWNERSHIP,
+                                                "2",
+                                                "owner",
+                                                51.0,
+                                                null,
+                                                null),
+                                        Relation.of(RelationType.ASSOCIATE, "un-9"),
+                                        Relation.of(RelationType.FAMILY, "missing")));
+        SanctionedEntity company = entity("2", ListSource.OFAC_SDN, "Acme Ltd", null);
+        SanctionedEntity associate =
+                entity("un-9", ListSource.UN_CONSOLIDATED, "Oleg Sidorov", "RU");
+        write(
+                List.of(
+                        loaded(ListSource.OFAC_SDN, owner, company),
+                        loaded(ListSource.UN_CONSOLIDATED, associate)),
+                NOW);
+
+        JsonNode shard = read("entities/OFAC_SDN/0.json");
+        JsonNode relations = shard.get(0).get("relations");
+        assertThat(relations.get(0).get("targetKey").asText()).isEqualTo("OFAC_SDN/2");
+        assertThat(relations.get(1).get("targetKey").asText()).isEqualTo("UN_CONSOLIDATED/un-9");
+        assertThat(relations.get(2).has("targetKey")).isFalse();
+        JsonNode incoming = shard.get(1).get("linkedFrom");
+        assertThat(incoming).hasSize(1);
+        assertThat(incoming.get(0).get("key").asText()).isEqualTo("OFAC_SDN/1");
+        assertThat(incoming.get(0).get("type").asText()).isEqualTo("OWNERSHIP");
+        assertThat(incoming.get(0).get("sharePercentage").asDouble()).isEqualTo(51.0);
+        assertThat(
+                        read("entities/UN_CONSOLIDATED/0.json")
+                                .get(0)
+                                .get("linkedFrom")
+                                .get(0)
+                                .get("key")
+                                .asText())
+                .isEqualTo("OFAC_SDN/1");
+    }
+
+    @Test
+    void shouldIndexTopicsOnlyWhenARecordIsMoreThanSanctioned() throws IOException {
+        SanctionedEntity wanted =
+                new SanctionedEntity(
+                        "w1",
+                        EntityType.INDIVIDUAL,
+                        ListSource.US_FBI_WANTED,
+                        new NameInfo(
+                                "John Roe", null, null, null, null, NameType.PRIMARY, null, null),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(),
+                        null,
+                        null,
+                        Set.of(RiskTopic.WANTED, RiskTopic.CRIME),
+                        List.of(),
+                        List.of());
+        write(
+                List.of(
+                        loaded(
+                                ListSource.OFAC_SDN,
+                                entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia")),
+                        loaded(ListSource.US_FBI_WANTED, wanted)),
+                NOW);
+
+        JsonNode entries = read("search-index.json").get("entries");
+        assertThat(entry(entries, "OFAC_SDN/1").has("o")).isFalse();
+        assertThat(entry(entries, "US_FBI_WANTED/w1").get("o"))
+                .extracting(JsonNode::asText)
+                .containsExactly("CRIME", "WANTED");
+        assertThat(read("entities/US_FBI_WANTED/0.json").get(0).get("topics"))
+                .extracting(JsonNode::asText)
+                .containsExactly("CRIME", "WANTED");
+        assertThat(
+                        row(read("sources.json").get("sources"), "US_FBI_WANTED")
+                                .get("description")
+                                .asText())
+                .contains("FBI");
+    }
+
+    @Test
+    void shouldKeepFirstSeenAndMoveLastChangeOnlyWhenARecordChanges() throws IOException {
+        SanctionedEntity before = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia");
+        SanctionedEntity same = entity("2", ListSource.OFAC_SDN, "Acme Ltd", null);
+        SanctionedEntity elsewhere = entity("u1", ListSource.UN_CONSOLIDATED, "Oleg Sidorov", "RU");
+        write(
+                List.of(
+                        loaded(ListSource.OFAC_SDN, before, same),
+                        loaded(ListSource.UN_CONSOLIDATED, elsewhere)),
+                Instant.parse("2026-10-01T03:00:00Z"));
+
+        SanctionedEntity after = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Belarus");
+        SanctionedEntity added = entity("3", ListSource.OFAC_SDN, "Oleg Ivanov", "RU");
+        List<FetchedSource> tonight = new ArrayList<>();
+        tonight.add(loaded(ListSource.OFAC_SDN, after, same, added));
+        tonight.add(
+                new FetchedSource(
+                        ListSource.UN_CONSOLIDATED,
+                        FetchedSource.Status.FAILED,
+                        List.of(),
+                        Optional.empty(),
+                        Duration.ZERO,
+                        Optional.of("HTTP 503")));
+        write(tonight, NOW);
+
+        JsonNode shard = read("entities/OFAC_SDN/0.json");
+        assertThat(shard.get(0).get("firstSeen").asText()).isEqualTo("2026-10-01");
+        assertThat(shard.get(0).get("lastChange").asText()).isEqualTo("2026-10-02");
+        assertThat(shard.get(0).get("lastSeen").asText()).isEqualTo("2026-10-02");
+        assertThat(shard.get(1).get("firstSeen").asText()).isEqualTo("2026-10-01");
+        assertThat(shard.get(1).get("lastChange").asText()).isEqualTo("2026-10-01");
+        JsonNode third = read("entities/OFAC_SDN/1.json").get(0);
+        assertThat(third.get("firstSeen").asText()).isEqualTo("2026-10-02");
+        JsonNode records = read("seen.json").get("records");
+        assertThat(records.get("UN_CONSOLIDATED/u1").get(0).asText()).isEqualTo("2026-10-01");
+        assertThat(records.size()).isEqualTo(4);
+    }
+
+    @Test
     void shouldSkipListsWhenFilterExcludesThem() {
         List<FetchedSource> fetched = fetch(Set.of(ListSource.UN_CONSOLIDATED));
 
@@ -314,6 +443,16 @@ class SnapshotWriterTest {
                 List.of(new SanctionsProgram("P1", null, source)),
                 null,
                 NOW);
+    }
+
+    private static FetchedSource loaded(ListSource source, SanctionedEntity... entities) {
+        return new FetchedSource(
+                source,
+                FetchedSource.Status.LOADED,
+                List.of(entities),
+                Optional.empty(),
+                Duration.ZERO,
+                Optional.empty());
     }
 
     private JsonNode read(String file) throws IOException {

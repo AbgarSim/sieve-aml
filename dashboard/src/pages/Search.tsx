@@ -3,16 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { Flag } from '../components/Flag';
-import { Badge, TypeBadge } from '../components/Badges';
+import { Badge, TopicBadge, TopicBadges, TypeBadge } from '../components/Badges';
 import { Icon, TYPE_ICON } from '../lib/icons';
-import { SIEVE, TYPE_LABEL, type EntityType } from '../data/snapshot';
+import { SIEVE, TYPE_LABEL, byTopicOrder, type EntityType } from '../data/snapshot';
 import { search, type Entry, type Hit } from '../data/search';
 import { useIndex } from '../data/useIndex';
 import { countryName } from '../data/iso';
 import { fmt } from '../lib/format';
 import { jaroWinkler as jw, normalize as norm, tokens } from '../lib/jw';
 
-type FacetKey = 'source' | 'type' | 'country' | 'program';
+type FacetKey = 'source' | 'topic' | 'type' | 'country' | 'program';
 type Filters = Record<FacetKey, Set<string>>;
 const SHOWN = 100;
 const EXAMPLES = ['Dubrovin', 'Victor Dubrovine', 'Caspian Dawn'];
@@ -44,7 +44,8 @@ export default function Search() {
   const [q, setQ] = useState(sp.get('q') ?? '');
   const [debounced, setDebounced] = useState(q);
   const [th, setTh] = useState(0.85);
-  const [f, setF] = useState<Filters>({ source: new Set(), type: new Set(), country: new Set(sp.get('country') ? [sp.get('country')!] : []), program: new Set() });
+  const param = (k: string) => new Set(sp.get(k) ? sp.get(k)!.split(',') : []);
+  const [f, setF] = useState<Filters>({ source: param('source'), topic: param('topic'), type: new Set(), country: param('country'), program: new Set() });
   const [more, setMore] = useState<Partial<Record<FacetKey, boolean>>>({});
   const inp = useRef<HTMLInputElement>(null);
   const loading = !ix || q !== debounced;
@@ -57,13 +58,14 @@ export default function Search() {
     const h: Hit[] = !ix ? [] : qq ? search(ix, qq, th) : anyFilter ? ix.entries.map(e => ({ e, s: 0, name: e.name })) : [];
     return { hits: h, took: (performance.now() - t0).toFixed(0) };
   }, [ix, debounced, th, anyFilter]);
-  const pass = (h: Hit, skip?: FacetKey) => (skip === 'source' || !f.source.size || f.source.has(h.e.source)) && (skip === 'type' || !f.type.size || f.type.has(h.e.type)) && (skip === 'country' || !f.country.size || h.e.countries.some(c => f.country.has(c))) && (skip === 'program' || !f.program.size || h.e.programs.some(p => f.program.has(p)));
+  const pass = (h: Hit, skip?: FacetKey) => (skip === 'source' || !f.source.size || f.source.has(h.e.source)) && (skip === 'topic' || !f.topic.size || h.e.topics.some(t => f.topic.has(t))) && (skip === 'type' || !f.type.size || f.type.has(h.e.type)) && (skip === 'country' || !f.country.size || h.e.countries.some(c => f.country.has(c))) && (skip === 'program' || !f.program.size || h.e.programs.some(p => f.program.has(p)));
   const shown = useMemo(() => group(hits.filter(h => pass(h))), [hits, f]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (k: FacetKey, v: string) => setF(o => { const n = new Set(o[k]); n.has(v) ? n.delete(v) : n.add(v); return { ...o, [k]: n }; });
   const clear = (k: FacetKey) => setF(o => ({ ...o, [k]: new Set() }));
   const count = (key: FacetKey, get: (e: Entry) => string[]) => { const m: Record<string, number> = {}; hits.forEach(h => { if (pass(h, key)) new Set(get(h.e)).forEach(k => (m[k] = (m[k] || 0) + 1)); }); return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])); };
   const groups: [FacetKey, string, [string, number][], (k: string) => ReactNode][] = [
     ['source', 'Source', count('source', e => [e.source]), k => <><Flag cc={D.byId[k]?.cc} /> {D.byId[k]?.name ?? k}</>],
+    ['topic', 'Topic', count('topic', e => e.topics).sort((a, b) => byTopicOrder(a[0], b[0])), k => <TopicBadge topic={k} />],
     ['type', 'Entity type', count('type', e => [e.type]), k => <><Icon name={TYPE_ICON[k as EntityType]} size={13} style={{ color: 'var(--muted)' }} /> {TYPE_LABEL[k as EntityType]}</>],
     ['country', 'Country', count('country', e => e.countries), k => <><Flag cc={k} /> {D.countryByCc[k]?.name ?? countryName(k)}</>],
     ['program', 'Program', count('program', e => e.programs), k => <span className="num" style={{ fontSize: 12 }}>{k}</span>],
@@ -101,17 +103,17 @@ export default function Search() {
             : !debounced && !anyFilter ? (
               <div className="empty"><Icon name="search" size={36} /><h3>Screen a name against {D.sources.filter(s => !s.countsOnly).length} sanctions lists</h3><p>Every name and alias in tonight's snapshot is searchable, with typo tolerance.{D.unpublished > 0 && <> Politically exposed persons and their relatives and close associates are counted on the overview but not searchable here.</>}{examples.length > 0 && <> Try {examples.map((x, i) => <span key={x}>{i > 0 && ', '}<button className="xs" style={{ color: 'var(--link)' }} onClick={() => set(x)}>{x}</button></span>)}.</>}</p></div>
             ) : !shown.length ? (
-              <div className="empty"><Icon name="funnel" size={36} /><h3>No matches{debounced && ` for “${debounced}”`}</h3><p>Lower the threshold, check the spelling, or <button className="xs" style={{ color: 'var(--link)' }} onClick={() => setF({ source: new Set(), type: new Set(), country: new Set(), program: new Set() })}>clear filters</button>.</p></div>
+              <div className="empty"><Icon name="funnel" size={36} /><h3>No matches{debounced && ` for “${debounced}”`}</h3><p>Lower the threshold, check the spelling, or <button className="xs" style={{ color: 'var(--link)' }} onClick={() => setF({ source: new Set(), topic: new Set(), type: new Set(), country: new Set(), program: new Set() })}>clear filters</button>.</p></div>
             ) : (
               <>
                 <div className="card-h"><h3>{debounced ? 'Results' : 'Filtered records'}</h3><span className="xs muted">{shown.length > SHOWN ? `first ${SHOWN} of ${fmt(shown.length)}` : `${shown.length} shown`}{debounced && ' · sorted by score'}</span></div>
-                {shown.slice(0, SHOWN).map(({ e, s, name, all }) => { const alias = debounced && name !== e.name ? name : null; const countries = [...new Set(all.flatMap(x => x.countries))], programs = [...new Set(all.flatMap(x => x.programs))]; return (
+                {shown.slice(0, SHOWN).map(({ e, s, name, all }) => { const alias = debounced && name !== e.name ? name : null; const countries = [...new Set(all.flatMap(x => x.countries))], topics = all.flatMap(x => x.topics), programs = [...new Set(all.flatMap(x => x.programs))]; return (
                   <div className="res" key={e.key}>
                     <div className="ic" title={TYPE_LABEL[e.type]}><Icon name={TYPE_ICON[e.type]} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="nm"><Link to={entityPath(e)}>{debounced && !alias ? <Highlight text={e.name} q={debounced} /> : e.name}</Link>{debounced && <span className="num xs muted" style={{ fontWeight: 400, marginLeft: 6 }}>{s.toFixed(2)}</span>}</div>
                       {alias ? <div className="al">matched alias: <Highlight text={alias} q={debounced} /></div> : e.aliases.length > 0 && <div className="al">{e.aliases.length} alias{e.aliases.length === 1 ? '' : 'es'} · {e.aliases[0]}</div>}
-                      <div className="meta"><TypeBadge type={e.type} />{countries.slice(0, 3).map(c => <Badge key={c} cc={c}>{D.countryByCc[c]?.name ?? countryName(c)}</Badge>)}{countries.length > 3 && <Badge>+{countries.length - 3}</Badge>}{all.slice(0, 4).map(x => <Link key={x.key} to={entityPath(x)}><Badge variant="acc" cc={D.byId[x.source]?.cc}>{D.byId[x.source]?.name ?? x.source}</Badge></Link>)}{all.length > 4 && <Badge>+{all.length - 4} more</Badge>}</div>
+                      <div className="meta"><TypeBadge type={e.type} /><TopicBadges topics={topics} />{countries.slice(0, 3).map(c => <Badge key={c} cc={c}>{D.countryByCc[c]?.name ?? countryName(c)}</Badge>)}{countries.length > 3 && <Badge>+{countries.length - 3}</Badge>}{all.slice(0, 4).map(x => <Link key={x.key} to={entityPath(x)}><Badge variant="acc" cc={D.byId[x.source]?.cc}>{D.byId[x.source]?.name ?? x.source}</Badge></Link>)}{all.length > 4 && <Badge>+{all.length - 4} more</Badge>}</div>
                     </div>
                     <div className="dt">{all.length > 1 ? <>{all.length} lists<br /></> : null}{programs.length > 0 ? <span className="num" style={{ color: 'var(--text)' }}>{programs[0]}{programs.length > 1 ? ` +${programs.length - 1}` : ''}</span> : null}</div>
                   </div>
