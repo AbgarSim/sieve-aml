@@ -196,6 +196,10 @@ class SnapshotWriterTest {
         assertThat(read("search-index.json").get("entries"))
                 .extracting(e -> e.get("s").asText())
                 .doesNotContain("WIKIDATA_PEP");
+        // The relative's link to the politically exposed person is not published either
+        JsonNode relations = read("relations.json");
+        assertThat(relations.path("stats").path("edges").asInt(-1)).isZero();
+        assertThat(relations.path("edges")).isEmpty();
     }
 
     @Test
