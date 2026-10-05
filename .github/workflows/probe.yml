@@ -6,20 +6,20 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: SECO relations
+      - name: SECO relation context
         run: |
           for i in 1 2 3; do curl -fsSL --retry 3 -o seco.xml "https://www.sesam.search.admin.ch/sesam-search-web/pages/downloadXmlGesamtliste.xhtml?lang=en&action=downloadXmlGesamtlisteAction" && break; done
-          ls -la seco.xml
-          echo "relation elements: $(grep -o '<relation[^>]*>' seco.xml | wc -l)"
-          grep -o '<relation[^>]*>' seco.xml | sed -E 's/ssid="[0-9]+"//; s/target-id="[0-9]+"//' | sort | uniq -c | sort -rn | head -20
-          grep -o '<relation[^>]*>' seco.xml | head -5
-          grep -n -m3 -A4 '<relation' seco.xml | head -30
-          grep -o '<target [^>]*>' seco.xml | head -3
-      - name: UK other information
-        run: |
-          curl -fsSL -o uk.xml "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml"
-          grep -o '<OtherInformation>[^<]*' uk.xml | sed 's/<OtherInformation>//' > other.txt
-          wc -l other.txt
-          for p in 'associat' 'linked to' 'owned' 'controlled by' 'director' 'son of' 'brother' 'wife' 'father' 'subsidiary' 'leader' 'member of' 'related'; do echo "$p: $(grep -ci "$p" other.txt)"; done
-          grep -i 'associat\|linked to\|owned by\|son of\|brother of' other.txt | cut -c1-220 | shuf -n 25 --random-source=other.txt
-          grep -o '<[A-Za-z]*Group[A-Za-z]*>' uk.xml | sort | uniq -c | head
+          python3 - <<'PY'
+          import re
+          s=open('seco.xml',encoding='utf-8').read()
+          idx=[m.start() for m in re.finditer('<relation ',s)]
+          for i in idx[:1]+idx[700:701]+idx[1500:1501]:
+              print('BEFORE:', s[i-400:i].replace('\n',' '))
+              print('AT:', s[i:i+400].replace('\n',' '))
+              print('---')
+          inner=re.findall(r'<relation [^>]*>(.*?)</relation>',s)
+          from collections import Counter
+          print('children:', Counter(re.sub(r'>[^<]*<','><',x)[:80] for x in inner).most_common(5))
+          rem=Counter(re.sub(r'<[^>]+>','',x).strip()[:60] for x in inner)
+          print('texts:', rem.most_common(25))
+          PY
