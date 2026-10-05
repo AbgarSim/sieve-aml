@@ -1,0 +1,5 @@
+{"formatVersion":1,"generatedAt":"2026-10-05T03:20:00Z","days":30,"records":{
+"EU_CONSOLIDATED/SV-1A2B3C":[
+{"url":"https://news.example.com/2026/10/04/court-freezes-assets","title":"Court freezes assets linked to sanctioned trader","domain":"news.example.com","language":"English","seenAt":"2026-10-04T14:15:00Z","terms":["sanctions","asset freeze"],"mentionedAs":"Viktor Dubrovin"},
+{"url":"https://example.org/business/money-laundering-probe","title":"Money laundering probe widens to shipping firms","domain":"example.org","language":"German","seenAt":"2026-09-22T08:00:00Z","terms":["money laundering"],"mentionedAs":"Viktor A. Dubrovin"}
+]}}

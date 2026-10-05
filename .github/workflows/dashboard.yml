@@ -49,6 +49,9 @@ jobs:
           # When each record was first seen and last changed
           curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/seen.json" -o snapshot/seen.json \
             || { echo "No published record history yet"; rm -f snapshot/seen.json; }
+          # News mentions of published names from earlier nights
+          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/news.json" -o snapshot/news.json \
+            || { echo "No published news mentions yet"; rm -f snapshot/news.json; }
       - name: Fetch lists and write snapshot
         env:
           SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}

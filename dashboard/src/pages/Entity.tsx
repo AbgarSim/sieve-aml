@@ -15,6 +15,7 @@ import { normalize } from '../lib/jw';
 import { useToast } from '../lib/useToast';
 import { entityPath } from './Search';
 import { AssociationGraph } from '../components/AssociationGraph';
+import { loadNews, type NewsArticle } from '../data/news';
 
 const SCRIPTS = ['LATIN', 'CYRILLIC', 'ARABIC', 'CJK', 'OTHER'];
 const SCRIPT_LABEL: Record<string, string> = { LATIN: 'Latin', CYRILLIC: 'Cyrillic', ARABIC: 'Arabic', CJK: 'CJK', OTHER: 'Other script' };
@@ -86,6 +87,12 @@ export default function Entity() {
 }
 
 function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Rec[]; toast: ReturnType<typeof useToast> }) {
+  const [news, setNews] = useState<{ days?: number; records: Record<string, NewsArticle[]> }>({ records: {} });
+  useEffect(() => {
+    let live = true;
+    loadNews().then(n => live && setNews({ days: n.days, records: n.records ?? {} }), () => {});
+    return () => { live = false; };
+  }, []);
   const D = SIEVE, S = D.snapshot;
   const here = recs.find(x => x.e.key === entry.key) ?? recs[0];
   const rec = here.r, type = RAW_TYPE[rec.entityType], isPerson = type === 'individual';
@@ -122,6 +129,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
   const rels = [...relMap.values()];
   // The photo of the record that was opened comes first, then the other lists' photos
   const images = collect<RawImage>([here, ...recs.filter(x => x !== here)], r => r.images, i => i.url);
+  const mentions = collect<NewsArticle>(recs, r => news.records[`${r.listSource}/${r.id}`], a => a.url).sort((a, b) => b.v.seenAt.localeCompare(a.v.seenAt));
   const pages = collect<RawLink>(recs, r => r.links, l => l.url).sort((a, b) => (a.v.date ?? '').localeCompare(b.v.date ?? ''));
   const pageGroups = LINK_KINDS.map(([k, label]) => [label, pages.filter(p => p.v.kind === k)] as const).filter(g => g[1].length);
   const firstSeen = minOf(recs.map(x => x.r.firstSeen)), lastSeen = maxOf(recs.map(x => x.r.lastSeen)), lastChange = maxOf(recs.map(x => x.r.lastChange));
@@ -212,6 +220,22 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
                     </li>))}
                   </ul>
                 </div>))}
+              </div>
+            </div>
+          )}
+
+          {mentions.length > 0 && (
+            <div className="card">
+              <div className="card-h"><h3>Recent news mentions</h3><span className="xs muted">{mentions.length} article{mentions.length === 1 ? '' : 's'} in the last {news.days ?? 30} days</span></div>
+              <div className="card-b links">
+                <p className="xs muted news-note"><Badge>Unverified</Badge> Found by name only, in news that uses words such as fraud or sanctions. An article may be about someone else with the same name.</p>
+                <ul>{mentions.map(({ v: a, refs }) => (
+                  <li key={a.url}>
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="cl">{a.title || host(a.url)} <Icon name="ext" size={12} /></a>
+                    <span className="xs muted">{a.domain ?? host(a.url)} · <span className="num">{day(a.seenAt)}</span>{a.mentionedAs && <> · as “{a.mentionedAs}”</>}{a.terms?.length ? <> · {a.terms.join(', ')}</> : null}</span>
+                    <Refs refs={refs} recs={recs} />
+                  </li>))}
+                </ul>
               </div>
             </div>
           )}

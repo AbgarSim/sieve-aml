@@ -1,6 +1,7 @@
 package dev.sieve.cli.command;
 
 import dev.sieve.cli.snapshot.FetchedSource;
+import dev.sieve.cli.snapshot.NewsStep;
 import dev.sieve.cli.snapshot.SnapshotFetcher;
 import dev.sieve.cli.snapshot.SnapshotWriter;
 import dev.sieve.cli.snapshot.WikidataStep;
@@ -8,10 +9,13 @@ import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.stats.DatasetStats;
 import dev.sieve.ingest.ProviderRegistry;
+import dev.sieve.ingest.media.GdeltGkgFeed;
 import dev.sieve.ingest.wikidata.WikidataLinks;
 import dev.sieve.match.dedup.SimilarityDeduplicator;
+import dev.sieve.match.media.NewsMentionIndex;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +61,13 @@ public class SnapshotCommand implements Callable<Integer> {
                             + " knows by LEI, IMO number, BIC or ISIN")
     private boolean noWikidata;
 
+    @Option(
+            names = "--no-news",
+            description =
+                    "Skip reading the last day of GDELT news files for adverse mentions of"
+                            + " published names (news.json)")
+    private boolean noNews;
+
     @Override
     public Integer call() throws Exception {
         Set<ListSource> only = EnumSet.noneOf(ListSource.class);
@@ -81,6 +92,9 @@ public class SnapshotCommand implements Callable<Integer> {
                         Clock.systemUTC());
         DatasetStats stats =
                 writer.write(fetched, out, Optional.ofNullable(System.getenv("GITHUB_SHA")));
+        if (!noNews) {
+            writeNews(fetched);
+        }
 
         long loaded =
                 fetched.stream().filter(f -> f.status() == FetchedSource.Status.LOADED).count();
@@ -97,5 +111,25 @@ public class SnapshotCommand implements Callable<Integer> {
                                         f.status(),
                                         f.error().map(e -> ": " + e).orElse("")));
         return loaded > 0 ? 0 : 2;
+    }
+
+    private void writeNews(List<FetchedSource> fetched) {
+        try {
+            NewsMentionIndex index =
+                    new NewsMentionIndex(
+                            new GdeltGkgFeed(true),
+                            "GDELT GKG",
+                            Duration.ofHours(24),
+                            Duration.ofHours(24),
+                            0.92,
+                            Clock.systemUTC());
+            index.refresh();
+            System.out.printf("%,d adverse news articles read%n", index.size());
+            int records =
+                    new NewsStep(index, Duration.ofDays(2), Clock.systemUTC()).write(fetched, out);
+            System.out.printf("News mentions kept for %,d records%n", records);
+        } catch (Exception e) {
+            System.err.println("News mentions skipped: " + e.getMessage());
+        }
     }
 }
