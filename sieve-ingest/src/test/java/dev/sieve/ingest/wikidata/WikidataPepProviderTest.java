@@ -19,6 +19,7 @@ import dev.sieve.core.model.Relation;
 import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
+import dev.sieve.ingest.pep.PublicFunctionCategory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -51,9 +52,19 @@ class WikidataPepProviderTest {
     private static final String WDT = "http://www.wikidata.org/prop/direct/";
 
     private static final WikidataPepProvider.Office CHANCELLOR =
-            new WikidataPepProvider.Office("Q4970706", "Federal Chancellor of Germany", "DE", 1);
+            new WikidataPepProvider.Office(
+                    "Q4970706",
+                    "Federal Chancellor of Germany",
+                    "DE",
+                    1,
+                    PublicFunctionCategory.HEADS_OF_STATE_AND_GOVERNMENT);
     private static final WikidataPepProvider.Office MDB =
-            new WikidataPepProvider.Office("Q1939555", "member of the Bundestag", "DE", 2);
+            new WikidataPepProvider.Office(
+                    "Q1939555",
+                    "member of the Bundestag",
+                    "DE",
+                    2,
+                    PublicFunctionCategory.LEGISLATORS);
 
     @Test
     void shouldKeepTermsThatAreCurrentOrEndedRecently() throws Exception {
@@ -147,6 +158,15 @@ class WikidataPepProviderTest {
                         "Federal Chancellor of Germany (DE, tier 1): 2005-11-22 to 2021-12-08\n"
                                 + "member of the Bundestag (DE, tier 2): start unknown to present\n"
                                 + "Source: https://www.wikidata.org/wiki/Q567");
+        assertThat(entity.listingReasons())
+                .containsExactly(
+                        "Prominent public function under Directive (EU) 2015/849 Art. 3(9)(a) (heads"
+                                + " of State, heads of government, ministers and deputy or assistant"
+                                + " ministers); on the DE list in OJ C/2023/724: Federal Chancellor"
+                                + " (Bundeskanzler)",
+                        "Prominent public function under Directive (EU) 2015/849 Art. 3(9)(b)"
+                                + " (members of parliament or of similar legislative bodies); on the"
+                                + " DE list in OJ C/2023/724: Member of the German Bundestag");
     }
 
     @Test
@@ -251,7 +271,9 @@ class WikidataPepProviderTest {
         Map<String, WikidataPepProvider.Office> offices = new LinkedHashMap<>();
         WikidataPepProvider.keep(offices, MDB);
         WikidataPepProvider.keep(
-                offices, new WikidataPepProvider.Office("Q1939555", "member", "DE", 1));
+                offices,
+                new WikidataPepProvider.Office(
+                        "Q1939555", "member", "DE", 1, PublicFunctionCategory.LEGISLATORS));
         WikidataPepProvider.keep(offices, MDB);
 
         assertThat(offices.get("Q1939555").tier()).isEqualTo(1);
@@ -518,6 +540,8 @@ class WikidataPepProviderTest {
                             assertThat(q.sparql())
                                     .isEqualTo(WikidataPepProvider.REGIONAL_HEADS_QUERY);
                             assertThat(q.tier()).isEqualTo(WikidataPepProvider.REGIONAL_TIER);
+                            assertThat(q.category())
+                                    .isEqualTo(WikidataPepProvider.REGIONAL_CATEGORY);
                         });
     }
 
