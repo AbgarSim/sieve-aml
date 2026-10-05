@@ -23,7 +23,8 @@ public record SourceInfo(
         JSON,
         XLSX,
         CSV,
-        HTML
+        HTML,
+        PDF
     }
 
     public SourceInfo {

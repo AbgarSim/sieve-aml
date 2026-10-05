@@ -14,6 +14,7 @@ import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.gleif.GleifSanctionLinkedProvider;
 import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
+import dev.sieve.ingest.in.InMhaOrgProvider;
 import dev.sieve.ingest.in.InMhaProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
@@ -81,6 +82,7 @@ public final class ProviderRegistry {
                 new LvFiuProvider(),
                 new ArRepetProvider(),
                 new InMhaProvider(),
+                new InMhaOrgProvider(),
                 new FbiWantedProvider(),
                 new EuMostWantedProvider(),
                 new WorldBankDebarredProvider(),

@@ -26,6 +26,7 @@ import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.gleif.GleifSanctionLinkedProvider;
 import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
+import dev.sieve.ingest.in.InMhaOrgProvider;
 import dev.sieve.ingest.in.InMhaProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
@@ -246,6 +247,7 @@ public final class SieveServer {
         providers.add(new LvFiuProvider());
         providers.add(new ArRepetProvider());
         providers.add(new InMhaProvider());
+        providers.add(new InMhaOrgProvider());
         providers.add(new FbiWantedProvider());
         providers.add(new EuMostWantedProvider());
         providers.add(new WorldBankDebarredProvider());
