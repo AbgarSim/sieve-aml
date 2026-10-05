@@ -243,6 +243,13 @@ public final class SourceCatalog {
                 "https://www.mha.gov.in/en/page/individual-terrorists-under-uapa");
         put(
                 map,
+                ListSource.IN_MHA_ORG,
+                "Ministry of Home Affairs",
+                "IN",
+                Format.PDF,
+                "https://www.mha.gov.in/en/divisionofmha/counter-terrorism-and-counter-radicalization-division/Banned-Organizations");
+        put(
+                map,
                 ListSource.US_FBI_WANTED,
                 "U.S. Federal Bureau of Investigation",
                 "US",

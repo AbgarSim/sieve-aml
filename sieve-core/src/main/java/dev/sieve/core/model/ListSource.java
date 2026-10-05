@@ -99,6 +99,12 @@ public enum ListSource {
     /** India Ministry of Home Affairs individual terrorists under UAPA. */
     IN_MHA("IN MHA"),
 
+    /**
+     * India Ministry of Home Affairs banned organisations under UAPA: the terrorist organisations
+     * of the First Schedule and the unlawful associations declared under Section 3.
+     */
+    IN_MHA_ORG("IN MHA Organisations"),
+
     /** U.S. Federal Bureau of Investigation wanted persons. */
     US_FBI_WANTED("US FBI Wanted"),
 
