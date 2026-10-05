@@ -277,6 +277,41 @@ class UkHmtProviderTest {
         return provider.parseXml(loadTestResource("uk_hmt_test_sample.xml"));
     }
 
+    @Test
+    void shouldLinkTargetsNamedInOtherInformationGivenNamesFirst() {
+        String xml =
+                """
+                <?xml version="1.0" encoding="utf-8"?>
+                <ArrayOfFinancialSanctionsTarget>
+                  <FinancialSanctionsTarget>
+                    <Name6>PETROV</Name6><name1>Ivan</name1><name2>Sergeyevich</name2>
+                    <AliasType>Primary name</AliasType>
+                    <GroupTypeDescription>Individual</GroupTypeDescription>
+                    <GroupID>1</GroupID>
+                  </FinancialSanctionsTarget>
+                  <FinancialSanctionsTarget>
+                    <Name6>NORTHWIND TRADING LLC</Name6>
+                    <AliasType>Primary name</AliasType>
+                    <GroupTypeDescription>Entity</GroupTypeDescription>
+                    <OtherInformation>Owned by Ivan Sergeyevich Petrov.</OtherInformation>
+                    <GroupID>2</GroupID>
+                  </FinancialSanctionsTarget>
+                </ArrayOfFinancialSanctionsTarget>
+                """;
+
+        List<SanctionedEntity> entities = provider.parseXml(xml.strip().getBytes());
+
+        SanctionedEntity company = entities.get(1);
+        assertThat(company.relations())
+                .singleElement()
+                .satisfies(
+                        r -> {
+                            assertThat(r.targetId()).isEqualTo(entities.get(0).id());
+                            assertThat(r.role()).isEqualTo("owned by");
+                        });
+        assertThat(entities.get(0).relations()).isEmpty();
+    }
+
     private static SanctionedEntity findById(List<SanctionedEntity> entities, String id) {
         return entities.stream()
                 .filter(e -> id.equals(e.id()))

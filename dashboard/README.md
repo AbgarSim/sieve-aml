@@ -16,8 +16,11 @@ The site is static. At runtime it reads the files written by `sieve snapshot` fr
 | `history.json` | sparklines and day-over-day changes (shown once there are two days) |
 | `search-index.json` | search, loaded on first use |
 | `entities/SOURCE/N.json` | entity data cards |
+| `relations.json` | association graph on the entity page, loaded on first use |
 
 One entity listed by several authorities is matched across lists when the snapshot is written (by name, identifiers and date of birth); the records of such an entity share a group id (`g` in `search-index.json`), which the search folds into one result and the entity page lists as the same entity on other lists. `overview.json` counts the distinct entities in `dedup`, and each list's row in `sources.json` says in `onOtherLists` how many of its records another list also carries.
+
+`relations.json` holds the links the lists state between published records (`f` holds the link to `t`, `r` is the kind, `l` the list's wording, `p` an ownership share, `s` and `e` the dates) and the country each linked record is placed at on the graph (`home`). The entity page folds them onto entities the same way the search does.
 
 Politically exposed persons and their associates are counted (`byTopic` in `overview.json`, and per list in `sources.json`, whose `published` field says how many of a list's records were written) but never appear in `entities/` or the search index, so the UI shows their numbers and marks those lists as counts only.
 
