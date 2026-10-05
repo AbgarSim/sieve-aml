@@ -49,6 +49,7 @@
 | LV FIU | Latvia — Financial Intelligence Unit | XML | ~160 |
 | AR RePET | Argentina — Ministry of Justice terrorism registry (RePET) | JSON | ~700 |
 | IN MHA | India — Ministry of Home Affairs individual terrorists under UAPA | HTML | ~60 |
+| IN MHA Organisations | India — Ministry of Home Affairs banned organisations under UAPA: terrorist organisations of the First Schedule and unlawful associations under Section 3, read from the ministry's PDFs | PDF | ~75 |
 | US FBI Wanted | U.S. Federal Bureau of Investigation — wanted persons (open posters naming a suspect) | JSON | ~500 |
 | EU Most Wanted | Europol / ENFAST — Europe's most wanted fugitives | HTML | ~50 |
 | World Bank Debarred | World Bank Group — firms and individuals debarred from Bank-financed contracts | JSON | ~1,500 |
@@ -80,6 +81,9 @@
 | Provider | Source | Status |
 |----------|--------|--------|
 | UA NSDC | Ukraine — National Security and Defence Council | ⏸ Requires API key (email sanctions@rnbo.gov.ua) |
+| KZ AFM | Kazakhstan — Agency for Financial Monitoring | ⏸ afm.gov.kz does not answer requests from outside Kazakhstan, and the former afmrk.gov.kz host is gone |
+| HK | Hong Kong — Commerce and Economic Development Bureau | — No list of its own: the gazette republishes the UN lists, which Sieve already carries |
+| SG MAS | Singapore — Monetary Authority of Singapore | — No machine-readable list of its own: MAS republishes the UN lists, which Sieve already carries |
 
 ## Architecture
 
@@ -205,7 +209,7 @@ curl http://localhost:8080/api/v1/health
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 35 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 36 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files

@@ -18,6 +18,7 @@ import dev.sieve.ingest.fr.FrTresorProvider;
 import dev.sieve.ingest.gleif.GleifSanctionLinkedProvider;
 import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
+import dev.sieve.ingest.in.InMhaOrgProvider;
 import dev.sieve.ingest.in.InMhaProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
@@ -440,6 +441,16 @@ class ProviderIntegrationTest {
         log.info("IN MHA: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.IN_MHA);
+    }
+
+    @Test
+    void inMhaOrg_shouldFetchAndParseEntities() throws Exception {
+        var provider = new InMhaOrgProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("IN MHA Organisations: fetched {} entities", entities.size());
+        assertThat(entities).isNotEmpty();
+        assertCommonInvariants(entities, ListSource.IN_MHA_ORG);
     }
 
     @Test
