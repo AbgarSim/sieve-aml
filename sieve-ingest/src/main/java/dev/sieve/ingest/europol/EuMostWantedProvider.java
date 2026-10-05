@@ -1,7 +1,9 @@
 package dev.sieve.ingest.europol;
 
 import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
@@ -293,23 +295,37 @@ public final class EuMostWantedProvider extends AbstractListProvider {
         Details poster = details.getOrDefault(fields.get("view-node"), Details.NONE);
 
         return new SanctionedEntity(
-                "eu-mw-" + nid,
-                EntityType.INDIVIDUAL,
-                ListSource.EU_MOST_WANTED,
-                primary,
-                aliases,
-                List.of(),
-                List.of(),
-                poster.nationalities(),
-                List.of(),
-                poster.datesOfBirth(),
-                List.of(),
-                remarks(fields),
-                programs,
-                poster.published(),
-                Instant.now(),
-                Set.of(RiskTopic.WANTED),
-                List.of());
+                        "eu-mw-" + nid,
+                        EntityType.INDIVIDUAL,
+                        ListSource.EU_MOST_WANTED,
+                        primary,
+                        aliases,
+                        List.of(),
+                        List.of(),
+                        poster.nationalities(),
+                        List.of(),
+                        poster.datesOfBirth(),
+                        List.of(),
+                        remarks(fields),
+                        programs,
+                        poster.published(),
+                        Instant.now(),
+                        Set.of(RiskTopic.WANTED),
+                        List.of())
+                .withLinks(posterLink(fields.get("view-node")));
+    }
+
+    /** The person's poster page on the site, from the row's link to it. */
+    private List<EntityLink> posterLink(String path) {
+        if (path == null || !path.startsWith("/")) {
+            return List.of();
+        }
+        return List.of(
+                new EntityLink(
+                        sourceUri().resolve(path).toString(),
+                        "Europe's Most Wanted poster",
+                        LinkKind.SOURCE_PAGE,
+                        null));
     }
 
     private String remarks(Map<String, String> fields) {
@@ -331,10 +347,6 @@ public final class EuMostWantedProvider extends AbstractListProvider {
         String locations = fields.get("field-propable-locations");
         if (locations != null) {
             joiner.add("Probable locations: " + locations);
-        }
-        String path = fields.get("view-node");
-        if (path != null && path.startsWith("/")) {
-            joiner.add("Poster: " + sourceUri().resolve(path));
         }
         return joiner.length() == 0 ? null : joiner.toString();
     }

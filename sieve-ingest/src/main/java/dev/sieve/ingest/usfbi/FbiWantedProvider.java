@@ -3,7 +3,10 @@ package dev.sieve.ingest.usfbi;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.ListIngestionException;
+import dev.sieve.core.model.EntityImage;
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameStrength;
@@ -46,6 +49,9 @@ import java.util.StringJoiner;
  * @see <a href="https://www.fbi.gov/wanted/api">FBI Wanted API</a>
  */
 public final class FbiWantedProvider extends AbstractListProvider {
+
+    /** Photos kept per poster; posters rarely carry more than a few, and the first is the face. */
+    private static final int MAX_IMAGES = 3;
 
     private static final String DEFAULT_URL = "https://api.fbi.gov/wanted/v1/list";
     static final int PAGE_SIZE = 50;
@@ -242,28 +248,51 @@ public final class FbiWantedProvider extends AbstractListProvider {
             remarks.add(charges);
         }
         String url = text(item, "url");
-        if (url != null) {
-            remarks.add("Poster: " + url);
-        }
 
         return new SanctionedEntity(
-                "fbi-" + uid,
-                EntityType.INDIVIDUAL,
-                ListSource.US_FBI_WANTED,
-                primary,
-                aliases,
-                List.of(),
-                List.of(),
-                nationalities,
-                List.of(),
-                datesOfBirth,
-                placesOfBirth,
-                remarks.length() == 0 ? null : remarks.toString(),
-                programs,
-                instant(text(item, "publication")),
-                instant(text(item, "modified")),
-                Set.of(RiskTopic.WANTED),
-                List.of());
+                        "fbi-" + uid,
+                        EntityType.INDIVIDUAL,
+                        ListSource.US_FBI_WANTED,
+                        primary,
+                        aliases,
+                        List.of(),
+                        List.of(),
+                        nationalities,
+                        List.of(),
+                        datesOfBirth,
+                        placesOfBirth,
+                        remarks.length() == 0 ? null : remarks.toString(),
+                        programs,
+                        instant(text(item, "publication")),
+                        instant(text(item, "modified")),
+                        Set.of(RiskTopic.WANTED),
+                        List.of())
+                .withImages(images(item, url))
+                .withLinks(
+                        url == null
+                                ? List.of()
+                                : List.of(
+                                        new EntityLink(
+                                                url,
+                                                "FBI wanted poster",
+                                                LinkKind.SOURCE_PAGE,
+                                                null)));
+    }
+
+    /**
+     * The poster's photos: the large version with its thumbnail, credited to the FBI. Posters
+     * publish US government work, so no licence is stated beyond the poster's own terms.
+     */
+    static List<EntityImage> images(JsonNode item, String posterUrl) {
+        List<EntityImage> images = new ArrayList<>();
+        for (JsonNode image : item.path("images")) {
+            String large = text(image, "large");
+            String full = large != null ? large : text(image, "original");
+            if (full != null && images.size() < MAX_IMAGES) {
+                images.add(new EntityImage(full, text(image, "thumb"), posterUrl, "FBI", null));
+            }
+        }
+        return images;
     }
 
     /** Keeps the main subject of an open poster that is about a suspect. */

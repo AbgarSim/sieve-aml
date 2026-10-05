@@ -295,4 +295,37 @@ class SanctionedEntityTest {
         assertThat(copy.vessel()).isEqualTo(vessel);
         assertThat(copy.withListingReasons(null).listingReasons()).isEmpty();
     }
+
+    @Test
+    void shouldKeepImagesAndLinksAcrossCopies() {
+        EntityImage photo =
+                new EntityImage(
+                        "https://example.org/large.jpg",
+                        "https://example.org/thumb.jpg",
+                        "https://example.org/poster",
+                        "FBI",
+                        null);
+        EntityLink poster =
+                new EntityLink("https://example.org/poster", "Poster", LinkKind.SOURCE_PAGE, null);
+
+        SanctionedEntity entity =
+                minimalEntity().withImages(List.of(photo)).withLinks(List.of(poster));
+        SanctionedEntity copy = entity.withGender(Gender.MALE).withRelations(List.of());
+
+        assertThat(minimalEntity().images()).isEmpty();
+        assertThat(minimalEntity().links()).isEmpty();
+        assertThat(copy.images()).containsExactly(photo);
+        assertThat(copy.links()).containsExactly(poster);
+        assertThat(copy.withLinks(null).links()).isEmpty();
+    }
+
+    @Test
+    void shouldRejectImagesAndLinksWithoutUrl() {
+        assertThatThrownBy(() -> new EntityImage(" ", null, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new EntityLink(null, "Poster", LinkKind.SOURCE_PAGE, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThat(new EntityImage("https://example.org/a.jpg", " ", null, "", null).credit())
+                .isNull();
+    }
 }

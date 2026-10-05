@@ -163,6 +163,8 @@ public final class ListHandler {
         map.put("deceased", entity.deceased());
         map.put("listingReasons", entity.listingReasons());
         map.put("vessel", entity.vessel());
+        map.put("images", entity.images());
+        map.put("links", entity.links());
         map.put("lastUpdated", entity.lastUpdated());
         return map;
     }
