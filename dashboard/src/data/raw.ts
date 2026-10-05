@@ -69,5 +69,7 @@ export interface RawEntity {
   addresses?: { street?: string; city?: string; stateOrProvince?: string; postalCode?: string; country?: string; fullAddress?: string }[];
   identifiers?: { type: string; value: string; issuingCountry?: string; remarks?: string }[];
   nationalities?: string[]; citizenships?: string[]; datesOfBirth?: string[]; placesOfBirth?: string[]; remarks?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'; deceased?: boolean; listingReasons?: string[];
+  vessel?: { flag?: string; type?: string; callSign?: string; tonnage?: number; grossRegisteredTonnage?: number };
   programs?: { code: string; name?: string; source?: string }[]; listedDate?: string; lastUpdated?: string;
 }

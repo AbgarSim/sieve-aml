@@ -45,7 +45,7 @@ Entity Model
        rankdir=TB;
        node [shape=record, fontname="Helvetica", fontsize=10];
 
-       entity [label="{SanctionedEntity|id : String\lentityType : EntityType\llistSource : ListSource\lprimaryName : NameInfo\lremarks : String\llastUpdated : Instant\l}"];
+       entity [label="{SanctionedEntity|id : String\lentityType : EntityType\llistSource : ListSource\lprimaryName : NameInfo\lgender : Gender\ldeceased : Boolean\lremarks : String\llistingReasons : List<String>\lvessel : VesselDetails\llastUpdated : Instant\l}"];
        alias  [label="{NameInfo|fullName : String\lfirstName : String\llastName : String\lnameType : NameType\lnameStrength : NameStrength\lscriptType : ScriptType\l}"];
        addr   [label="{Address|street : String\lcity : String\lstateOrProvince : String\lpostalCode : String\lcountry : String\lfullAddress : String\l}"];
        ident  [label="{Identifier|type : IdentifierType\lvalue : String\lcountry : String\l}"];

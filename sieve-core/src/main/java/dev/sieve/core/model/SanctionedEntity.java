@@ -27,7 +27,14 @@ import java.util.Set;
  * @param citizenships known citizenships
  * @param datesOfBirth known dates of birth
  * @param placesOfBirth known places of birth
+ * @param gender the gender the list records, {@code null} when it records none
+ * @param deceased {@link Boolean#TRUE} when the list says the person is dead, {@code null} when it
+ *     says nothing about it
  * @param remarks free-text remarks from the source list
+ * @param listingReasons the reasons the list gives for the listing, such as the UK's statement of
+ *     reasons or a debarment ground; empty when the list states none apart from its remarks
+ * @param vessel what the list says about a vessel (flag, type, call sign, tonnage), {@code null}
+ *     for anything but a vessel or when the list gives none of it
  * @param programs sanctions programs under which this entity is listed
  * @param listedDate when the entity was first added to the list, may be {@code null}
  * @param lastUpdated when the entity's record was last modified, may be {@code null}
@@ -48,7 +55,11 @@ public record SanctionedEntity(
         List<String> citizenships,
         List<LocalDate> datesOfBirth,
         List<String> placesOfBirth,
+        Gender gender,
+        Boolean deceased,
         String remarks,
+        List<String> listingReasons,
+        VesselDetails vessel,
         List<SanctionsProgram> programs,
         Instant listedDate,
         Instant lastUpdated,
@@ -73,6 +84,7 @@ public record SanctionedEntity(
         citizenships = citizenships == null ? List.of() : List.copyOf(citizenships);
         datesOfBirth = datesOfBirth == null ? List.of() : List.copyOf(datesOfBirth);
         placesOfBirth = placesOfBirth == null ? List.of() : List.copyOf(placesOfBirth);
+        listingReasons = listingReasons == null ? List.of() : List.copyOf(listingReasons);
         programs = programs == null ? List.of() : List.copyOf(programs);
         topics =
                 topics == null || topics.isEmpty()
@@ -80,6 +92,73 @@ public record SanctionedEntity(
                         : Collections.unmodifiableSet(EnumSet.copyOf(topics));
         relations = relations == null ? List.of() : List.copyOf(relations);
         provenance = provenance == null ? List.of() : List.copyOf(provenance);
+    }
+
+    /**
+     * Creates an entry without the fields of the second model round: no gender, no word on whether
+     * the person is dead, no listing reasons and no vessel details.
+     *
+     * @param id source-specific identifier
+     * @param entityType classification of this entity
+     * @param listSource the list this entity originates from
+     * @param primaryName the entity's structured primary name
+     * @param aliases alternative names
+     * @param addresses known physical addresses
+     * @param identifiers identity documents and reference numbers
+     * @param nationalities known nationalities
+     * @param citizenships known citizenships
+     * @param datesOfBirth known dates of birth
+     * @param placesOfBirth known places of birth
+     * @param remarks free-text remarks from the source list
+     * @param programs sanctions programs under which this entity is listed
+     * @param listedDate when the entity was first added to the list, may be {@code null}
+     * @param lastUpdated when the entity's record was last modified, may be {@code null}
+     * @param topics why the entity is of interest
+     * @param relations links from this entity to other entities
+     * @param provenance where and when each value was seen
+     */
+    public SanctionedEntity(
+            String id,
+            EntityType entityType,
+            ListSource listSource,
+            NameInfo primaryName,
+            List<NameInfo> aliases,
+            List<Address> addresses,
+            List<Identifier> identifiers,
+            List<String> nationalities,
+            List<String> citizenships,
+            List<LocalDate> datesOfBirth,
+            List<String> placesOfBirth,
+            String remarks,
+            List<SanctionsProgram> programs,
+            Instant listedDate,
+            Instant lastUpdated,
+            Set<RiskTopic> topics,
+            List<Relation> relations,
+            List<SourcedValue> provenance) {
+        this(
+                id,
+                entityType,
+                listSource,
+                primaryName,
+                aliases,
+                addresses,
+                identifiers,
+                nationalities,
+                citizenships,
+                datesOfBirth,
+                placesOfBirth,
+                null,
+                null,
+                remarks,
+                List.of(),
+                null,
+                programs,
+                listedDate,
+                lastUpdated,
+                topics,
+                relations,
+                provenance);
     }
 
     /**
@@ -225,40 +304,72 @@ public record SanctionedEntity(
     }
 
     /**
-     * Returns a copy of this entity with the given provenance and every other field unchanged.
+     * Returns a copy with the given provenance.
      *
-     * @param provenance the provenance of the entity's values
+     * @param provenance where and when each value was seen
      * @return the copy
      */
     public SanctionedEntity withProvenance(List<SourcedValue> provenance) {
-        return new SanctionedEntity(
-                id,
-                entityType,
-                listSource,
-                primaryName,
-                aliases,
-                addresses,
-                identifiers,
-                nationalities,
-                citizenships,
-                datesOfBirth,
-                placesOfBirth,
-                remarks,
-                programs,
-                listedDate,
-                lastUpdated,
-                topics,
-                relations,
-                provenance);
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance);
     }
 
     /**
-     * Returns a copy of this entity with the given relations and every other field unchanged.
+     * Returns a copy with the given relations.
      *
-     * @param relations the links from this entity to other entities
+     * @param relations links from this entity to other entities
      * @return the copy
      */
     public SanctionedEntity withRelations(List<Relation> relations) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance);
+    }
+
+    /**
+     * Returns a copy with the given gender.
+     *
+     * @param gender the gender the list records, {@code null} when it records none
+     * @return the copy
+     */
+    public SanctionedEntity withGender(Gender gender) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance);
+    }
+
+    /**
+     * Returns a copy that says whether the list reports the person dead.
+     *
+     * @param deceased {@link Boolean#TRUE} when the list says so, {@code null} when it says nothing
+     * @return the copy
+     */
+    public SanctionedEntity withDeceased(Boolean deceased) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance);
+    }
+
+    /**
+     * Returns a copy with the given listing reasons.
+     *
+     * @param listingReasons the reasons the list gives for the listing
+     * @return the copy
+     */
+    public SanctionedEntity withListingReasons(List<String> listingReasons) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance);
+    }
+
+    /**
+     * Returns a copy with the given vessel details.
+     *
+     * @param vessel what the list says about the vessel, {@code null} when nothing
+     * @return the copy
+     */
+    public SanctionedEntity withVessel(VesselDetails vessel) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance);
+    }
+
+    private SanctionedEntity copy(
+            Gender gender,
+            Boolean deceased,
+            List<String> listingReasons,
+            VesselDetails vessel,
+            List<Relation> relations,
+            List<SourcedValue> provenance) {
         return new SanctionedEntity(
                 id,
                 entityType,
@@ -271,7 +382,11 @@ public record SanctionedEntity(
                 citizenships,
                 datesOfBirth,
                 placesOfBirth,
+                gender,
+                deceased,
                 remarks,
+                listingReasons,
+                vessel,
                 programs,
                 listedDate,
                 lastUpdated,
