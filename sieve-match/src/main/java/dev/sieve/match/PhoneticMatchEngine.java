@@ -7,7 +7,6 @@ import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.match.algorithm.DoubleMetaphone;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +48,7 @@ public final class PhoneticMatchEngine implements MatchEngine {
 
     private final NormalizedNameCache nameCache;
     private final NgramIndex ngramIndex;
+    private final PhoneticIndex phoneticIndex = new PhoneticIndex();
 
     /** Creates a phonetic match engine with shared name cache and n-gram index. */
     public PhoneticMatchEngine(NormalizedNameCache nameCache, NgramIndex ngramIndex) {
@@ -70,23 +70,29 @@ public final class PhoneticMatchEngine implements MatchEngine {
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
+        phoneticIndex.ensureBuilt(index, nameCache);
 
         String normalizedQuery =
                 NameNormalizer.normalizeQuery(request.name(), request.entityType());
-        String[] queryTokens = normalizedQuery.split("\\s+");
-        DoubleMetaphone.PhoneticCode[] queryCodes = encodeTokens(queryTokens);
+        DoubleMetaphone.PhoneticCode[] queryCodes = PhoneticIndex.encode(normalizedQuery);
         int queryTokenCount = PartialNameMatch.tokenCount(normalizedQuery);
 
-        Collection<SanctionedEntity> entities = resolveEntities(request, index);
+        // Trigrams do not follow sound, so candidates come from the phonetic codes themselves
+        List<PhoneticIndex.Entry> candidates = phoneticIndex.candidates(queryCodes);
         List<MatchResult> results = new ArrayList<>();
 
-        for (SanctionedEntity entity : entities) {
+        for (PhoneticIndex.Entry candidate : candidates) {
+            SanctionedEntity entity = candidate.entity();
+            if (request.sources().isPresent()
+                    && !request.sources().get().contains(entity.listSource())) {
+                continue;
+            }
             if (request.entityType().isPresent()
                     && !request.entityType().get().isCompatibleWith(entity.entityType())) {
                 continue;
             }
 
-            MatchResult result = findPhoneticMatch(entity, queryCodes, queryTokenCount);
+            MatchResult result = findPhoneticMatch(candidate, queryCodes, queryTokenCount);
             if (result != null && result.score() >= request.threshold()) {
                 results.add(result);
             }
@@ -94,9 +100,9 @@ public final class PhoneticMatchEngine implements MatchEngine {
 
         results.sort(null);
         log.debug(
-                "Phonetic match screening [query={}, entities={}, matches={}]",
+                "Phonetic match screening [query={}, candidates={}, matches={}]",
                 request.name(),
-                entities.size(),
+                candidates.size(),
                 results.size());
         return results;
     }
@@ -111,19 +117,17 @@ public final class PhoneticMatchEngine implements MatchEngine {
      * @return the best match, or {@code null} if no name matches
      */
     private MatchResult findPhoneticMatch(
-            SanctionedEntity entity,
+            PhoneticIndex.Entry candidate,
             DoubleMetaphone.PhoneticCode[] queryCodes,
             int queryTokenCount) {
-        NormalizedNameCache.NormalizedEntry cached = nameCache.get(entity);
+        NormalizedNameCache.NormalizedEntry cached = nameCache.get(candidate.entity());
         double bestScore = 0.0;
         String bestField = null;
 
-        List<String> fullNames = new ArrayList<>(cached.aliases().size() + 1);
-        fullNames.add(cached.primaryName());
-        fullNames.addAll(cached.aliases());
-        for (int i = 0; i < fullNames.size() && bestScore < PHONETIC_MATCH_SCORE; i++) {
-            String name = fullNames.get(i);
-            if (matchesTokens(name, queryCodes)) {
+        DoubleMetaphone.PhoneticCode[][] fullNames = candidate.fullNames();
+        for (int i = 0; i < fullNames.length && bestScore < PHONETIC_MATCH_SCORE; i++) {
+            if (matchesTokens(fullNames[i], queryCodes)) {
+                String name = i == 0 ? cached.primaryName() : cached.aliases().get(i - 1);
                 double score =
                         PartialNameMatch.isLoneToken(queryTokenCount, name)
                                 ? PARTIAL_MATCH_SCORE
@@ -135,9 +139,9 @@ public final class PhoneticMatchEngine implements MatchEngine {
             }
         }
 
-        List<String> components = cached.nameComponents();
-        for (int i = 0; i < components.size() && bestScore < PARTIAL_MATCH_SCORE; i++) {
-            if (matchesTokens(components.get(i), queryCodes)) {
+        DoubleMetaphone.PhoneticCode[][] components = candidate.components();
+        for (int i = 0; i < components.length && bestScore < PARTIAL_MATCH_SCORE; i++) {
+            if (matchesTokens(components[i], queryCodes)) {
                 bestScore = PARTIAL_MATCH_SCORE;
                 bestField = "nameComponent[" + i + "]";
             }
@@ -145,7 +149,7 @@ public final class PhoneticMatchEngine implements MatchEngine {
 
         return bestField == null
                 ? null
-                : new MatchResult(entity, bestScore, bestField, ALGORITHM_NAME);
+                : new MatchResult(candidate.entity(), bestScore, bestField, ALGORITHM_NAME);
     }
 
     /**
@@ -155,10 +159,8 @@ public final class PhoneticMatchEngine implements MatchEngine {
      * handles multi-word names where each word must phonetically match some word in the candidate.
      */
     private static boolean matchesTokens(
-            String candidateName, DoubleMetaphone.PhoneticCode[] queryCodes) {
-        String[] candidateTokens = candidateName.split("\\s+");
-        DoubleMetaphone.PhoneticCode[] candidateCodes = encodeTokens(candidateTokens);
-
+            DoubleMetaphone.PhoneticCode[] candidateCodes,
+            DoubleMetaphone.PhoneticCode[] queryCodes) {
         if (queryCodes.length == 0 || candidateCodes.length == 0) {
             return false;
         }
@@ -188,14 +190,6 @@ public final class PhoneticMatchEngine implements MatchEngine {
         return matched == queryCodes.length;
     }
 
-    private static DoubleMetaphone.PhoneticCode[] encodeTokens(String[] tokens) {
-        DoubleMetaphone.PhoneticCode[] codes = new DoubleMetaphone.PhoneticCode[tokens.length];
-        for (int i = 0; i < tokens.length; i++) {
-            codes[i] = DoubleMetaphone.encode(tokens[i]);
-        }
-        return codes;
-    }
-
     private static boolean codesMatch(
             DoubleMetaphone.PhoneticCode a, DoubleMetaphone.PhoneticCode b) {
         if (a.primary().isEmpty() || b.primary().isEmpty()) {
@@ -205,17 +199,5 @@ public final class PhoneticMatchEngine implements MatchEngine {
                 || a.primary().equals(b.alternate())
                 || a.alternate().equals(b.primary())
                 || a.alternate().equals(b.alternate());
-    }
-
-    private Collection<SanctionedEntity> resolveEntities(
-            ScreeningRequest request, EntityIndex index) {
-        if (request.sources().isPresent()) {
-            return request.sources().get().stream()
-                    .flatMap(source -> index.findBySource(source).stream())
-                    .toList();
-        }
-        // Phonetic matching needs all entities — n-gram filtering could miss phonetic variants
-        // since trigrams don't correlate with phonetic codes.
-        return index.all();
     }
 }
