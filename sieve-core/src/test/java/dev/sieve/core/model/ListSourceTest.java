@@ -42,6 +42,7 @@ class ListSourceTest {
         "LV_FIU, LV FIU",
         "AR_REPET, AR RePET",
         "IN_MHA, IN MHA",
+        "IN_MHA_ORG, IN MHA Organisations",
         "US_FBI_WANTED, US FBI Wanted",
         "EU_MOST_WANTED, EU Most Wanted",
         "WB_DEBARRED, World Bank Debarred",
@@ -86,6 +87,6 @@ class ListSourceTest {
 
     @Test
     void shouldHaveExpectedValues() {
-        assertThat(ListSource.values()).hasSize(35);
+        assertThat(ListSource.values()).hasSize(36);
     }
 }

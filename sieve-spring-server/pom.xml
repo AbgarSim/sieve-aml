@@ -23,6 +23,13 @@
         <dependency>
             <groupId>dev.sieve</groupId>
             <artifactId>sieve-ingest</artifactId>
+            <exclusions>
+                <!-- PDFBox logs through Commons Logging; Spring's spring-jcl already provides those classes -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>dev.sieve</groupId>
