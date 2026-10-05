@@ -105,6 +105,22 @@ public final class RemarkRelations {
      * @return the entries, in the same order, with their relations
      */
     public static List<SanctionedEntity> byName(List<SanctionedEntity> entities, String label) {
+        return byName(entities, label, name -> List.of(name.fullName()));
+    }
+
+    /**
+     * Adds the relations the entries' remarks state by naming other entries, by any of the
+     * spellings given for their primary name or aliases.
+     *
+     * @param entities every entry of the list
+     * @param label the list's name for the log
+     * @param spellings the ways the remarks may write a name, such as {@link #givenNameFirst}
+     * @return the entries, in the same order, with their relations
+     */
+    public static List<SanctionedEntity> byName(
+            List<SanctionedEntity> entities,
+            String label,
+            Function<NameInfo, List<String>> spellings) {
         Map<String, Set<String>> names = new HashMap<>();
         int longest = MIN_NAME_WORDS;
         for (SanctionedEntity entity : entities) {
@@ -114,11 +130,14 @@ public final class RemarkRelations {
                 if (name == null || name.fullName() == null) {
                     continue;
                 }
-                Words words = words(name.fullName());
-                String key = String.join(" ", words.words());
-                if (words.words().size() >= MIN_NAME_WORDS && key.length() >= MIN_NAME_LENGTH) {
-                    names.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(entity.id());
-                    longest = Math.max(longest, words.words().size());
+                for (String spelling : spellings.apply(name)) {
+                    Words words = words(spelling);
+                    String key = String.join(" ", words.words());
+                    if (words.words().size() >= MIN_NAME_WORDS
+                            && key.length() >= MIN_NAME_LENGTH) {
+                        names.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(entity.id());
+                        longest = Math.max(longest, words.words().size());
+                    }
                 }
             }
         }
@@ -279,5 +298,27 @@ public final class RemarkRelations {
             }
         }
         relations.add(relation);
+    }
+
+    /**
+     * Returns a name as the list writes it and, when the list writes the family name first (as in
+     * "SMITH, John Edward"), also given names first ("John Edward SMITH"), the order free text
+     * uses.
+     *
+     * @param name the name
+     * @return the full name, then the given-name-first spelling when it differs
+     */
+    public static List<String> givenNameFirst(NameInfo name) {
+        if (name.givenName() == null || name.familyName() == null) {
+            return List.of(name.fullName());
+        }
+        StringBuilder natural = new StringBuilder(name.givenName().strip());
+        if (name.middleName() != null && !name.middleName().isBlank()) {
+            natural.append(' ').append(name.middleName().strip());
+        }
+        natural.append(' ').append(name.familyName().strip());
+        return natural.toString().equals(name.fullName())
+                ? List.of(name.fullName())
+                : List.of(name.fullName(), natural.toString());
     }
 }

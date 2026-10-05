@@ -17,6 +17,7 @@ import dev.sieve.core.model.VesselDetails;
 import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.relations.RemarkRelations;
 import dev.sieve.ingest.remarks.Deceased;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -57,6 +58,10 @@ import org.slf4j.LoggerFactory;
  * single name entry. Multiple rows share the same {@code <GroupID>} to represent aliases of the
  * same entity. This provider groups rows by {@code GroupID}, selects the "Primary name" entry as
  * the entity's primary name, and collects the rest as aliases.
+ *
+ * <p>A row's other information often names another target ("Associate of ...", "Owned by
+ * ..."); each such name that matches exactly one target, written either as the list writes it or
+ * given names first, becomes a relation to that target (see {@link RemarkRelations}).
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing.
  *
@@ -269,7 +274,7 @@ public final class UkHmtProvider implements ListProvider {
             }
         }
 
-        return entities;
+        return RemarkRelations.byName(entities, "UK HMT", RemarkRelations::givenNameFirst);
     }
 
     /** Merges all rows sharing a GroupID into a single {@link SanctionedEntity}. */

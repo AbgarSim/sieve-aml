@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
  *   search-index.json         names, aliases, type, source, countries and shard of every entity
  *   entities/SOURCE/N.json    full entity records, sorted by id, {@code shardSize} per file
  *   history.json              one row per day with totals per list; rows are kept across runs
+ *   relations.json            links between published records, and the country each is placed at
  * </pre>
  *
  * <p>An entity's key is {@code SOURCE/id}, because raw ids repeat across lists.
@@ -72,6 +73,10 @@ import org.slf4j.LoggerFactory;
  * many of a list's records were written), in the history and in the overview's {@code byTopic}, but
  * stay out of the headline totals, the country map and the top programs, which describe the
  * sanctions-style lists.
+ *
+ * <p>{@code relations.json} holds the links the lists state between records (ownership,
+ * directorship, family, associate and plain links), for the association graph; see {@link
+ * RelationGraph}.
  */
 public final class SnapshotWriter {
 
@@ -145,12 +150,17 @@ public final class SnapshotWriter {
         writeJson(
                 outDir.resolve("search-index.json"), writeEntities(fetched, overlap, outDir, now));
         writeHistory(outDir.resolve("history.json"), stats, everything, overlap, now);
+        RelationGraph graph = RelationGraph.of(all, published, countries);
+        Map<String, Object> relations = header(now);
+        relations.putAll(graph.toJson());
+        writeJson(outDir.resolve("relations.json"), relations);
 
         log.info(
-                "Snapshot written [dir={}, entities={}, distinct={}, countries={}]",
+                "Snapshot written [dir={}, entities={}, distinct={}, links={}, countries={}]",
                 outDir,
                 stats.totalEntities(),
                 overlap.distinctEntities(),
+                graph.edges().size(),
                 stats.byCountry().size());
         return stats;
     }
