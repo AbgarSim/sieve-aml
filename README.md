@@ -5,16 +5,38 @@
 <p align="center">
   <a href="https://github.com/AbgarSim/sieve-aml/actions/workflows/ci.yml"><img src="https://github.com/AbgarSim/sieve-aml/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://abgarsim.github.io/sieve-aml/"><img src="https://github.com/AbgarSim/sieve-aml/actions/workflows/dashboard.yml/badge.svg" alt="Dashboard"></a>
-  <a href=""><img src="https://img.shields.io/badge/coverage-90%25-brightgreen" alt="Coverage"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href=""><img src="https://img.shields.io/badge/Java-21-orange.svg" alt="Java 21"></a>
+  <img src="https://img.shields.io/badge/Java-21-orange.svg" alt="Java 21">
 </p>
 
-**Open-source sanctions screening platform.** A free, open alternative to commercial watchlist screening solutions. Sieve fetches publicly available sanctions lists, normalizes them into a unified entity model, indexes them in memory, and exposes both a CLI and a REST API for screening names.
+**Open-source sanctions and risk-data screening platform.** A free, open alternative to commercial watchlist screening solutions. Sieve fetches sanctions, export-control, debarment, wanted-person and politically exposed person (PEP) lists from the bodies that publish them, normalizes them into one entity model with relations and provenance, and screens names against them through a CLI, two REST servers and a public dashboard.
+
+## Project status
+
+| Area | State |
+|------|-------|
+| Data coverage | 36 list sources, 35 fetched nightly (Ukraine waits on an API key); roadmap Phase 1 complete |
+| Matching | Exact, Jaro-Winkler, Double Metaphone and token engines on one transliterating name key; cross-list entity resolution in the published snapshot |
+| Storage | In memory (Vert.x server, CLI); PostgreSQL system of record with first-seen and last-seen per value (Spring Boot server) |
+| Interfaces | CLI, REST API (two servers), entity import and export in an open JSON-lines format, public dashboard |
+| Measured | Throughput, latency, memory and a labelled matching evaluation on the real lists: see [Performance and accuracy](#performance-and-accuracy) |
+| Next | Matching quality (roadmap Phase 2), then operations and compliance features: see [ROADMAP.md](ROADMAP.md) |
+
+Releases are not yet tagged; `main` is built and tested on every change and the dashboard is rebuilt from it every night. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Screenshots
+
+The [public dashboard](#dashboard) on 5 October 2026: the overview, one person's profile combining their records across lists, and that person's association graph.
+
+<p>
+  <img src="docs/images/dashboard-overview.png" alt="Dashboard overview: entity counts, sources and map" width="32%">
+  <img src="docs/images/dashboard-entity.png" alt="Entity profile combining the records of one person across lists" width="32%">
+  <img src="docs/images/dashboard-graph.png" alt="Association graph of an entity's relations" width="32%">
+</p>
 
 ## Supported Sanctions Lists
 
-**35 providers** across 25 jurisdictions. All lists are fetched from official government endpoints, parsed into a unified entity model, and indexed in memory for screening.
+**36 list sources**: 20 national governments, the United Nations, the European Union (5 lists, including Europol's most wanted), the World Bank, and two open registries (Wikidata for PEPs, GLEIF for state-owned and sanction-linked companies). Each list is fetched from its publisher, parsed into the unified entity model and indexed for screening; 35 are fetched today and Ukraine's list waits on an API key.
 
 ### International
 
@@ -86,6 +108,24 @@
 | SG MAS | Singapore — Monetary Authority of Singapore | — No machine-readable list of its own: MAS republishes the UN lists, which Sieve already carries |
 
 ## Architecture
+
+How data moves through Sieve:
+
+```mermaid
+flowchart LR
+    SRC["36 publishers<br/>XML · JSON · CSV · XLSX · HTML · PDF · SPARQL"] -->|"providers fetch in parallel<br/>(virtual threads)"| ING["sieve-ingest<br/>parse · stable ids · relations<br/>country and name normalisation"]
+    ING -->|"replace a list on refresh<br/>stamp first/last seen"| IDX[("Entity index<br/>in memory")]
+    ING -->|Spring Boot server| PG[("PostgreSQL<br/>system of record<br/>removed-entity history")]
+    PG -->|load at startup| IDX
+    IDX --> MATCH["sieve-match<br/>name key: transliteration · legal forms<br/>trigram candidates → exact · Jaro-Winkler<br/>Double Metaphone · token engines"]
+    MATCH --> API["REST API<br/>Vert.x or Spring Boot"]
+    MATCH --> CLI["sieve-cli<br/>screen · fetch · export · media"]
+    IDX --> SNAP["sieve snapshot<br/>cross-list entity resolution<br/>stats · relations graph"]
+    SNAP -->|nightly GitHub Actions| DASH["Public dashboard<br/>GitHub Pages"]
+    GDELT["GDELT news files"] -.->|adverse media, kept apart from lists| API
+```
+
+Module dependencies:
 
 ```mermaid
 graph LR
@@ -174,9 +214,11 @@ java -jar sieve-server/target/sieve-server-0.1.0-SNAPSHOT.jar \
 | `--threshold` | `SIEVE_THRESHOLD` | `0.80` |
 | `--max-results` | `SIEVE_MAX_RESULTS` | `50` |
 | `--ofac` | `SIEVE_OFAC_ENABLED` | `true` |
-| `--eu` | `SIEVE_EU_ENABLED` | `false` |
-| `--un` | `SIEVE_UN_ENABLED` | `false` |
-| `--uk` | `SIEVE_UK_ENABLED` | `false` |
+| `--eu` | `SIEVE_EU_ENABLED` | `true` |
+| `--un` | `SIEVE_UN_ENABLED` | `true` |
+| `--uk` | `SIEVE_UK_ENABLED` | `true` |
+
+Every other list is always fetched by the Vert.x server.
 
 #### Endpoints
 
@@ -202,9 +244,31 @@ curl "http://localhost:8080/api/v1/pep/functions/DE?category=a"
 
 ## Matching Algorithms
 
-- **Exact Match** — Normalized case-insensitive exact comparison (score: 1.0 or 0.0)
-- **Fuzzy Match** — Jaro-Winkler similarity (implemented from scratch, no external dependencies)
-- **Composite** — Runs both engines, deduplicates by entity, keeps highest score
+Every name, listed or queried, is reduced to one matching key: other scripts are romanised (Cyrillic by BGN/PCGN, Greek by UNGEGN, Chinese and Korean per syllable, others through ICU), accents are folded, punctuation is normalised and legal forms such as "LLC" or "OOO" are set aside for organisations. Names are stored and shown as the list wrote them.
+
+- **Exact** — equal matching keys (score 1.0)
+- **Fuzzy** — Jaro-Winkler similarity over aligned name parts, implemented from scratch
+- **Phonetic** — Double Metaphone codes, so spellings that sound alike meet
+- **Token** — each query word scored against its best-matching listed word in any order, so word order and extra middle names matter less
+- **Composite** — runs all four over candidates from a trigram index and keeps each entity's best score; a hit on a single part of a name (a lone first name or surname) scores lower than a full-name hit
+
+The published snapshot also resolves entities across lists: records of the same person or company on different lists are grouped when their names agree and their dates of birth or identifiers do not contradict it.
+
+## Performance and accuracy
+
+The [Benchmark workflow](.github/workflows/benchmark.yml) fetches every list live and measures Sieve on it. The latest published run, on 5 October 2026 on a 4-vCPU GitHub runner against 210,833 records and 458,635 names from 34 lists, screened by name only:
+
+| Measure | Result |
+|---------|--------|
+| Index build and memory | 4.9 s to build the name cache and trigram index; 790 MB of heap |
+| Latency, one thread | p50 51 ms, p95 136 ms, p99 215 ms |
+| Throughput, in process | about 38 screenings/s at 4 threads and above (3.3 million a day) |
+| Throughput over HTTP (Vert.x server) | about 45 requests/s from 4 clients up, p50 74 ms at 4 clients; 3.3 GB resident with every list loaded |
+| Same entity found on another list (2,000 pairs tied by a shared identifier) | 93.4% at threshold 0.80; 86.5% when the two lists spell the name differently |
+| Spelling variants found (typos, transliteration, word order) | 96.5% at 0.80 |
+| Unlisted names that raise an alert (false positives) | 99.4% at 0.80, 73.0% at 0.90, 44.1% at 0.95 |
+
+Name-only screening of common names against this many records almost always finds a similar listed name, and 5.6% of the unlisted test names are exact namesakes of a listed person. Screening on date of birth, country and identifiers, and calibrating each engine's scores, are the next matching milestones ([ROADMAP.md](ROADMAP.md)). Method, every table, limits of the evaluation and the earlier OFAC SDN-only results are in [docs/performance/benchmarks.rst](docs/performance/benchmarks.rst); [sieve-benchmark](sieve-benchmark/README.md) reproduces them.
 
 ## Adverse Media (experimental)
 
@@ -235,7 +299,7 @@ Each article carries its URL, headline, site, language, the date GDELT saw it, t
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from all 36 lists: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from every list: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files
@@ -245,7 +309,7 @@ cd dashboard && npm install && npm run dev                                     #
 ## Docker
 
 ```bash
-# Spring Boot server (with PostgreSQL)
+# Spring Boot server (requires PostgreSQL)
 docker compose up sieve-spring
 
 # Vert.x server (standalone, in-memory)

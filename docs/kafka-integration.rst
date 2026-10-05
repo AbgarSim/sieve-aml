@@ -1,6 +1,12 @@
 Kafka Integration
 =================
 
+.. note::
+
+   **Planned, not implemented.** This page is a design for a Kafka Streams screening pipeline.
+   No Kafka code ships in Sieve yet; screening runs through the REST API, the CLI and the Java
+   modules. The design is kept here as the target for a later release.
+
 Real-time screening pipeline using Kafka Streams for high-throughput event-driven architectures.
 
 Topology
