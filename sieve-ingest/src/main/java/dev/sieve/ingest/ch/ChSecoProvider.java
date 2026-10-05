@@ -8,6 +8,8 @@ import dev.sieve.core.model.IdentifierType;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameInfo;
 import dev.sieve.core.model.NameType;
+import dev.sieve.core.model.Relation;
+import dev.sieve.core.model.RelationType;
 import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.AbstractListProvider;
@@ -21,7 +23,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
@@ -33,10 +37,20 @@ import javax.xml.stream.XMLStreamReader;
  * <p>Published by the State Secretariat for Economic Affairs (SECO) as XML. Very comprehensive,
  * covering ~30 sanctions programs with ~8,500 entities.
  *
+ * <p>A target's {@code <relation target-id="..." relation-type="related-to">} elements link it to
+ * other targets of the list; each becomes a {@link RelationType#LINKED} relation, since the list
+ * does not say how the two are related. Relations inside a target's modification history are left
+ * out.
+ *
  * @see <a href="https://www.seco.admin.ch/seco/en/home/Aussenwirtschaftspolitik_Wirtschaftliche_Zusammenarbeit/Wirtschaftsbeziehungen/Exportkontrollen-und-Sanktionen/Sanktionen-Embargos.html">
  *     SECO Sanctions</a>
  */
 public final class ChSecoProvider extends AbstractListProvider {
+
+    private static final String ID_PREFIX = "ch-";
+
+    /** The role of a relation the list states with {@code relation-type="related-to"}. */
+    static final String RELATED_ROLE = "related to";
 
     private static final String DEFAULT_URL =
             "https://www.sesam.search.admin.ch/sesam-search-web/pages/downloadXmlGesamtliste.xhtml?lang=en&action=downloadXmlGesamtlisteAction";
@@ -111,6 +125,7 @@ public final class ChSecoProvider extends AbstractListProvider {
         List<String> nationalities = new ArrayList<>();
         List<LocalDate> datesOfBirth = new ArrayList<>();
         List<String> placesOfBirth = new ArrayList<>();
+        Set<String> related = new LinkedHashSet<>();
         boolean inMainIdentity = false;
         boolean inModification = false;
 
@@ -184,6 +199,12 @@ public final class ChSecoProvider extends AbstractListProvider {
                             skipElement(reader);
                         }
                     }
+                    case "relation" -> {
+                        String target = attrVal(reader, "target-id");
+                        if (!inModification && target != null && !target.isBlank()) {
+                            related.add(ID_PREFIX + target.strip());
+                        }
+                    }
                     case "identification-document" -> {
                         if (inMainIdentity && !inModification) {
                             Identifier ident = parseIdentification(reader);
@@ -225,11 +246,16 @@ public final class ChSecoProvider extends AbstractListProvider {
             programs.add(new SanctionsProgram(program, null, ListSource.CH_SECO));
         }
 
+        List<Relation> relations = new ArrayList<>();
+        for (String target : related) {
+            relations.add(
+                    new Relation(RelationType.LINKED, target, RELATED_ROLE, null, null, null));
+        }
         return new SanctionedEntity(
-                "ch-" + ssid, entityType, ListSource.CH_SECO,
+                ID_PREFIX + ssid, entityType, ListSource.CH_SECO,
                 primaryName, aliases, addresses, identifiers,
                 nationalities, List.of(), datesOfBirth, placesOfBirth,
-                null, programs, null, Instant.now());
+                null, programs, null, Instant.now()).withRelations(relations);
     }
 
     private static class NameParts {
