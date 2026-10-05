@@ -42,6 +42,56 @@ class SimilarityDeduplicatorTest {
     }
 
     @Test
+    void shouldMergeSamePersonWhenOneListWritesTheNameInCyrillic() {
+        SanctionedEntity ofac = entity("ofac-1", "SHCHERBAKOV, Yuriy", ListSource.OFAC_SDN);
+        SanctionedEntity ua = entity("ua-1", "Щербаков Юрий", ListSource.EU_CONSOLIDATED);
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, ua));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldMergeSameCompanyWhenOnlyLegalFormsDiffer() {
+        SanctionedEntity ofac =
+                entity(
+                        "ofac-1",
+                        "ROSNEFT OIL COMPANY PJSC",
+                        ListSource.OFAC_SDN,
+                        EntityType.ENTITY);
+        SanctionedEntity eu =
+                entity(
+                        "eu-1",
+                        "Public Joint Stock Company Rosneft Oil Company",
+                        ListSource.EU_CONSOLIDATED,
+                        EntityType.ENTITY);
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, eu));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldKeepCompaniesApartWhenOnlyLegalFormsAgree() {
+        SanctionedEntity ofac =
+                entity(
+                        "ofac-1",
+                        "Limited Liability Company Alfa",
+                        ListSource.OFAC_SDN,
+                        EntityType.ENTITY);
+        SanctionedEntity eu =
+                entity(
+                        "eu-1",
+                        "Limited Liability Company Alga",
+                        ListSource.EU_CONSOLIDATED,
+                        EntityType.ENTITY);
+
+        DeduplicationResult result = deduplicator.deduplicate(List.of(ofac, eu));
+
+        assertThat(result.totalCanonicalEntities()).isEqualTo(2);
+    }
+
+    @Test
     void shouldMergeSamePersonAcrossThreeLists() {
         SanctionedEntity ofac = entity("ofac-1", "DOE, John", ListSource.OFAC_SDN);
         SanctionedEntity eu = entity("eu-1", "John DOE", ListSource.EU_CONSOLIDATED);
