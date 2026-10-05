@@ -302,6 +302,159 @@ public final class SourceCatalog {
             String homepage) {
         map.put(
                 source,
-                new SourceInfo(source, authority, jurisdiction, format, URI.create(homepage)));
+                new SourceInfo(
+                        source,
+                        authority,
+                        jurisdiction,
+                        format,
+                        URI.create(homepage),
+                        description(source)));
+    }
+
+    /**
+     * Describes what a list is and who is on it, for the dashboard's source pages and entity
+     * profiles. The switch has no default, so a new list does not compile without a description.
+     */
+    private static String description(ListSource source) {
+        return switch (source) {
+            case OFAC_SDN ->
+                    "The Specially Designated Nationals and Blocked Persons List of the U.S. "
+                            + "Treasury. U.S. persons must block the property of those listed and may not deal "
+                            + "with them; it covers country programs such as Russia, Iran and North Korea as "
+                            + "well as terrorism, narcotics and cyber programs.";
+            case OFAC_NONSDN ->
+                    "OFAC's consolidated list of sanctions that are not full blocking: sectoral "
+                            + "sanctions on Russian companies, the Chinese military-industrial companies list, "
+                            + "foreign sanctions evaders and similar menu-based measures.";
+            case US_TRADE_CSL ->
+                    "The U.S. government's Consolidated Screening List, which merges the export "
+                            + "restriction lists of the Departments of Commerce, State and the Treasury, such "
+                            + "as the Entity List, the Denied Persons List and the Nonproliferation Sanctions "
+                            + "list, into one file.";
+            case US_BIS_ENTITY ->
+                    "The Entity List of the U.S. Bureau of Industry and Security: foreign companies, "
+                            + "research institutes and people that need a licence to receive items subject to "
+                            + "U.S. export controls, usually over national security or weapons proliferation "
+                            + "concerns.";
+            case US_BIS_MEU ->
+                    "The Military End-User List of the U.S. Bureau of Industry and Security: foreign "
+                            + "parties judged to be military end users, for whom exports of listed items need a"
+                            + " licence.";
+            case EU_CONSOLIDATED ->
+                    "The European Union's consolidated list of persons, groups and entities subject "
+                            + "to financial sanctions, kept by the European Commission. Member states must "
+                            + "freeze their funds and economic resources.";
+            case EU_SANCTIONS_MAP ->
+                    "Listings from the EU Sanctions Map that the consolidated financial sanctions "
+                            + "list does not carry, such as people under an EU travel ban only.";
+            case EU_TRAVEL_BANS ->
+                    "The EU list of people banned from entering or transiting the territory of the "
+                            + "member states, published with the EU financial sanctions files.";
+            case EU_JOURNAL ->
+                    "Sanctions designations as published in the Official Journal of the European "
+                            + "Union, the legal acts that put a listing in force.";
+            case UN_CONSOLIDATED ->
+                    "The United Nations Security Council Consolidated List: every person and entity "
+                            + "under a measure of a Security Council sanctions committee, such as the ISIL "
+                            + "(Da'esh) and Al-Qaida, Taliban, DPRK and Libya regimes. All UN member states "
+                            + "must apply it.";
+            case UK_HMT ->
+                    "The UK consolidated list of financial sanctions targets, kept by HM Treasury's "
+                            + "Office of Financial Sanctions Implementation. It lists those subject to asset "
+                            + "freezes under UK sanctions regulations, with the UK's statement of reasons.";
+            case CA_CONSOLIDATED ->
+                    "Canada's Consolidated Canadian Autonomous Sanctions List, kept by Global Affairs"
+                            + " Canada, of people and entities listed under the Special Economic Measures Act "
+                            + "and the Justice for Victims of Corrupt Foreign Officials Act.";
+            case CH_SECO ->
+                    "The Swiss sanctions list kept by the State Secretariat for Economic Affairs "
+                            + "(SECO), covering the people, companies and organisations under Swiss sanctions "
+                            + "ordinances, most of them adopted from EU and UN measures.";
+            case AU_DFAT ->
+                    "Australia's Consolidated List kept by the Department of Foreign Affairs and "
+                            + "Trade: everyone subject to targeted financial sanctions or travel bans under "
+                            + "Australian sanctions laws, UN and autonomous regimes alike.";
+            case FR_TRESOR ->
+                    "The French national register of asset freezes, kept by the Direction générale du"
+                            + " Trésor. It lists everyone whose assets are frozen in France under national, EU "
+                            + "and UN measures.";
+            case BE_FOD ->
+                    "The Belgian Federal Public Service Finance list of financial sanctions, "
+                            + "including the national list of persons and entities linked to terrorism.";
+            case NZ_RUSSIA ->
+                    "New Zealand's sanctions register under the Russia Sanctions Act 2022, kept by "
+                            + "the Ministry of Foreign Affairs and Trade: the people, companies and assets "
+                            + "sanctioned over Russia's invasion of Ukraine.";
+            case JP_MOF ->
+                    "Japan's list of people and entities subject to asset freezes under the Foreign "
+                            + "Exchange and Foreign Trade Act, published by the Ministry of Finance.";
+            case TR_MASAK ->
+                    "Türkiye's asset-freezing decisions published by the Financial Crimes "
+                            + "Investigation Board (MASAK) under its law on preventing the financing of "
+                            + "terrorism, including designations made at the request of other states and "
+                            + "Türkiye's own.";
+            case PL_MSWIA ->
+                    "Poland's national sanctions list kept by the Ministry of the Interior and "
+                            + "Administration, of people and companies supporting Russia's aggression against "
+                            + "Ukraine.";
+            case IL_WMD_TERROR ->
+                    "Israel's lists of terrorist organisations, terror operatives and people involved"
+                            + " in weapons of mass destruction proliferation, published by the National Bureau "
+                            + "for Counter Terror Financing.";
+            case MD_TERROR ->
+                    "Moldova's list of people and entities involved in terrorist activity, kept by "
+                            + "the Intelligence and Security Service.";
+            case MC_FUND_FREEZING ->
+                    "Monaco's national list of people and entities whose funds are frozen, which "
+                            + "follows the EU designations and adds national ones.";
+            case UA_NSDC ->
+                    "Ukraine's sanctions register of the National Security and Defence Council: "
+                            + "people and companies sanctioned by presidential decree, most of them over "
+                            + "Russia's war against Ukraine.";
+            case QA_NCTC ->
+                    "Qatar's unified record of persons and entities designated by the National "
+                            + "Counter Terrorism Committee, with UN and national targeted financial sanctions.";
+            case ZA_FIC ->
+                    "South Africa's targeted financial sanctions list published by the Financial "
+                            + "Intelligence Centre, which gives effect to UN Security Council sanctions.";
+            case LV_FIU ->
+                    "Latvia's national sanctions list, kept by the Financial Intelligence Unit, of "
+                            + "people and entities Latvia sanctions in its own right.";
+            case AR_REPET ->
+                    "Argentina's Public Registry of Persons and Entities linked to Terrorism (RePET),"
+                            + " kept by the Ministry of Justice. It carries the UN Al-Qaida and Taliban "
+                            + "designations and Argentina's own listings, including people wanted over the 1994"
+                            + " AMIA bombing.";
+            case IN_MHA ->
+                    "The people India designates as terrorists under the Unlawful Activities "
+                            + "(Prevention) Act, 1967, published by the Ministry of Home Affairs.";
+            case IN_MHA_ORG ->
+                    "The organisations India bans under the Unlawful Activities (Prevention) Act, "
+                            + "1967: terrorist organisations in the Act's First Schedule and associations "
+                            + "declared unlawful, published by the Ministry of Home Affairs.";
+            case US_FBI_WANTED ->
+                    "The FBI's wanted list: fugitives, people sought for questioning and missing "
+                            + "persons the Bureau publishes notices for.";
+            case EU_MOST_WANTED ->
+                    "Europe's most wanted fugitives, published by the European Network of Fugitive "
+                            + "Active Search Teams (ENFAST) with Europol: people wanted by EU member states for"
+                            + " serious crimes.";
+            case WB_DEBARRED ->
+                    "Firms and individuals the World Bank Group has debarred, making them ineligible "
+                            + "for World Bank-financed contracts because of fraud, corruption or other "
+                            + "sanctionable practices.";
+            case WIKIDATA_PEP ->
+                    "Politically exposed persons drawn from Wikidata: people who hold or have held a "
+                            + "prominent public function, such as heads of state, ministers, members of "
+                            + "parliament, senior judges and central bank governors.";
+            case GLEIF_STATE_OWNED ->
+                    "Companies whose direct or ultimate parent in the Global LEI register is a "
+                            + "government entity, together with those government owners, from the Global Legal "
+                            + "Entity Identifier Foundation's daily data.";
+            case GLEIF_SANCTION_LINKED ->
+                    "Companies that are not listed themselves but whose accounts a sanctioned party "
+                            + "consolidates, directly or through other companies, according to the Global LEI "
+                            + "register's parent relationships.";
+        };
     }
 }

@@ -16,10 +16,25 @@ export const RAW_TYPE: Record<RawType, EntityType> = {
 export type Status = 'loaded' | 'empty' | 'failed' | 'needs-key' | 'skipped';
 const STATUS: Record<RawStatus, Status> = { LOADED: 'loaded', EMPTY: 'empty', FAILED: 'failed', NEEDS_KEY: 'needs-key', SKIPPED: 'skipped' };
 
+/** Risk topics in the order badges show them, most severe first. */
+export const TOPICS = ['SANCTION', 'SANCTION_LINKED', 'WANTED', 'CRIME', 'EXPORT_CONTROL', 'DEBARMENT', 'PEP', 'RCA', 'STATE_OWNED'];
 export const TOPIC_LABEL: Record<string, string> = {
-  SANCTION: 'Sanctioned', SANCTION_LINKED: 'Sanction-linked', EXPORT_CONTROL: 'Export control', DEBARMENT: 'Debarred',
+  SANCTION: 'Sanctioned', SANCTION_LINKED: 'Sanction-linked', EXPORT_CONTROL: 'Export controlled', DEBARMENT: 'Debarred',
   PEP: 'Politically exposed', RCA: 'Relative or associate', CRIME: 'Crime', WANTED: 'Wanted', STATE_OWNED: 'State-owned',
 };
+/** What each topic means, for badge tooltips. */
+export const TOPIC_HINT: Record<string, string> = {
+  SANCTION: 'Listed under a sanctions program: asset freeze, travel ban or arms embargo',
+  SANCTION_LINKED: 'Owned or controlled by a sanctioned party without being listed itself',
+  EXPORT_CONTROL: 'Subject to export restrictions, such as an entity or end-user list',
+  DEBARMENT: 'Excluded from contracts by a government or development bank',
+  PEP: 'Holds or has held a prominent public function',
+  RCA: 'A relative or close associate of a politically exposed person',
+  CRIME: 'Convicted of, or charged with, a crime',
+  WANTED: 'Sought by law enforcement',
+  STATE_OWNED: 'Owned or controlled by a state',
+};
+export const byTopicOrder = (a: string, b: string) => (TOPICS.indexOf(a) + 1 || 99) - (TOPICS.indexOf(b) + 1 || 99);
 export const topicLabel = (k: string) => TOPIC_LABEL[k] ?? k.charAt(0) + k.slice(1).toLowerCase().replace(/_/g, ' ');
 /** What a count of entities with this topic is a count of, for prose. */
 export const topicNoun = (k: string) => ({ PEP: 'politically exposed persons', RCA: 'relatives and close associates' })[k] ?? topicLabel(k).toLowerCase() + ' entities';
@@ -31,6 +46,8 @@ export interface Program { source: string; code: string; name: string; entities:
 
 export interface Source {
   id: string; name: string; cc: string; authority: string; region: string; format: string; homepage: string; listUri?: string;
+  /** What the list is and who is on it; empty in snapshots written before descriptions. */
+  description: string;
   entities: number; names: number; countries: number; status: Status; error?: string; fetchMs: number | null; lastFetched: string | null;
   /** Entities whose records are published; the rest are counted only. */
   published: number;
@@ -178,7 +195,7 @@ function source(r: RawSource, recent: RawHistoryRow[], hasHistory: boolean): Sou
   }
   return {
     id: r.source, name: r.displayName, cc: r.jurisdiction.toLowerCase(), authority: r.authority,
-    region: REGION[r.jurisdiction] ?? 'Europe', format: r.format, homepage: r.homepage, listUri: r.listUri,
+    region: REGION[r.jurisdiction] ?? 'Europe', format: r.format, homepage: r.homepage, listUri: r.listUri, description: r.description ?? '',
     entities: r.entities, names: r.names ?? 0, countries: r.countries ?? 0, status: STATUS[r.status] ?? 'skipped', error: r.error,
     published: r.published ?? r.entities, onOtherLists: r.onOtherLists ?? 0, countsOnly: r.entities > 0 && (r.published ?? r.entities) === 0, topics: sorted(r.byTopic),
     fetchMs: r.status === 'NEEDS_KEY' || r.status === 'SKIPPED' ? null : r.fetchMs ?? null, lastFetched: r.lastFetched ?? null,

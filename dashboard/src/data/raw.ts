@@ -35,6 +35,8 @@ export interface RawCompleteness {
 
 export interface RawSource {
   source: string; displayName: string; authority: string; jurisdiction: string; format: string; homepage: string;
+  /** What the list is and who is on it. */
+  description?: string;
   status: RawStatus; error?: string; fetchMs?: number; listUri?: string; lastFetched?: string; contentHash?: string; etag?: string;
   entities: number; names?: number; byType?: Partial<Record<RawType, number>>; countries?: number;
   /** Entities whose records are in entities/ and the search index; PEP and RCA records are counted but never written. */
@@ -57,13 +59,18 @@ export interface RawCountries extends Header {
 export interface RawHistoryRow { date: string; totalEntities: number; distinctEntities?: number; totalNames: number; countries: number; bySource?: Record<string, number> }
 
 /**
- * One search index entry: key, name, aliases, type code, source, countries, programs, shard, and for a record of an
- * entity found on several lists the group's id (the key of its first record in list order).
+ * One search index entry: key, name, aliases, type code, source, countries, programs, shard, risk topics (left out
+ * for a record that is only sanctioned), and for a record of an entity found on several lists the group's id (the
+ * key of its first record in list order).
  */
-export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; f: number; g?: string }
+export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; o?: string[]; f: number; g?: string }
 export interface RawIndex extends Header { shardSize: number; entries?: RawIndexEntry[] }
 
 export interface RawName { fullName: string; nameType: string; strength?: string; script?: string }
+/** A link to another entity. {@code targetKey} is the key of the target's published record, when there is one. */
+export interface RawRelation { type: string; targetId: string; targetKey?: string; role?: string; sharePercentage?: number; startDate?: string; endDate?: string }
+/** A link from another published record to this one. */
+export interface RawIncoming { key: string; type: string; role?: string; sharePercentage?: number; startDate?: string; endDate?: string }
 export interface RawEntity {
   id: string; entityType: RawType; listSource: string; primaryName: RawName; aliases?: RawName[];
   addresses?: { street?: string; city?: string; stateOrProvince?: string; postalCode?: string; country?: string; fullAddress?: string }[];
@@ -72,4 +79,8 @@ export interface RawEntity {
   gender?: 'MALE' | 'FEMALE' | 'OTHER'; deceased?: boolean; listingReasons?: string[];
   vessel?: { flag?: string; type?: string; callSign?: string; tonnage?: number; grossRegisteredTonnage?: number };
   programs?: { code: string; name?: string; source?: string }[]; listedDate?: string; lastUpdated?: string;
+  /** Risk topics, such as SANCTION, EXPORT_CONTROL or WANTED. */
+  topics?: string[]; relations?: RawRelation[]; linkedFrom?: RawIncoming[];
+  /** Days (YYYY-MM-DD) Sieve first saw the record, last saw it, and last saw its content change. */
+  firstSeen?: string; lastSeen?: string; lastChange?: string;
 }
