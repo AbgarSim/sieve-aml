@@ -49,6 +49,7 @@
         <jackson.version>2.18.1</jackson.version>
         <poi.version>5.3.0</poi.version>
         <pdfbox.version>3.0.5</pdfbox.version>
+        <icu4j.version>78.3</icu4j.version>
 
         <!-- Test dependency versions -->
         <junit-bom.version>5.11.3</junit-bom.version>
@@ -88,6 +89,13 @@
                 <version>${junit-bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- Transliteration of non-Latin names (sieve-match) -->
+            <dependency>
+                <groupId>com.ibm.icu</groupId>
+                <artifactId>icu4j</artifactId>
+                <version>${icu4j.version}</version>
             </dependency>
 
             <!-- Internal modules -->

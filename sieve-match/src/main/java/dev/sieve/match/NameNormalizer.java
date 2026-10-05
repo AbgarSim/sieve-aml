@@ -1,31 +1,35 @@
 package dev.sieve.match;
 
+import dev.sieve.core.model.EntityType;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Utility for normalizing name strings before comparison.
+ * Turns a name into the key that match engines and cross-list matching compare.
  *
- * <p>Applied consistently across all match engines to ensure comparable inputs. Results are cached
- * to avoid repeated regex and string operations for the same input.
+ * <p>The key is lowercase ASCII words separated by single spaces: names in other scripts are
+ * romanised and accents removed ({@link ScriptTransliterator}), apostrophes are dropped ("O'Brien"
+ * becomes "obrien") and any other punctuation separates words ("Al-Assad" becomes "al assad"). For
+ * organisations, legal forms such as "LLC" or "GmbH" are also removed ({@link LegalForms}). Only
+ * the key changes: names are stored and shown as published.
+ *
+ * <p>Keys are cached, since the same names are normalized again on every index rebuild.
  */
 public final class NameNormalizer {
 
-    private static final int MAX_CACHE_SIZE = 100_000;
+    private static final int MAX_CACHE_SIZE = 200_000;
     private static final ConcurrentHashMap<String, String> CACHE = new ConcurrentHashMap<>();
-
-    /** Pre-compiled pattern for collapsing whitespace — avoids regex recompilation. */
-    private static final java.util.regex.Pattern WHITESPACE =
-            java.util.regex.Pattern.compile("\\s+");
 
     private NameNormalizer() {
         throw new AssertionError("Utility class — do not instantiate");
     }
 
     /**
-     * Normalizes a name string for matching: lowercases, trims, and collapses internal whitespace.
+     * Normalizes a name for matching, keeping any legal form.
      *
      * @param name the name to normalize, may be {@code null}
-     * @return the normalized name, or an empty string if input is {@code null} or blank
+     * @return the matching key, or an empty string if the input is {@code null} or blank
      */
     public static String normalize(String name) {
         if (name == null || name.isBlank()) {
@@ -35,10 +39,61 @@ public final class NameNormalizer {
         if (cached != null) {
             return cached;
         }
-        String normalized = WHITESPACE.matcher(name.strip().toLowerCase()).replaceAll(" ");
+        String normalized = compute(name);
         if (CACHE.size() < MAX_CACHE_SIZE) {
             CACHE.put(name, normalized);
         }
         return normalized;
+    }
+
+    /**
+     * Normalizes the name of a listed entity: an organisation's name also loses its legal forms.
+     *
+     * @param name the name to normalize, may be {@code null}
+     * @param type the entity's type, not {@code null}
+     * @return the matching key, or an empty string if the input is {@code null} or blank
+     */
+    public static String normalize(String name, EntityType type) {
+        String normalized = normalize(name);
+        return type.isLegalEntity() ? LegalForms.strip(normalized) : normalized;
+    }
+
+    /**
+     * Normalizes a screening query. Legal forms are removed unless the query is for a person or
+     * another type that has none, so "Rosneft PJSC" finds "Rosneft".
+     *
+     * @param name the queried name, may be {@code null}
+     * @param type the entity type the query asks for, if any
+     * @return the matching key, or an empty string if the input is {@code null} or blank
+     */
+    public static String normalizeQuery(String name, Optional<EntityType> type) {
+        String normalized = normalize(name);
+        return type.isEmpty() || type.get().isLegalEntity()
+                ? LegalForms.strip(normalized)
+                : normalized;
+    }
+
+    private static String compute(String name) {
+        String latin = ScriptTransliterator.toLatin(name).toLowerCase(Locale.ROOT);
+        StringBuilder out = new StringBuilder(latin.length());
+        boolean pendingSpace = false;
+        for (int i = 0; i < latin.length(); ) {
+            int cp = latin.codePointAt(i);
+            i += Character.charCount(cp);
+            if (cp == '\'' || cp == '`' || cp == '"') {
+                // "O'Brien", "Ma'mun", romanised ayn and soft signs: part of the word
+                continue;
+            }
+            if (Character.isLetterOrDigit(cp)) {
+                if (pendingSpace && !out.isEmpty()) {
+                    out.append(' ');
+                }
+                pendingSpace = false;
+                out.appendCodePoint(cp);
+            } else {
+                pendingSpace = true;
+            }
+        }
+        return out.toString();
     }
 }

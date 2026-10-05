@@ -66,7 +66,8 @@ public final class TokenMatchEngine implements MatchEngine {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
 
-        String normalizedQuery = NameNormalizer.normalize(request.name());
+        String normalizedQuery =
+                NameNormalizer.normalizeQuery(request.name(), request.entityType());
         String[] queryTokens = tokenize(normalizedQuery);
 
         if (queryTokens.length < 2) {

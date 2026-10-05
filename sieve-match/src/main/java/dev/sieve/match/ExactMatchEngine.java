@@ -14,10 +14,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Match engine that performs exact (post-normalization) name comparison.
  *
- * <p>Names are normalized by lowercasing, trimming, and collapsing whitespace before comparison.
- * Checks the entity's primary name and all aliases. Produces a score of 1.0 for exact matches and
- * 0.0 otherwise. An exact match on a single name component (given or family name) is a partial
- * match and scores {@link PartialNameMatch#FACTOR}.
+ * <p>Names are compared by their {@link NameNormalizer} keys. Checks the entity's primary name and
+ * all aliases. Produces a score of 1.0 for exact matches and 0.0 otherwise. An exact match on a
+ * single name component (given or family name) is a partial match and scores {@link
+ * PartialNameMatch#FACTOR}.
  */
 public final class ExactMatchEngine implements MatchEngine {
 
@@ -48,7 +48,8 @@ public final class ExactMatchEngine implements MatchEngine {
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
         nameCache.ensureBuilt(index);
         ngramIndex.ensureBuilt(index, nameCache);
-        String normalizedQuery = NameNormalizer.normalize(request.name());
+        String normalizedQuery =
+                NameNormalizer.normalizeQuery(request.name(), request.entityType());
         Collection<SanctionedEntity> candidates =
                 resolveCandidates(request, index, normalizedQuery);
         List<MatchResult> results = new ArrayList<>();
