@@ -61,7 +61,7 @@ risk. The data model comes first, because PEPs, relatives and ownership cannot b
   set of state-owned companies.
 - [x] 1.15 Sanction-linked companies: companies majority-owned by a sanctioned party (the OFAC and
   EU 50% rules), derived from the ownership data held.
-- [ ] 1.16 Adverse media, experimental: candidate articles from an open news index such as GDELT,
+- [x] 1.16 Adverse media, experimental: candidate articles from an open news index such as GDELT,
   kept separate from curated data and never treated as a match on their own.
 
 **Gate:** every source has stable ids and drops delisted entries; PEP, crime, debarment and

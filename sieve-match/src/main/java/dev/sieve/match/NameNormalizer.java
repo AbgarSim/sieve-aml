@@ -47,6 +47,27 @@ public final class NameNormalizer {
     }
 
     /**
+     * Normalizes a name like {@link #normalize(String)} without adding the key to the cache. Meant
+     * for large streams of one-off names, such as the names in news articles, which would otherwise
+     * fill the cache that list names rely on.
+     *
+     * <p>An organisation's name also loses its legal forms, as in {@link #normalize(String,
+     * EntityType)}.
+     *
+     * @param name the name to normalize, may be {@code null}
+     * @param type the type of whatever the name belongs to, not {@code null}
+     * @return the matching key, or an empty string if the input is {@code null} or blank
+     */
+    public static String normalizeUncached(String name, EntityType type) {
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        String cached = CACHE.get(name);
+        String normalized = cached != null ? cached : compute(name);
+        return type.isLegalEntity() ? LegalForms.strip(normalized) : normalized;
+    }
+
+    /**
      * Normalizes the name of a listed entity: an organisation's name also loses its legal forms.
      *
      * @param name the name to normalize, may be {@code null}
