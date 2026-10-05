@@ -202,6 +202,28 @@ curl http://localhost:8080/api/v1/health
 - **Fuzzy Match** — Jaro-Winkler similarity (implemented from scratch, no external dependencies)
 - **Composite** — Runs both engines, deduplicates by entity, keeps highest score
 
+## Adverse Media (experimental)
+
+Sieve can look up recent news articles that name a person or organisation in a crime, corruption, sanctions or terrorism context, using the open [GDELT](https://www.gdeltproject.org/) news index. The articles are **candidates for an analyst to read, never a match**: they are kept apart from the curated lists, never stored as entities, never change a screening score or the `screen` exit code, and an empty result does not clear a name.
+
+Two ways to ask GDELT:
+
+- **`gkg` (default)**: reads GDELT's Global Knowledge Graph files, which GDELT publishes every 15 minutes with the people, organisations and themes it found in the online news it processed, in English and machine-translated from other languages. Sieve keeps the articles tagged with adverse themes (money laundering, corruption, bribery or fraud, sanctions, terrorism, arrests, organised crime, trafficking and the like) for a rolling window and compares the searched name with the names in them, on the same matching key as list screening. Each file is about 5 MB in English and 12 MB translated, so the server reads a few hours at startup and then each new file as it appears.
+- **`doc-api`**: asks GDELT's full-text search API per name, which covers the last three months. GDELT allows one request every five seconds and often refuses requests from shared cloud addresses, so Sieve answers `UNAVAILABLE` rather than queueing callers.
+
+```bash
+# CLI: read the last 6 hours of news files and look up names (exit 0 whatever it finds, 2 if GDELT could not be read)
+java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar media "John Doe" "Acme Holdings"
+java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar media --index doc-api --days 30 "John Doe"
+
+# Spring Boot server, with sieve.adverse-media.enabled=true (off by default)
+curl -X POST http://localhost:8080/api/v1/adverse-media \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "lookbackDays": 30, "maxArticles": 10}'
+```
+
+Each article carries its URL, headline, site, language, the date GDELT saw it, the adverse terms or themes that made it a candidate and, for `gkg`, the name in the article that was taken for the searched one. Names in GDELT are machine-extracted and an adverse article may be adverse for someone else it names, so every result needs reading.
+
 ## Configuration
 
 - **Vert.x server** — configured via CLI flags and environment variables (see table above)
