@@ -27,7 +27,7 @@ const REL: Record<string, [string, string]> = {
   ASSOCIATE: ['Associate', 'Associate'], LINKED: ['Linked to', 'Linked to'], POSITION_HELD: ['Position held', 'Held by'],
 };
 /** Link groups in the order they are shown, with how each reads as a heading. */
-const LINK_KINDS: [RawLinkKind, string][] = [['SOURCE_PAGE', 'Listing pages'], ['LEGAL_ACT', 'Legal acts'], ['ENCYCLOPEDIA', 'Encyclopedia'], ['WEBSITE', 'Website']];
+const LINK_KINDS: [RawLinkKind, string][] = [['SOURCE_PAGE', 'Listing pages'], ['LEGAL_ACT', 'Legal acts'], ['ENCYCLOPEDIA', 'Reference'], ['WEBSITE', 'Website']];
 const tons = (n: number) => n.toLocaleString('en-US');
 const day = (iso?: string) => (iso ? iso.slice(0, 10) : undefined);
 const address = (a: NonNullable<RawEntity['addresses']>[number]) => a.fullAddress || [a.street, a.city, a.stateOrProvince, a.postalCode, a.country].filter(Boolean).join(', ');
@@ -147,7 +147,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
     <>
       <nav className="small muted" style={{ marginBottom: 14 }} aria-label="Breadcrumb"><Link to="/search">Search</Link> <span style={{ margin: '0 6px' }}>/</span> <span className="num">{entry.key}</span></nav>
       <div className="ehd">
-        {images.length > 0 && <Photo img={images[0].v} name={name} />}
+        {images.length > 0 && <Photo img={images[0].v} name={name} logo={!isPerson && type !== 'vessel' && type !== 'aircraft'} />}
         <div style={{ flex: '1 1 480px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}><TypeBadge type={type} /><TopicBadges topics={topics} /></div>
           <h1>{name}</h1>
@@ -269,12 +269,12 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
  * The entity's photo or logo, loaded from its publisher only when the page is open and without telling the publisher which
  * page asked, with the credit and licence the publisher requires.
  */
-function Photo({ img, name }: { img: RawImage; name: string }) {
+function Photo({ img, name, logo }: { img: RawImage; name: string; logo: boolean }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   const credit = [img.credit, img.licence].filter(Boolean).join(' · ');
   return (
-    <figure className="ephoto">
+    <figure className={'ephoto' + (logo ? ' logo' : '')}>
       <a href={img.pageUrl ?? img.url} target="_blank" rel="noopener noreferrer" title="Open the publisher's page">
         <img src={img.thumbnailUrl ?? img.url} alt={`Picture of ${name}`} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
       </a>
