@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Flag } from '../../components/Flag';
 import { Chip, Delta, StatusDot } from '../../components/Badges';
 import { Sparkline } from '../../components/Sparkline';
@@ -38,7 +39,7 @@ export function SourcesTable() {
               <Fragment key={s.id}>
                 <tr className="row" aria-expanded={o} tabIndex={0} onClick={() => toggle(s.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(s.id); } }}>
                   <td style={{ paddingRight: 0 }}><Icon name="right" size={12} className="cv" /></td>
-                  <td className="full" data-l="List"><span className="cl"><Flag cc={s.cc} /><b style={{ color: 'var(--heading)' }}>{s.name}</b>{s.countsOnly && <Chip>counts only</Chip>}</span></td>
+                  <td className="full" data-l="List"><span className="cl"><Flag cc={s.cc} /><Link to={`/source/${s.id}`} onClick={e => e.stopPropagation()} style={{ color: 'var(--heading)', fontWeight: 600 }}>{s.name}</Link>{s.countsOnly && <Chip>counts only</Chip>}</span></td>
                   <td data-l="Authority" style={{ minWidth: 220 }}><span className="small" style={{ color: 'var(--text-2)' }}>{s.authority}</span></td>
                   <td data-l="Format"><Chip>{s.format}</Chip></td>
                   <td className="r num" data-l="Entities">{none ? <span className="muted">—</span> : fmt(s.entities)}</td>

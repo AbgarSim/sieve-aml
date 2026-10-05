@@ -46,6 +46,9 @@ jobs:
           mkdir -p snapshot
           curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/history.json" -o snapshot/history.json \
             || { echo "No published history yet"; rm -f snapshot/history.json; }
+          # When each record was first seen and last changed
+          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/seen.json" -o snapshot/seen.json \
+            || { echo "No published record history yet"; rm -f snapshot/seen.json; }
       - name: Fetch lists and write snapshot
         env:
           SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}
@@ -63,6 +66,7 @@ jobs:
               echo '| --- | --- | ---: | ---: |'
               jq -r '.sources[] | "| \(.source) | \(.status) | \(.entities // 0) | \(.fetchMs // "") |"' snapshot/sources.json
             } >> "$GITHUB_STEP_SUMMARY"
+            du -sh snapshot/*.json snapshot/entities
           fi
       - uses: actions/upload-artifact@v4
         if: always()
