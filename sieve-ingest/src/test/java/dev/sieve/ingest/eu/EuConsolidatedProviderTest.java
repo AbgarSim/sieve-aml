@@ -2,9 +2,11 @@ package dev.sieve.ingest.eu;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.sieve.core.model.EntityLink;
 import dev.sieve.core.model.EntityType;
 import dev.sieve.core.model.Gender;
 import dev.sieve.core.model.IdentifierType;
+import dev.sieve.core.model.LinkKind;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.NameType;
@@ -15,6 +17,7 @@ import dev.sieve.core.model.ScriptType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -173,6 +176,34 @@ class EuConsolidatedProviderTest {
         assertThat(acme.programs()).hasSize(2);
         assertThat(acme.programs().stream().map(p -> p.code()).toList())
                 .containsExactlyInAnyOrder("RUS", "CRIMEA");
+    }
+
+    @Test
+    void shouldLinkEachOfficialJournalActOnceWithItsTitleAndDate() throws IOException {
+        SanctionedEntity acme = findById(loadEntities(), "eu-EU.20.15");
+        String title = "Commission Regulation 2023/1214 (OJ L159)";
+        LocalDate published = LocalDate.of(2023, 6, 15);
+        assertThat(acme.links())
+                .containsExactly(
+                        new EntityLink(
+                                "http://example.com/regulation2",
+                                title,
+                                LinkKind.LEGAL_ACT,
+                                published),
+                        new EntityLink(
+                                "http://example.com/regulation3",
+                                title,
+                                LinkKind.LEGAL_ACT,
+                                published));
+    }
+
+    @Test
+    void shouldServeOldOfficialJournalLinksOverHttps() throws IOException {
+        SanctionedEntity entity = findById(loadEntities(), "eu-EU.30.77");
+        assertThat(entity.links())
+                .extracting(EntityLink::url)
+                .containsExactly(
+                        "https://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ:L:2003:169:0006:0023:EN:PDF");
     }
 
     @Test

@@ -71,6 +71,11 @@ export interface RawName { fullName: string; nameType: string; strength?: string
 export interface RawRelation { type: string; targetId: string; targetKey?: string; role?: string; sharePercentage?: number; startDate?: string; endDate?: string }
 /** A link from another published record to this one. */
 export interface RawIncoming { key: string; type: string; role?: string; sharePercentage?: number; startDate?: string; endDate?: string }
+/** A picture of the entity as its publisher offers it; shown only with its credit and licence. */
+export interface RawImage { url: string; thumbnailUrl?: string; pageUrl?: string; credit?: string; licence?: string }
+export type RawLinkKind = 'SOURCE_PAGE' | 'LEGAL_ACT' | 'ENCYCLOPEDIA' | 'WEBSITE' | 'NEWS';
+/** A page about the entity: its listing page, a legal act that listed it, an article. */
+export interface RawLink { url: string; title?: string; kind: RawLinkKind; date?: string }
 export interface RawEntity {
   id: string; entityType: RawType; listSource: string; primaryName: RawName; aliases?: RawName[];
   addresses?: { street?: string; city?: string; stateOrProvince?: string; postalCode?: string; country?: string; fullAddress?: string }[];
@@ -83,4 +88,8 @@ export interface RawEntity {
   topics?: string[]; relations?: RawRelation[]; linkedFrom?: RawIncoming[];
   /** Days (YYYY-MM-DD) Sieve first saw the record, last saw it, and last saw its content change. */
   firstSeen?: string; lastSeen?: string; lastChange?: string;
+  /** Pictures the list publishes, such as a wanted person's photo. */
+  images?: RawImage[];
+  /** Pages about the entity, such as its poster or the legal acts that listed it. */
+  links?: RawLink[];
 }

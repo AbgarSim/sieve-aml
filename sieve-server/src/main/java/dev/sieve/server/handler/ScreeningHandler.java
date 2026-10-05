@@ -234,6 +234,8 @@ public final class ScreeningHandler {
         entityMap.put("deceased", entity.deceased());
         entityMap.put("listingReasons", entity.listingReasons());
         entityMap.put("vessel", entity.vessel());
+        entityMap.put("images", entity.images());
+        entityMap.put("links", entity.links());
 
         Map<String, Object> map = new HashMap<>(4);
         map.put("entity", entityMap);

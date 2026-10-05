@@ -42,6 +42,8 @@ import java.util.Set;
  * @param relations links from this entity to other entities
  * @param provenance where and when each value was seen, at most one entry per value (see {@link
  *     SourcedValue#keysOf}); empty until the entity is ingested
+ * @param images pictures of the entity the list publishes, such as a wanted person's photo
+ * @param links pages about the entity, such as its listing page or the legal acts that listed it
  */
 public record SanctionedEntity(
         String id,
@@ -65,7 +67,9 @@ public record SanctionedEntity(
         Instant lastUpdated,
         Set<RiskTopic> topics,
         List<Relation> relations,
-        List<SourcedValue> provenance) {
+        List<SourcedValue> provenance,
+        List<EntityImage> images,
+        List<EntityLink> links) {
 
     /**
      * Compact constructor with validation and defensive copies.
@@ -92,6 +96,84 @@ public record SanctionedEntity(
                         : Collections.unmodifiableSet(EnumSet.copyOf(topics));
         relations = relations == null ? List.of() : List.copyOf(relations);
         provenance = provenance == null ? List.of() : List.copyOf(provenance);
+        images = images == null ? List.of() : List.copyOf(images);
+        links = links == null ? List.of() : List.copyOf(links);
+    }
+
+    /**
+     * Creates an entry without pictures or links.
+     *
+     * @param id source-specific identifier
+     * @param entityType classification of this entity
+     * @param listSource the list this entity originates from
+     * @param primaryName the entity's structured primary name
+     * @param aliases alternative names
+     * @param addresses known physical addresses
+     * @param identifiers identity documents and reference numbers
+     * @param nationalities known nationalities
+     * @param citizenships known citizenships
+     * @param datesOfBirth known dates of birth
+     * @param placesOfBirth known places of birth
+     * @param gender the gender the list records, {@code null} when it records none
+     * @param deceased {@link Boolean#TRUE} when the list says the person is dead
+     * @param remarks free-text remarks from the source list
+     * @param listingReasons the reasons the list gives for the listing
+     * @param vessel what the list says about a vessel, {@code null} when nothing
+     * @param programs sanctions programs under which this entity is listed
+     * @param listedDate when the entity was first added to the list, may be {@code null}
+     * @param lastUpdated when the entity's record was last modified, may be {@code null}
+     * @param topics why the entity is of interest
+     * @param relations links from this entity to other entities
+     * @param provenance where and when each value was seen
+     */
+    public SanctionedEntity(
+            String id,
+            EntityType entityType,
+            ListSource listSource,
+            NameInfo primaryName,
+            List<NameInfo> aliases,
+            List<Address> addresses,
+            List<Identifier> identifiers,
+            List<String> nationalities,
+            List<String> citizenships,
+            List<LocalDate> datesOfBirth,
+            List<String> placesOfBirth,
+            Gender gender,
+            Boolean deceased,
+            String remarks,
+            List<String> listingReasons,
+            VesselDetails vessel,
+            List<SanctionsProgram> programs,
+            Instant listedDate,
+            Instant lastUpdated,
+            Set<RiskTopic> topics,
+            List<Relation> relations,
+            List<SourcedValue> provenance) {
+        this(
+                id,
+                entityType,
+                listSource,
+                primaryName,
+                aliases,
+                addresses,
+                identifiers,
+                nationalities,
+                citizenships,
+                datesOfBirth,
+                placesOfBirth,
+                gender,
+                deceased,
+                remarks,
+                listingReasons,
+                vessel,
+                programs,
+                listedDate,
+                lastUpdated,
+                topics,
+                relations,
+                provenance,
+                List.of(),
+                List.of());
     }
 
     /**
@@ -363,6 +445,26 @@ public record SanctionedEntity(
         return copy(gender, deceased, listingReasons, vessel, relations, provenance);
     }
 
+    /**
+     * Returns a copy with the given pictures.
+     *
+     * @param images pictures of the entity the list publishes
+     * @return the copy
+     */
+    public SanctionedEntity withImages(List<EntityImage> images) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance, images, links);
+    }
+
+    /**
+     * Returns a copy with the given links.
+     *
+     * @param links pages about the entity
+     * @return the copy
+     */
+    public SanctionedEntity withLinks(List<EntityLink> links) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance, images, links);
+    }
+
     private SanctionedEntity copy(
             Gender gender,
             Boolean deceased,
@@ -370,6 +472,18 @@ public record SanctionedEntity(
             VesselDetails vessel,
             List<Relation> relations,
             List<SourcedValue> provenance) {
+        return copy(gender, deceased, listingReasons, vessel, relations, provenance, images, links);
+    }
+
+    private SanctionedEntity copy(
+            Gender gender,
+            Boolean deceased,
+            List<String> listingReasons,
+            VesselDetails vessel,
+            List<Relation> relations,
+            List<SourcedValue> provenance,
+            List<EntityImage> images,
+            List<EntityLink> links) {
         return new SanctionedEntity(
                 id,
                 entityType,
@@ -392,6 +506,8 @@ public record SanctionedEntity(
                 lastUpdated,
                 topics,
                 relations,
-                provenance);
+                provenance,
+                images,
+                links);
     }
 }
