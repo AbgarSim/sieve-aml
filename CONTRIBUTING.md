@@ -121,7 +121,7 @@ sieve-aml/
 ├── sieve-benchmark/       # JMH and real-data benchmarks, HTTP load test, matching evaluation
 ├── dashboard/             # the public dashboard (Vite, React, TypeScript) and the demo recorder
 ├── docs/                  # Sphinx documentation; the Doxyfile at the root feeds the Java API pages
-├── .github/workflows/     # ci.yml, dashboard.yml (nightly site), benchmark.yml (on demand), adoption.yml (monthly)
+├── .github/workflows/     # ci.yml, dashboard.yml (nightly site), benchmark.yml (on demand)
 ├── Dockerfile             # Spring Boot server image, builds libpostal
 ├── Dockerfile.vertx       # Vert.x server image
 ├── docker-compose.yml     # postgres, sieve-spring and sieve-server services

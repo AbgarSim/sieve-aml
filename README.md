@@ -338,7 +338,7 @@ docker compose up sieve-server
 
 ## Contributing
 
-Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build and test, how to add a data source, and what a pull request needs; contributors sign their commits off under the Developer Certificate of Origin. Issues labelled [good first issue](https://github.com/AbgarSim/sieve-aml/labels/good%20first%20issue) are a place to start. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). Security reports go through the route in [SECURITY.md](SECURITY.md), not through public issues. [ADOPTION.md](ADOPTION.md) keeps a dated monthly record of the project's reach.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build and test, how to add a data source, and what a pull request needs; contributors sign their commits off under the Developer Certificate of Origin. Issues labelled [good first issue](https://github.com/AbgarSim/sieve-aml/labels/good%20first%20issue) are a place to start. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). Security reports go through the route in [SECURITY.md](SECURITY.md), not through public issues.
 
 ## License
 

@@ -47,7 +47,7 @@ Everything in this repository:
 - The HTTP APIs of the two servers under `/api/v1`, served by `sieve-server` (Vert.x) and `sieve-spring-server` (Spring Boot), and the PostgreSQL access in the Spring server.
 - The CLI (`sieve fetch`, `screen`, `stats`, `export`, `snapshot` and `media`), which runs with the rights of the user who starts it.
 - The dashboard in `dashboard/`, as published at https://abgarsim.github.io/sieve-aml/. It is a static site that renders text taken from the lists. In scope are any way to run script from list content and any path by which the published data comes to hold records that must not be there (politically exposed persons and their associates are counted but never published).
-- The GitHub Actions workflows in `.github/workflows/` (`ci.yml`, `dashboard.yml`, `benchmark.yml`, `adoption.yml`): a way to run untrusted code with write permissions, to print a secret into a log, or to publish something other than the dashboard built from the checked-out code.
+- The GitHub Actions workflows in `.github/workflows/` (`ci.yml`, `dashboard.yml`, `benchmark.yml`): a way to run untrusted code with write permissions, to print a secret into a log, or to publish something other than the dashboard built from the checked-out code.
 - A secret or key committed anywhere in the repository or its history.
 - Dependencies with a known vulnerability, when Sieve uses the affected code.
 
