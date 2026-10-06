@@ -112,16 +112,16 @@ jobs:
           BASE="https://${OWNER,,}.github.io/${REPO}/demo"
           DEMO=dashboard/dist/demo
           mkdir -p "$DEMO"
-          if curl -fsSL "$BASE/manifest.json" -o "$DEMO/manifest.json"; then
+          if curl -fsSL --retry 3 --retry-all-errors "$BASE/manifest.json" -o "$DEMO/manifest.json"; then
             for f in $(jq -r '.files[]' "$DEMO/manifest.json"); do
               case "$f" in manifest.json|*/*|.*) continue;; esac
-              if ! curl -fsSL "$BASE/$f" -o "$DEMO/$f"; then
+              if ! curl -fsSL --retry 3 --retry-all-errors "$BASE/$f" -o "$DEMO/$f"; then
                 echo "Could not keep $f, so the previous demo is not carried over"
                 rm -rf "$DEMO"
                 break
               fi
             done
-            [ -d "$DEMO" ] && echo "Kept the demo of $(jq -r .generatedAt "$DEMO/manifest.json")"
+            if [ -d "$DEMO" ]; then echo "Kept the demo of $(jq -r .generatedAt "$DEMO/manifest.json")"; fi
           else
             echo "No published demo yet"
             rm -rf "$DEMO"
