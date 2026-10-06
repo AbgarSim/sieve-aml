@@ -9,8 +9,10 @@ import dev.sieve.core.model.ListSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ExitCode;
+import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
@@ -24,7 +26,9 @@ import picocli.CommandLine.Parameters;
         name = "screen",
         mixinStandardHelpOptions = true,
         description = "Screen a name against sanctions lists")
-public class ScreenCommand implements Runnable {
+public class ScreenCommand implements Callable<Integer> {
+
+    private static final Ansi ANSI = Ansi.AUTO;
 
     @Parameters(index = "0", description = "Name to screen")
     private String name;
@@ -46,10 +50,9 @@ public class ScreenCommand implements Runnable {
             defaultValue = "20")
     private int maxResults;
 
-    private int exitCode = ExitCode.OK;
-
+    /** Screens the name and returns the exit code: 0 for no match, 1 for a match. */
     @Override
-    public void run() {
+    public Integer call() {
         CliContext ctx = CliContext.instance();
         EntityIndex index = ctx.entityIndex();
 
@@ -69,18 +72,22 @@ public class ScreenCommand implements Runnable {
         List<MatchResult> results = engine.screen(request, index);
 
         if (results.isEmpty()) {
-            System.out.printf(
-                    "@|green No matches found|@ for \"%s\" (threshold=%.2f)%n", name, threshold);
-            exitCode = ExitCode.OK;
-            return;
+            System.out.println(
+                    ANSI.string(
+                            String.format(
+                                    "@|green No matches found|@ for \"%s\" (threshold=%.2f)",
+                                    name, threshold)));
+            return ExitCode.OK;
         }
 
-        exitCode = 1;
-        System.out.printf(
-                "@|bold,yellow %d match(es) found|@ for \"%s\" (threshold=%.2f)%n%n",
-                results.size(), name, threshold);
+        System.out.println(
+                ANSI.string(
+                        String.format(
+                                "@|bold,yellow %d match(es) found|@ for \"%s\" (threshold=%.2f)%n",
+                                results.size(), name, threshold)));
 
         printResultsTable(results.stream().limit(maxResults).toList());
+        return 1;
     }
 
     private void printResultsTable(List<MatchResult> results) {
@@ -92,13 +99,15 @@ public class ScreenCommand implements Runnable {
         System.out.println("  " + "-".repeat(header.length() - 2));
 
         for (MatchResult result : results) {
-            System.out.printf(
-                    "  @|bold %.4f|@  %-40s  %-15s  %-12s  %-15s%n",
-                    result.score(),
-                    truncate(result.entity().primaryName().fullName(), 40),
-                    result.entity().listSource().name(),
-                    result.entity().entityType().name(),
-                    result.matchAlgorithm());
+            System.out.println(
+                    ANSI.string(
+                            String.format(
+                                    "  @|bold %.4f|@  %-40s  %-15s  %-12s  %-15s",
+                                    result.score(),
+                                    truncate(result.entity().primaryName().fullName(), 40),
+                                    result.entity().listSource().name(),
+                                    result.entity().entityType().name(),
+                                    result.matchAlgorithm())));
         }
     }
 
@@ -107,14 +116,5 @@ public class ScreenCommand implements Runnable {
             return "";
         }
         return value.length() <= maxLen ? value : value.substring(0, maxLen - 3) + "...";
-    }
-
-    /**
-     * Returns the exit code for this command.
-     *
-     * @return 0 for no match, 1 for match found
-     */
-    public int getExitCode() {
-        return exitCode;
     }
 }

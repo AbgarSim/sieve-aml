@@ -4,10 +4,13 @@ import dev.sieve.cli.CliContext;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.IndexStats;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Help.Ansi;
 
 /** CLI command to display index statistics. */
 @Command(name = "stats", mixinStandardHelpOptions = true, description = "Show index statistics")
 public class StatsCommand implements Runnable {
+
+    private static final Ansi ANSI = Ansi.AUTO;
 
     @Override
     public void run() {
@@ -15,14 +18,14 @@ public class StatsCommand implements Runnable {
         EntityIndex index = ctx.entityIndex();
         IndexStats stats = index.stats();
 
-        System.out.println("@|bold Sieve Index Statistics|@");
+        System.out.println(ANSI.string("@|bold Sieve Index Statistics|@"));
         System.out.println("========================");
         System.out.printf("Total entities: %d%n", stats.totalEntities());
         System.out.printf("Last updated:   %s%n", stats.lastUpdated());
         System.out.println();
 
         if (!stats.countBySource().isEmpty()) {
-            System.out.println("@|bold By Source:|@");
+            System.out.println(ANSI.string("@|bold By Source:|@"));
             stats.countBySource()
                     .forEach(
                             (source, count) ->
@@ -32,7 +35,7 @@ public class StatsCommand implements Runnable {
         }
 
         if (!stats.countByType().isEmpty()) {
-            System.out.println("@|bold By Type:|@");
+            System.out.println(ANSI.string("@|bold By Type:|@"));
             stats.countByType()
                     .forEach(
                             (type, count) ->
@@ -42,7 +45,8 @@ public class StatsCommand implements Runnable {
         if (stats.totalEntities() == 0) {
             System.out.println();
             System.out.println(
-                    "@|yellow Index is empty. Run 'sieve fetch' to load sanctions lists.|@");
+                    ANSI.string(
+                            "@|yellow Index is empty. Run 'sieve fetch' to load sanctions lists.|@"));
         }
     }
 }

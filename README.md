@@ -24,15 +24,19 @@
 
 Releases are not yet tagged; `main` is built and tested on every change and the dashboard is rebuilt from it every night. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
-## Screenshots
+## Demo
 
-The [public dashboard](#dashboard) on 5 October 2026: the overview, one person's profile combining their records across lists, and that person's association graph.
+Every night the [dashboard](#dashboard) is rebuilt from `main` and the night's lists; a script then drives the result in a browser, records what it sees, and calls the REST server and the CLI the way an integration would. So the demo is the application as built last night, never a staged recording; when a night's recording fails, the previous one stays up, and the page says which commit and date it was recorded from. **[abgarsim.github.io/sieve-aml/#/demo](https://abgarsim.github.io/sieve-aml/#/demo)** has the video, the steps as screenshots, and the REST and CLI transcripts.
+
+The dashboard on 5 October 2026: the overview, one person's profile combining their records across lists, and that person's association graph.
 
 <p>
   <img src="docs/images/dashboard-overview.png" alt="Dashboard overview: entity counts, sources and map" width="32%">
   <img src="docs/images/dashboard-entity.png" alt="Entity profile combining the records of one person across lists" width="32%">
   <img src="docs/images/dashboard-graph.png" alt="Association graph of an entity's relations" width="32%">
 </p>
+
+The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm run demo` in `dashboard/` records one locally against `npm run preview` (see [dashboard/README.md](dashboard/README.md#demo)).
 
 ## Supported Sanctions Lists
 
@@ -299,7 +303,7 @@ Each article carries its URL, headline, site, language, the date GDELT saw it, t
 
 ## Dashboard
 
-A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from every list: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, and a searchable list of every record with a full data card. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
+A public dashboard at **[abgarsim.github.io/sieve-aml](https://abgarsim.github.io/sieve-aml/)** is rebuilt every night from every list: entity totals per list, a world map of sanctioned entities by nationality and address, data quality per source, benchmarks, a searchable list of every record with a full data card, and the [demo](#demo) recorded from that night's build. Politically exposed persons are counted on the dashboard but their records are not published there. The data comes from `sieve snapshot`; the site lives in [`dashboard/`](dashboard/README.md).
 
 ```bash
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar snapshot --out snapshot   # write the data files

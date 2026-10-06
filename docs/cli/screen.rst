@@ -52,6 +52,7 @@ The ``screen`` command uses CI/CD-friendly exit codes:
 
 - **0** — no match found (name is clear)
 - **1** — match found (name is on a sanctions list)
+- **2** — error (a list could not be fetched, or the arguments were wrong)
 
 This makes it easy to integrate into automated compliance pipelines:
 
