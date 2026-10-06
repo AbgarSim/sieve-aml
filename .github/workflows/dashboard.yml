@@ -1,8 +1,11 @@
 name: Dashboard
 
 # Nightly: fetches every sanctions list, writes the snapshot data files, builds the
-# dashboard in dashboard/ and publishes both to GitHub Pages. History is carried over
-# from the published site, so trends grow by one row per night.
+# dashboard in dashboard/, records the demo from the result (a browser walkthrough with
+# video and screenshots, REST calls against the Vert.x server, one CLI screening) and
+# publishes everything to GitHub Pages. History and last night's demo are carried over
+# from the published site, so trends grow by one row per night and a failed recording
+# keeps the previous demo.
 #
 # Requires Settings > Pages > Source: GitHub Actions.
 
@@ -80,8 +83,9 @@ jobs:
 
   build:
     needs: snapshot
-    if: github.event.inputs.sources == ''
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -98,12 +102,106 @@ jobs:
         with:
           name: dashboard-snapshot
           path: dashboard/dist/data
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-site
+          path: dashboard/dist
+          retention-days: 7
+      # Published as it is if the demo job cannot add tonight's demo to it
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dashboard/dist
 
-  deploy:
+  # Records the demo from the site as built tonight (dashboard/demo/record.mjs). A failed
+  # recording does not fail the night: the site is published either way, with last night's
+  # demo when tonight's could not be recorded, and without one if this job fails outright.
+  demo:
     needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build the server and the CLI
+        run: mvn -B -ntp -q package -pl sieve-server,sieve-cli -am -DskipTests
+      - name: Install Chromium for Playwright-based providers (IL, TR)
+        run: java -cp "sieve-cli/target/lib/*" com.microsoft.playwright.CLI install --with-deps chromium
+      - name: Install the recorder and its browser
+        working-directory: dashboard
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: dashboard-site
+          path: dashboard/dist
+      - name: Keep last night's demo in case tonight's recording fails
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          BASE="https://${OWNER,,}.github.io/${REPO}/demo"
+          mkdir -p dashboard/dist/demo
+          if curl -fsSL "$BASE/manifest.json" -o dashboard/dist/demo/manifest.json; then
+            for f in $(jq -r '.files[]' dashboard/dist/demo/manifest.json); do
+              case "$f" in manifest.json|*/*|.*) continue;; esac
+              curl -fsSL "$BASE/$f" -o "dashboard/dist/demo/$f" || echo "Could not keep $f"
+            done
+            echo "Kept the demo of $(jq -r .generatedAt dashboard/dist/demo/manifest.json)"
+          else
+            echo "No published demo yet"
+            rmdir dashboard/dist/demo
+          fi
+      - name: Start the Vert.x server with every list, and serve the site
+        run: |
+          nohup java -Xmx8g -jar sieve-server/target/sieve-server-0.1.0-SNAPSHOT.jar > server-out.txt 2>&1 &
+          echo $! > server.pid
+          nohup python3 -m http.server 4173 --directory dashboard/dist > site-out.txt 2>&1 &
+          until curl -fs http://localhost:4173/ > /dev/null; do sleep 1; done
+      - name: Record the demo
+        id: record
+        continue-on-error: true
+        working-directory: dashboard
+        env:
+          SIEVE_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: |
+          node demo/record.mjs --site http://localhost:4173/ --api http://localhost:8080 \
+            --cli ../sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar --out dist/demo \
+            --api-timeout 900 --commit "${{ github.sha }}"
+      - name: Server log
+        if: steps.record.outcome == 'failure'
+        run: |
+          echo "The recording failed; the site is published with the previous demo, if any." | tee -a "$GITHUB_STEP_SUMMARY"
+          tail -60 server-out.txt
+      - name: Stop the server
+        if: always()
+        run: kill "$(cat server.pid)" 2> /dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-demo
+          path: dashboard/dist/demo
+          if-no-files-found: ignore
+          retention-days: 14
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages-with-demo
+          path: dashboard/dist
+
+  deploy:
+    needs: [build, demo]
+    if: always() && needs.build.result == 'success' && github.event.inputs.sources == ''
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -114,3 +212,5 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ needs.demo.result == 'success' && 'github-pages-with-demo' || 'github-pages' }}

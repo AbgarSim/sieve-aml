@@ -41,10 +41,22 @@ npm run build      # static site in dist/; copy a snapshot into dist/data/ to pu
 
 In dev and preview, `/data/` is served from `$SIEVE_DATA_DIR`, else `../snapshot` (the default output of `sieve snapshot --out snapshot`), else `sample/`. The sample is fictional data in the real file format, and the UI marks it as sample data.
 
+## Demo
+
+`demo/record.mjs` records the demo from a built site, so that the demo is always the current application. It picks the person listed by the most authorities from `search-index.json` (OFAC SDN among them when possible, then the most relations), drives the site in a headless Chromium with a drawn pointer and captions (overview, search typed letter by letter, the profile, the association graph, a list's page, the light theme) and records a video (`walkthrough.webm` and `.mp4`), a GIF of the screening steps kept under 4 MB, and a screenshot per step. With `--api` it waits for a Vert.x server to load its lists and records a health call, a screening of the name as listed, a misspelling and a batch; with `--cli` it runs `sieve screen` (which fetches OFAC SDN first). Everything, with timings, goes into `demo/manifest.json`, which the Demo page (`/demo`) reads; the files are listed in it so that the workflow can carry a demo over when a night's recording fails.
+
+```bash
+npm run build && npm run preview                       # the site on a snapshot, port 4173
+npm run demo -- --site http://localhost:4173/ --api none --cli none   # into dist/demo, about a minute
+npm run demo -- --api http://localhost:8080 --cli ../sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar
+```
+
+It needs `ffmpeg` and the Chromium that `npx playwright install chromium` fetches (`PLAYWRIGHT_CHROMIUM_PATH` points it at another build).
+
 ## Publish
 
-`.github/workflows/dashboard.yml` runs nightly at 03:00 UTC: it fetches every list, writes the snapshot, builds this site and deploys both to GitHub Pages. It needs **Settings → Pages → Source: GitHub Actions**.
+`.github/workflows/dashboard.yml` runs nightly at 03:00 UTC: it fetches every list, writes the snapshot, builds this site, records the demo from the built site and deploys everything to GitHub Pages. It needs **Settings → Pages → Source: GitHub Actions**. A run with the `sources` input set builds and records but does not deploy.
 
-Routes: `/`, `/search?q=&source=&topic=&country=`, `/entity/SOURCE/id`, `/source/SOURCE`, `/components`.
+Routes: `/`, `/search?q=&source=&topic=&country=`, `/entity/SOURCE/id`, `/source/SOURCE`, `/demo`, `/components`.
 
 Sieve is a screening tool, not legal advice. Official lists are authoritative.
