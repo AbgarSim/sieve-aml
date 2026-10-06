@@ -1,0 +1,65 @@
+name: New data source
+description: Propose a sanctions list, PEP source, debarment or wanted list, or other risk data for Sieve to load.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sieve loads only public lists from official publishers or open-data projects. CONTRIBUTING.md lists what a pull request that adds a source has to change.
+  - type: input
+    id: name
+    attributes:
+      label: List name
+      description: The name the publisher gives it.
+    validations:
+      required: true
+  - type: input
+    id: publisher
+    attributes:
+      label: Publisher and jurisdiction
+      description: The authority or organisation that publishes it, and its country or body.
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Download address
+      description: The URL of the file or API, not only the page about it.
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: Format
+      options:
+        - XML
+        - JSON or an API
+        - CSV
+        - XLSX or XLS
+        - PDF
+        - HTML page
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: terms
+    attributes:
+      label: Licence or terms of use
+      description: What the publisher says about reuse, with a link.
+  - type: input
+    id: frequency
+    attributes:
+      label: How often it changes
+  - type: textarea
+    id: value
+    attributes:
+      label: What it adds
+      description: Who is on it, roughly how many records, and what the lists Sieve already loads miss without it.
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to write the provider myself.
