@@ -43,7 +43,17 @@ public class SieveCli implements Runnable {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new SieveCli()).execute(args);
+        int exitCode =
+                new CommandLine(new SieveCli())
+                        // A command that fails (a list that could not be fetched, say) exits with
+                        // 2,
+                        // so that pipelines can tell an error from a match (1) and a clear name (0)
+                        .setExecutionExceptionHandler(
+                                (ex, cmd, parseResult) -> {
+                                    ex.printStackTrace(cmd.getErr());
+                                    return 2;
+                                })
+                        .execute(args);
         System.exit(exitCode);
     }
 }

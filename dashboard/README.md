@@ -43,11 +43,11 @@ In dev and preview, `/data/` is served from `$SIEVE_DATA_DIR`, else `../snapshot
 
 ## Demo
 
-`demo/record.mjs` records the demo from a built site, so that the demo is always the current application. It picks the person listed by the most authorities from `search-index.json` (OFAC SDN among them when possible, then the most relations), drives the site in a headless Chromium with a drawn pointer and captions (overview, search typed letter by letter, the profile, the association graph, a list's page, the light theme) and records a video (`walkthrough.webm` and `.mp4`), a GIF of the screening steps kept under 4 MB, and a screenshot per step. With `--api` it waits for a Vert.x server to load its lists and records a health call, a screening of the name as listed, a misspelling and a batch; with `--cli` it runs `sieve screen` (which fetches OFAC SDN first). Everything, with timings, goes into `demo/manifest.json`, which the Demo page (`/demo`) reads; the files are listed in it so that the workflow can carry a demo over when a night's recording fails.
+`demo/record.mjs` records the demo from a built site, so that the demo is the application as built that night. It picks from `search-index.json` the person on OFAC SDN who is on the most other lists (the person on the most lists when none is on OFAC SDN; ties go to the most relations), drives the site in a headless Chromium with a drawn pointer and captions (overview, search typed letter by letter, the profile, the association graph, a list's page, the light theme) and records a video (`walkthrough.webm` and `.mp4`), a GIF of the screening steps encoded coarser, then cut shorter, to stay under 4 MB (the Demo page omits the GIF link when it still cannot), and a screenshot per step. With `--api` it waits for a Vert.x server to report a loaded index (the workflow first waits for every list to be in, so start the server and let it finish loading before recording locally) and records a health call, a screening of the name as listed, a misspelling and a batch; with `--cli` it runs `sieve screen` (which fetches OFAC SDN first). Everything, with timings, goes into `demo/manifest.json`, which the Demo page (`/demo`) reads; the files are listed in it so that the workflow can carry a demo over when a night's recording fails.
 
 ```bash
-npm run build && npm run preview                       # the site on a snapshot, port 4173
-npm run demo -- --site http://localhost:4173/ --api none --cli none   # into dist/demo, about a minute
+npm run build && npm run preview                       # in one terminal: the site on a snapshot, port 4173
+npm run demo -- --site http://localhost:4173/ --api none --cli none   # in another: into dist/demo, about a minute
 npm run demo -- --api http://localhost:8080 --cli ../sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar
 ```
 
@@ -55,7 +55,7 @@ It needs `ffmpeg` and the Chromium that `npx playwright install chromium` fetche
 
 ## Publish
 
-`.github/workflows/dashboard.yml` runs nightly at 03:00 UTC: it fetches every list, writes the snapshot, builds this site, records the demo from the built site and deploys everything to GitHub Pages. It needs **Settings → Pages → Source: GitHub Actions**. A run with the `sources` input set builds and records but does not deploy.
+`.github/workflows/dashboard.yml` runs nightly at 03:00 UTC: it fetches every list, writes the snapshot, builds this site with last night's demo carried over from the published site, records tonight's demo from the built site and the server once every list is loaded, and deploys everything to GitHub Pages. A failed recording keeps last night's demo. It needs **Settings → Pages → Source: GitHub Actions**. A run with the `sources` input set builds and records but does not deploy.
 
 Routes: `/`, `/search?q=&source=&topic=&country=`, `/entity/SOURCE/id`, `/source/SOURCE`, `/demo`, `/components`.
 

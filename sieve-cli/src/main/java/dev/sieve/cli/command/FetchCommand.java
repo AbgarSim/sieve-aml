@@ -7,6 +7,7 @@ import dev.sieve.ingest.IngestionReport;
 import dev.sieve.ingest.ProviderResult;
 import java.util.Set;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Option;
 
 /** CLI command to fetch sanctions lists and load them into the in-memory index. */
@@ -15,6 +16,8 @@ import picocli.CommandLine.Option;
         mixinStandardHelpOptions = true,
         description = "Fetch sanctions lists and load into the index")
 public class FetchCommand implements Runnable {
+
+    private static final Ansi ANSI = Ansi.AUTO;
 
     @Option(
             names = {"--list", "-l"},
@@ -26,7 +29,7 @@ public class FetchCommand implements Runnable {
         CliContext ctx = CliContext.instance();
         IngestionOrchestrator orchestrator = ctx.orchestrator();
 
-        System.out.println("@|bold Fetching sanctions lists...|@");
+        System.out.println(ANSI.string("@|bold Fetching sanctions lists...|@"));
         System.out.println();
 
         IngestionReport report;
@@ -47,7 +50,7 @@ public class FetchCommand implements Runnable {
                     };
             System.out.printf(
                     "  %s %s — %s (%d entities, %dms)%n",
-                    icon,
+                    ANSI.string(icon),
                     entry.getKey().displayName(),
                     result.status(),
                     result.entityCount(),
@@ -57,7 +60,8 @@ public class FetchCommand implements Runnable {
 
         System.out.println();
         System.out.printf(
-                "@|bold Total:|@ %d entities loaded in %dms%n",
-                report.totalEntitiesLoaded(), report.totalDuration().toMillis());
+                ANSI.string("@|bold Total:|@ %d entities loaded in %dms%n"),
+                report.totalEntitiesLoaded(),
+                report.totalDuration().toMillis());
     }
 }

@@ -26,7 +26,7 @@ Releases are not yet tagged; `main` is built and tested on every change and the 
 
 ## Demo
 
-Every night the [dashboard](#dashboard) is rebuilt from `main` and the night's lists; a script then drives the result in a browser, records what it sees, and calls the REST server and the CLI the way an integration would. So the demo is always the current application: **[abgarsim.github.io/sieve-aml/#/demo](https://abgarsim.github.io/sieve-aml/#/demo)** has the video, the steps as screenshots, and the REST and CLI transcripts of the latest night.
+Every night the [dashboard](#dashboard) is rebuilt from `main` and the night's lists; a script then drives the result in a browser, records what it sees, and calls the REST server and the CLI the way an integration would. So the demo is the application as built last night, never a staged recording; when a night's recording fails, the previous one stays up, and the page says which commit and date it was recorded from. **[abgarsim.github.io/sieve-aml/#/demo](https://abgarsim.github.io/sieve-aml/#/demo)** has the video, the steps as screenshots, and the REST and CLI transcripts.
 
 <p align="center">
   <a href="https://abgarsim.github.io/sieve-aml/#/demo"><img src="https://abgarsim.github.io/sieve-aml/demo/walkthrough.gif" alt="Walkthrough recorded last night: screening a name, one profile across lists, the association graph" width="640"></a>
@@ -38,7 +38,7 @@ Every night the [dashboard](#dashboard) is rebuilt from `main` and the night's l
   <img src="https://abgarsim.github.io/sieve-aml/demo/graph.png" alt="Association graph of an entity's relations" width="32%">
 </p>
 
-The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm run demo` in `dashboard/` records one locally.
+The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm run demo` in `dashboard/` records one locally against `npm run preview` (see [dashboard/README.md](dashboard/README.md#demo)).
 
 ## Supported Sanctions Lists
 

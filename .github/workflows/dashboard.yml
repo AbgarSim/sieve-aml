@@ -102,6 +102,30 @@ jobs:
         with:
           name: dashboard-snapshot
           path: dashboard/dist/data
+      # The published demo is part of the site, so a night whose recording fails, or whose
+      # demo job fails outright, still publishes last night's demo. Kept whole or not at all.
+      - name: Keep last night's demo
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          BASE="https://${OWNER,,}.github.io/${REPO}/demo"
+          DEMO=dashboard/dist/demo
+          mkdir -p "$DEMO"
+          if curl -fsSL "$BASE/manifest.json" -o "$DEMO/manifest.json"; then
+            for f in $(jq -r '.files[]' "$DEMO/manifest.json"); do
+              case "$f" in manifest.json|*/*|.*) continue;; esac
+              if ! curl -fsSL "$BASE/$f" -o "$DEMO/$f"; then
+                echo "Could not keep $f, so the previous demo is not carried over"
+                rm -rf "$DEMO"
+                break
+              fi
+            done
+            [ -d "$DEMO" ] && echo "Kept the demo of $(jq -r .generatedAt "$DEMO/manifest.json")"
+          else
+            echo "No published demo yet"
+            rm -rf "$DEMO"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: dashboard-site
@@ -112,15 +136,19 @@ jobs:
         with:
           path: dashboard/dist
 
-  # Records the demo from the site as built tonight (dashboard/demo/record.mjs). A failed
-  # recording does not fail the night: the site is published either way, with last night's
-  # demo when tonight's could not be recorded, and without one if this job fails outright.
+  # Records the demo from the site as built tonight (dashboard/demo/record.mjs) and uploads the
+  # site again with it. A failed recording does not fail the night: the site is published either
+  # way, with last night's demo when tonight's could not be recorded. A partial run (sources set)
+  # records too, which is how a change to the recorder is tried on real data, but publishes nothing.
   demo:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      # Two Playwrights share ~/.cache/ms-playwright: the recorder's and the one the IL and TR
+      # providers use. Without this, whichever installs second removes the other's Chromium.
+      PLAYWRIGHT_SKIP_BROWSER_GC: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -135,40 +163,39 @@ jobs:
           cache: maven
       - name: Build the server and the CLI
         run: mvn -B -ntp -q package -pl sieve-server,sieve-cli -am -DskipTests
-      - name: Install Chromium for Playwright-based providers (IL, TR)
-        run: java -cp "sieve-cli/target/lib/*" com.microsoft.playwright.CLI install --with-deps chromium
-      - name: Install the recorder and its browser
+      - name: Install the recorder, its browser and ffmpeg
         working-directory: dashboard
         run: |
           npm ci
           npx playwright install --with-deps chromium
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Install Chromium for Playwright-based providers (IL, TR)
+        run: java -cp "sieve-cli/target/lib/*" com.microsoft.playwright.CLI install --with-deps chromium
       - uses: actions/download-artifact@v4
         with:
           name: dashboard-site
           path: dashboard/dist
-      - name: Keep last night's demo in case tonight's recording fails
-        env:
-          OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.event.repository.name }}
-        run: |
-          BASE="https://${OWNER,,}.github.io/${REPO}/demo"
-          mkdir -p dashboard/dist/demo
-          if curl -fsSL "$BASE/manifest.json" -o dashboard/dist/demo/manifest.json; then
-            for f in $(jq -r '.files[]' dashboard/dist/demo/manifest.json); do
-              case "$f" in manifest.json|*/*|.*) continue;; esac
-              curl -fsSL "$BASE/$f" -o "dashboard/dist/demo/$f" || echo "Could not keep $f"
-            done
-            echo "Kept the demo of $(jq -r .generatedAt dashboard/dist/demo/manifest.json)"
-          else
-            echo "No published demo yet"
-            rmdir dashboard/dist/demo
-          fi
       - name: Start the Vert.x server with every list, and serve the site
         run: |
           nohup java -Xmx8g -jar sieve-server/target/sieve-server-0.1.0-SNAPSHOT.jar > server-out.txt 2>&1 &
           echo $! > server.pid
           nohup python3 -m http.server 4173 --directory dashboard/dist > site-out.txt 2>&1 &
-          until curl -fs http://localhost:4173/ > /dev/null; do sleep 1; done
+          for i in $(seq 1 30); do curl -fs http://localhost:4173/ > /dev/null && break; sleep 1; done
+          curl -fs http://localhost:4173/ > /dev/null || { cat site-out.txt; exit 1; }
+      # The REST calls are recorded once every list is in, so that the demo shows the server as
+      # it serves, not as it loads. Loading takes about five minutes.
+      - name: Wait for the server to load every list
+        run: |
+          for i in $(seq 1 90); do
+            grep -q 'Ingestion complete' server-out.txt && break
+            if ! kill -0 "$(cat server.pid)" 2> /dev/null; then
+              echo "The server stopped while loading; the REST calls will not be recorded." | tee -a "$GITHUB_STEP_SUMMARY"
+              tail -40 server-out.txt
+              break
+            fi
+            sleep 10
+          done
+          grep 'Ingestion complete\|Provider failed' server-out.txt || echo "Still loading after 15 minutes"
       - name: Record the demo
         id: record
         continue-on-error: true
@@ -178,7 +205,7 @@ jobs:
         run: |
           node demo/record.mjs --site http://localhost:4173/ --api http://localhost:8080 \
             --cli ../sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar --out dist/demo \
-            --api-timeout 900 --commit "${{ github.sha }}"
+            --api-timeout 120 --commit "${{ github.sha }}"
       - name: Server log
         if: steps.record.outcome == 'failure'
         run: |
@@ -201,7 +228,7 @@ jobs:
 
   deploy:
     needs: [build, demo]
-    if: always() && needs.build.result == 'success' && github.event.inputs.sources == ''
+    if: ${{ !cancelled() && needs.build.result == 'success' && github.event.inputs.sources == '' }}
     runs-on: ubuntu-latest
     permissions:
       pages: write

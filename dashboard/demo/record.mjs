@@ -8,8 +8,9 @@
 //        [--api-timeout 600] [--commit SHA]
 //
 // The Dashboard workflow runs it after the site is built; `npm run demo` runs it locally against
-// `vite preview`. The entity it screens is chosen from the data every time: the person listed on
-// the most lists (OFAC SDN among them when possible), with the most relations.
+// `vite preview`. The entity it screens is chosen from the data every time: the person on OFAC SDN
+// who is on the most other lists (the person on the most lists when none is on OFAC SDN), then the
+// one with the most relations.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -145,16 +146,19 @@ async function walkthrough() {
     await go('#/search');
     const box = page.locator('#big-q');
     await box.waitFor();
+    // The index (tens of MB on real data) is fetched on first use; typing before it is in would freeze mid-word
+    await page.getByText(/records indexed/).waitFor({ timeout: 120000 }).catch(() => {});
     await glide(box);
     await box.click();
     await pause(400);
     await box.pressSequentially(entity.name, { delay: 70 });
     const results = page.locator('.res a[href]');
+    const own = page.locator(entity.entries.map(e => `.res a[href="#/entity/${e.s}/${encodeURIComponent(e.k.slice(e.k.indexOf('/') + 1))}"]`).join(', '));
+    await own.first().waitFor({ timeout: 120000 }).catch(() => {});
     await results.first().waitFor({ timeout: 30000 });
     await pause(1500);
     const shotName = await shot('search.png');
-    const own = entity.entries.map(e => `.res a[href="#/entity/${e.s}/${encodeURIComponent(e.id)}"]`).join(', ');
-    const hit = (await page.locator(own).count()) ? page.locator(own).first() : results.first();
+    const hit = (await own.count()) ? own.first() : results.first();
     await glide(hit);
     await pause(500);
     await hit.click();
@@ -163,7 +167,7 @@ async function walkthrough() {
 
   await step('entity', 'One profile across lists', `One profile across ${entity.lists.length} ${entity.lists.length === 1 ? 'list' : 'lists'}: properties, listings and relations merged`, async () => {
     await page.waitForSelector('.ehd h1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {}); // a publisher's photo host may be slow
     await pause(3000);
     const shotName = await shot('entity.png');
     for (const h of ['Sanctions and listings', 'Relations']) {
@@ -185,12 +189,14 @@ async function walkthrough() {
     const placed = page.locator('.ag-map svg g[role="button"]:not(.unplaced)');
     const nodes = (await placed.count()) > 1 ? placed : any;
     const n = await nodes.count();
+    // Aim at the disc, not the group, whose box includes the label beside it
     if (n > 0) {
-      await glide(nodes.first());
+      await glide(nodes.first().locator('circle.disc'));
       await pause(2000);
       if (n > 1) {
-        const b = await nodes.nth(1).boundingBox();
-        if (b) { await glide(nodes.nth(1)); await pause(1200); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await pause(2500); }
+        const disc = nodes.nth(1).locator('circle.disc');
+        const b = await disc.boundingBox();
+        if (b) { await glide(disc); await pause(1200); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await pause(2500); }
       }
     }
     return shotName;
@@ -221,19 +227,22 @@ async function walkthrough() {
   }
 }
 
-/** The GIF covers the search, profile and graph steps, encoded coarser until it fits the budget. */
+/** The GIF covers the search, profile and graph steps, encoded coarser, then cut shorter, until it fits the budget. */
 function makeGif(webm, steps) {
   const from = Math.round(Math.max(0, (steps.find(s => s.id === 'search')?.at ?? 0) - 0.3) * 10) / 10;
-  const to = steps.find(s => s.id === 'source')?.at ?? steps.at(-1).at;
+  const ends = [steps.find(s => s.id === 'source')?.at, steps.find(s => s.id === 'graph')?.at].filter(t => t > from);
+  if (!ends.length) ends.push(steps.at(-1).at);
   const file = path.join(stage, 'walkthrough.gif');
-  let bytes = 0;
-  for (const [width, fps, colors] of [[720, 8, 128], [640, 6, 96], [560, 5, 64]]) {
-    ffmpeg(['-ss', String(from), '-t', String(to - from), '-i', webm, '-vf',
-      `fps=${fps},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`, file]);
-    bytes = fs.statSync(file).size;
-    if (bytes <= GIF_BUDGET) return { file: 'walkthrough.gif', bytes, from, to, width, fps };
+  let last = null;
+  for (const to of ends) {
+    for (const [width, fps, colors] of [[720, 8, 128], [640, 6, 96], [560, 5, 64], [480, 4, 48]]) {
+      ffmpeg(['-ss', String(from), '-t', String(to - from), '-i', webm, '-vf',
+        `fps=${fps},scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`, file]);
+      last = { file: 'walkthrough.gif', bytes: fs.statSync(file).size, from, to, width, fps };
+      if (last.bytes <= GIF_BUDGET) return last;
+    }
   }
-  return { file: 'walkthrough.gif', bytes, from, to, width: 560, fps: 5, overBudget: true };
+  return { ...last, overBudget: true };
 }
 
 /** A pointer and a caption bar drawn into the page, so the recording shows what is being done. */
@@ -268,16 +277,27 @@ function overlayScript() {
 
 // ---------------------------------------------------------------- REST and CLI
 
-/** Waits for the Vert.x server to report a loaded index, then records a few calls as made. */
+/**
+ * Waits for the Vert.x server to have its lists in, then records a few calls as made. The server
+ * loads lists in parallel and reports a growing count, so the index counts as loaded once it holds
+ * the entity's lists and most of the snapshot's records, or once the count has stopped growing.
+ */
 async function restCalls(base) {
   const begun = Date.now();
-  let health = null;
+  let health = null, last = -1, since = 0;
   while (Date.now() - begun < apiTimeout * 1000) {
     try {
       const r = await fetch(`${base}/api/v1/health`);
-      if (r.ok) { const j = await r.json(); if (j.index?.totalEntities > 0) { health = j; break; } }
+      if (r.ok) {
+        const j = await r.json();
+        const total = j.index?.totalEntities ?? 0, by = j.index?.countBySource ?? {};
+        if (total > 0) {
+          if (entity.lists.every(s => by[s] > 0) && total >= 0.9 * overview.totalEntities) { health = j; break; }
+          if (total !== last) { last = total; since = Date.now(); } else if (Date.now() - since >= 90000) { health = j; break; }
+        }
+      }
     } catch { /* not up yet */ }
-    await sleep(10000);
+    await sleep(5000);
   }
   if (!health) return { base, note: `The server at ${base} did not report a loaded index within ${apiTimeout} seconds, so no REST calls were recorded tonight.`, calls: [] };
   const calls = [];
@@ -305,6 +325,8 @@ function runCli(jar, name) {
     const p = spawn('java', ['-Xmx2g', '-jar', jar, 'screen', name], { env: { ...process.env, NO_COLOR: '1' } });
     cliProcess = p;
     let stdout = '', stderr = '';
+    p.stdout.setEncoding('utf8');
+    p.stderr.setEncoding('utf8');
     p.stdout.on('data', d => { stdout += d; });
     p.stderr.on('data', d => { stderr += d; });
     const timer = setTimeout(() => p.kill('SIGKILL'), 15 * 60 * 1000);
@@ -321,8 +343,8 @@ function runCli(jar, name) {
 // ---------------------------------------------------------------- choosing what to show
 
 /**
- * The person to screen: on the most lists (OFAC SDN among them when any such person exists),
- * then with the most relations, then by name; a name that can be typed in the recording.
+ * The person to screen: on OFAC SDN and on the most other lists (on the most lists when no one is
+ * on OFAC SDN), then with the most relations, then by name; a name that can be typed in the recording.
  */
 function chooseEntity(ix, rel) {
   const groups = new Map();
@@ -360,13 +382,15 @@ function better(a, b) {
     : a.name.localeCompare(b.name) < 0;
 }
 
-/** A plausible misspelling: one vowel changed in the longest word, the last letter of another dropped. */
+/** A plausible misspelling: one vowel changed in the longest word (its case kept), the last letter of another dropped. */
 function misspell(name) {
   const words = name.split(' ');
   const longest = words.reduce((a, b) => (b.length > a.length ? b : a));
   const swap = { a: 'e', e: 'i', i: 'y', o: 'u', u: 'o', y: 'i' };
-  const i = Math.max(...Object.keys(swap).map(v => longest.toLowerCase().lastIndexOf(v)));
-  const changed = i >= 0 ? longest.slice(0, i) + swap[longest[i].toLowerCase()] + longest.slice(i + 1) : longest + 'e';
+  const lower = longest.toLowerCase();
+  const i = lower.length === longest.length ? Math.max(...Object.keys(swap).map(v => lower.lastIndexOf(v))) : -1;
+  const ch = i >= 0 ? (longest[i] === lower[i] ? swap[lower[i]] : swap[lower[i]].toUpperCase()) : null;
+  const changed = ch ? longest.slice(0, i) + ch + longest.slice(i + 1) : longest + 'e';
   let dropped = false;
   return words.map(w => (w === longest ? changed : !dropped && w.length > 4 ? ((dropped = true), w.slice(0, -1)) : w)).join(' ');
 }
