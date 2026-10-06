@@ -1,0 +1,58 @@
+name: Bug report
+description: Something in Sieve does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Do not describe a security vulnerability here; follow [SECURITY.md](https://github.com/AbgarSim/sieve-aml/blob/main/SECURITY.md) instead.
+        A wrong or missing entry in a list belongs here too: say which list and which record.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where does it happen?
+      options:
+        - Vert.x server (sieve-server)
+        - Spring Boot server (sieve-spring-server)
+        - CLI (sieve-cli)
+        - A list provider or its data (sieve-ingest)
+        - Matching (sieve-match)
+        - Public dashboard
+        - Documentation
+        - Build or CI
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: The command, request or page, with the smallest input that shows the problem.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      description: Error messages or log lines, if any.
+      render: text
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Sieve has no releases yet, so give the commit you ran (`git rev-parse --short HEAD`), or the date you saw it on the dashboard.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Java version, and how you ran Sieve (jar, Docker, from source).
