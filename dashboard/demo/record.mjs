@@ -26,10 +26,9 @@ const commit = opts.commit ?? process.env.GITHUB_SHA ?? gitHead();
 const VP = { width: 1440, height: 900 };
 const GIF_BUDGET = 4_000_000;
 
-const stage = out + '.new';
-fs.rmSync(stage, { recursive: true, force: true });
-fs.mkdirSync(stage, { recursive: true });
-
+// Everything is written to a temporary directory and copied into --out only once complete, so
+// a failed recording leaves whatever was there (last night's demo) untouched.
+const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'sieve-demo-out-'));
 const started = new Date();
 const index = await json('data/search-index.json');
 const relations = await json('data/relations.json').catch(() => ({ edges: [] }));
@@ -41,29 +40,36 @@ const variant = misspell(entity.name);
 const sourceName = id => sources.sources?.find(s => s.source === id)?.displayName ?? id;
 console.log(`Entity: ${entity.name} (${entity.lists.join(', ')}; ${entity.links} links); misspelling: ${variant}`);
 
-const cliRun = cliJar ? runCli(cliJar, entity.name) : null; // fetches OFAC SDN meanwhile
-const walk = await walkthrough();
-const rest = api ? await restCalls(api) : null;
-const cli = cliRun ? await cliRun : null;
+let cliProcess = null;
+try {
+  const cliRun = cliJar ? runCli(cliJar, entity.name) : null; // fetches OFAC SDN meanwhile
+  const walk = await walkthrough();
+  const rest = api ? await restCalls(api) : null;
+  const cli = cliRun ? await cliRun : null;
 
-const manifest = {
-  formatVersion: 1,
-  generatedAt: started.toISOString(),
-  commit: commit || undefined,
-  site: process.env.SIEVE_SITE_URL || undefined,
-  snapshot: { generatedAt: overview.generatedAt, totalEntities: overview.totalEntities, sources: overview.sourcesLoaded ?? overview.sourcesTotal, sample: overview.sample ?? false },
-  entity: { name: entity.name, key: entity.key, lists: entity.lists, links: entity.links, url: `#/entity/${entity.source}/${encodeURIComponent(entity.id)}` },
-  video: walk.video,
-  gif: walk.gif,
-  steps: walk.steps,
-  rest,
-  cli,
-};
-manifest.files = ['manifest.json', ...fs.readdirSync(stage).sort()];
-fs.writeFileSync(path.join(stage, 'manifest.json'), JSON.stringify(manifest, null, 2));
-fs.rmSync(out, { recursive: true, force: true });
-fs.renameSync(stage, out);
-summary(manifest);
+  const manifest = {
+    formatVersion: 1,
+    generatedAt: started.toISOString(),
+    commit: commit || undefined,
+    site: process.env.SIEVE_SITE_URL || undefined,
+    snapshot: { generatedAt: overview.generatedAt, totalEntities: overview.totalEntities, sources: overview.sourcesLoaded ?? overview.sourcesTotal, sample: overview.sample ?? false },
+    entity: { name: entity.name, key: entity.key, lists: entity.lists, links: entity.links, url: `#/entity/${entity.source}/${encodeURIComponent(entity.id)}` },
+    video: walk.video,
+    gif: walk.gif,
+    steps: walk.steps,
+    rest,
+    cli,
+  };
+  manifest.files = ['manifest.json', ...fs.readdirSync(stage).sort()];
+  fs.writeFileSync(path.join(stage, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  fs.rmSync(out, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.cpSync(stage, out, { recursive: true });
+  summary(manifest);
+} finally {
+  fs.rmSync(stage, { recursive: true, force: true });
+  if (cliProcess && cliProcess.exitCode === null) cliProcess.kill('SIGKILL');
+}
 
 // ---------------------------------------------------------------- walkthrough
 
@@ -76,6 +82,7 @@ async function walkthrough() {
   const page = await context.newPage();
   const t0 = Date.now();
   const steps = [];
+  let recordedPath = null;
   const at = () => Math.round((Date.now() - t0) / 100) / 10;
   const pause = ms => page.waitForTimeout(ms);
   const say = text => page.evaluate(t => window.__demo?.caption(t), text);
@@ -98,6 +105,27 @@ async function walkthrough() {
     s.screenshot = await fn();
   };
 
+  try {
+    await record();
+  } finally {
+    await context.close().catch(() => {});
+    await browser.close().catch(() => {});
+  }
+  const seconds = at();
+  const webm = path.join(stage, 'walkthrough.webm');
+  fs.copyFileSync(recordedPath, webm);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  ffmpeg(['-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '26', '-preset', 'veryfast', '-movflags', '+faststart', path.join(stage, 'walkthrough.mp4')]);
+  ffmpeg(['-ss', '1.5', '-i', webm, '-frames:v', '1', '-q:v', '3', path.join(stage, 'poster.jpg')]);
+  const duration = probeSeconds(webm) ?? seconds;
+  const gif = makeGif(webm, steps);
+  return {
+    steps,
+    video: { webm: 'walkthrough.webm', mp4: 'walkthrough.mp4', poster: 'poster.jpg', seconds: Math.round(duration * 10) / 10, width: VP.width, height: VP.height },
+    gif,
+  };
+
+  async function record() {
   await page.goto(site, { waitUntil: 'networkidle' });
   await page.waitForSelector('#overview .kpi');
   await page.mouse.move(720, 460);
@@ -149,15 +177,21 @@ async function walkthrough() {
     const card = page.locator('section.ag');
     await card.waitFor();
     await scrollTo(card);
-    const nodes = page.locator('.ag-map svg g[role="button"]');
-    await nodes.first().waitFor({ timeout: 20000 }).catch(() => {});
+    const any = page.locator('.ag-map svg g[role="button"]');
+    await any.first().waitFor({ timeout: 20000 }).catch(() => {});
     await pause(2500);
     const shotName = await shot('graph.png');
+    // Parties with a country sit on the map; those without are stacked in a corner, so prefer the placed ones
+    const placed = page.locator('.ag-map svg g[role="button"]:not(.unplaced)');
+    const nodes = (await placed.count()) > 1 ? placed : any;
     const n = await nodes.count();
     if (n > 0) {
       await glide(nodes.first());
       await pause(2000);
-      if (n > 1) { await glide(nodes.nth(1)); await pause(1200); await nodes.nth(1).click(); await pause(2500); }
+      if (n > 1) {
+        const b = await nodes.nth(1).boundingBox();
+        if (b) { await glide(nodes.nth(1)); await pause(1200); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await pause(2500); }
+      }
     }
     return shotName;
   });
@@ -183,28 +217,13 @@ async function walkthrough() {
     return shotName;
   });
 
-  const seconds = at();
-  const recorded = await page.video().path();
-  await context.close();
-  await browser.close();
-
-  const webm = path.join(stage, 'walkthrough.webm');
-  fs.copyFileSync(recorded, webm);
-  fs.rmSync(tmp, { recursive: true, force: true });
-  ffmpeg(['-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '26', '-preset', 'veryfast', '-movflags', '+faststart', path.join(stage, 'walkthrough.mp4')]);
-  ffmpeg(['-ss', '1.5', '-i', webm, '-frames:v', '1', '-q:v', '3', path.join(stage, 'poster.jpg')]);
-  const duration = probeSeconds(webm) ?? seconds;
-  const gif = makeGif(webm, steps);
-  return {
-    steps,
-    video: { webm: 'walkthrough.webm', mp4: 'walkthrough.mp4', poster: 'poster.jpg', seconds: Math.round(duration * 10) / 10, width: VP.width, height: VP.height },
-    gif,
-  };
+  recordedPath = await page.video().path();
+  }
 }
 
 /** The GIF covers the search, profile and graph steps, encoded coarser until it fits the budget. */
 function makeGif(webm, steps) {
-  const from = Math.max(0, (steps.find(s => s.id === 'search')?.at ?? 0) - 0.3);
+  const from = Math.round(Math.max(0, (steps.find(s => s.id === 'search')?.at ?? 0) - 0.3) * 10) / 10;
   const to = steps.find(s => s.id === 'source')?.at ?? steps.at(-1).at;
   const file = path.join(stage, 'walkthrough.gif');
   let bytes = 0;
@@ -284,6 +303,7 @@ function runCli(jar, name) {
   return new Promise(resolve => {
     const t = Date.now();
     const p = spawn('java', ['-Xmx2g', '-jar', jar, 'screen', name], { env: { ...process.env, NO_COLOR: '1' } });
+    cliProcess = p;
     let stdout = '', stderr = '';
     p.stdout.on('data', d => { stdout += d; });
     p.stderr.on('data', d => { stderr += d; });
@@ -311,8 +331,12 @@ function chooseEntity(ix, rel) {
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(e);
   }
+  const type = new Map((ix.entries ?? []).map(e => [e.k, e.t]));
   const links = new Map();
-  for (const ed of rel.edges ?? []) for (const k of [ed.f, ed.t]) links.set(k, (links.get(k) ?? 0) + 1);
+  for (const ed of rel.edges ?? []) {
+    if (type.get(ed.f) === 'W' || type.get(ed.t) === 'W') continue;
+    for (const k of [ed.f, ed.t]) links.set(k, (links.get(k) ?? 0) + 1);
+  }
   let best = null;
   for (const entries of groups.values()) {
     if (entries[0].t !== 'I') continue;
