@@ -103,6 +103,14 @@ public final class SnapshotWriter {
     /** Format version of the files, bumped on incompatible changes. */
     public static final int FORMAT_VERSION = 1;
 
+    /**
+     * Version of the record digest kept in {@code seen.json}, carried as a prefix of each digest: 2
+     * leaves {@code lastUpdated} out, which several lists fill with the fetch time. A row whose
+     * digest has an older version says nothing about whether the record changed, so the night that
+     * reads it is a baseline: no record is marked changed and its last change date is kept.
+     */
+    static final int DIGEST_VERSION = 2;
+
     private static final Logger log = LoggerFactory.getLogger(SnapshotWriter.class);
 
     private final ObjectMapper mapper;
@@ -394,23 +402,26 @@ public final class SnapshotWriter {
 
     /**
      * The bytes a record's change date is computed from: its fields without the pictures and links,
-     * which say where the entity is shown or written about rather than what the list states, so
-     * adding them never marks a record as changed.
+     * which say where the entity is shown or written about rather than what the list states, and
+     * without {@code lastUpdated}, which several lists fill with the fetch time, so that neither
+     * marks a record as changed; a real update changes the fields the list states.
      */
     private byte[] contentOf(byte[] json, ObjectNode record) throws IOException {
-        if (!record.has("images") && !record.has("links")) {
+        if (!record.has("images") && !record.has("links") && !record.has("lastUpdated")) {
             return json;
         }
         ObjectNode content = record.deepCopy();
         content.remove("images");
         content.remove("links");
+        content.remove("lastUpdated");
         return mapper.writeValueAsBytes(content);
     }
 
+    /** The content digest with its {@link #DIGEST_VERSION version} as a prefix. */
     private static String digest(byte[] bytes) {
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
-            return HexFormat.of().formatHex(hash, 0, 8);
+            return DIGEST_VERSION + ":" + HexFormat.of().formatHex(hash, 0, 8);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is not available", e);
         }
@@ -613,8 +624,9 @@ public final class SnapshotWriter {
     /**
      * When each record was first seen and last changed, carried over from the previous snapshot's
      * {@code seen.json}. A row is the first seen date, the last change date, a digest of the
-     * record's content, and the record's name and type code (missing in rows written before they
-     * were kept).
+     * record's content prefixed with its {@link #DIGEST_VERSION version} (rows written before the
+     * prefix carry a bare digest of an older version), and the record's name and type code (missing
+     * in rows written before they were kept).
      */
     private static final class Seen {
 
@@ -667,24 +679,32 @@ public final class SnapshotWriter {
         }
 
         /**
-         * Records a record's digest and returns its first seen and last change dates.
+         * Records a record's digest and returns its first seen and last change dates. A previous
+         * digest of an older version is not compared: the record keeps its last change date and is
+         * not reported as changed.
          *
          * @param key the record's key
-         * @param digest a digest of the record's content
+         * @param digest a digest of the record's content, with its version prefix
          * @param entry the record as the change log names it
          */
         String[] stamp(String key, String digest, ChangeLog.Entry entry) {
             List<String> old = previous.get(key);
             String now = today.toString();
             String first = old == null ? now : old.get(0);
-            String change = old == null || !digest.equals(old.get(2)) ? now : old.get(1);
+            String change = old == null ? now : old.get(1);
             if (old == null) {
                 added.add(entry);
-            } else if (!digest.equals(old.get(2))) {
+            } else if (comparable(old.get(2)) && !digest.equals(old.get(2))) {
+                change = now;
                 changed.add(entry);
             }
             rows.put(key, List.of(first, change, digest, entry.name(), entry.type()));
             return new String[] {first, change};
+        }
+
+        /** Whether a stored digest was computed the way tonight's are. */
+        private static boolean comparable(String digest) {
+            return digest.startsWith(DIGEST_VERSION + ":");
         }
 
         /** Records first seen tonight. */

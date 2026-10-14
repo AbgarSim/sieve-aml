@@ -103,7 +103,7 @@ function Body({ nights, sample }: { nights: Night[]; sample: boolean }) {
               </div>
             ))}
           </div>
-          <p className="xs muted" style={{ marginTop: 16 }}>A record is new when Sieve had not seen its key before, delisted when its list loaded tonight without it, and changed when any of its fields differs from the night before. A list that failed to load counts as unchanged. Names of delisted records open no profile, because the record is gone from the snapshot.</p>
+          <p className="xs muted" style={{ marginTop: 16 }}>A record is new when Sieve had not seen its key before, delisted when its list loaded tonight without it, and changed when what its list states differs from the night before; the list's own last-updated stamp is not compared, because several lists set it to the fetch time. A list that failed to load counts as unchanged. Names of delisted records open no profile, because the record is gone from the snapshot.</p>
         </>
       )}
     </>
