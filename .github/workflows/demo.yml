@@ -1,0 +1,61 @@
+name: Demo
+
+# Records the demo shown in the README: builds the dashboard from the branch it runs on,
+# serves it with the published site's data, drives it in a browser with
+# dashboard/demo/record.mjs and commits the GIF and the screenshots to docs/demo/ on that
+# branch. Run by hand when the dashboard changes enough for the recording to be out of date.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install the recorder, its browser and ffmpeg
+        working-directory: dashboard
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Build and serve the site
+        working-directory: dashboard
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          npm run build
+          nohup python3 demo/serve.py dist 4173 "https://${OWNER,,}.github.io/${REPO}/" > ../site-out.txt 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:4173/data/overview.json > /dev/null && break; sleep 1; done
+          curl -fs http://localhost:4173/data/overview.json > /dev/null || { cat ../site-out.txt; exit 1; }
+      - name: Record
+        working-directory: dashboard
+        run: node demo/record.mjs --site http://localhost:4173/ --api none --cli none --out "$RUNNER_TEMP/demo" --commit "${{ github.sha }}"
+      - name: Commit the recording
+        run: |
+          mkdir -p docs/demo
+          for f in walkthrough.gif overview.png search.png entity.png graph.png source.png overview-light.png; do
+            cp "$RUNNER_TEMP/demo/$f" docs/demo/
+          done
+          git add docs/demo
+          if git diff --cached --quiet; then echo "Nothing changed"; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898099+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Record the demo from ${GITHUB_SHA::7}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

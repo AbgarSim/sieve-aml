@@ -37,7 +37,7 @@ export default function Dashboard() {
       <main className="wrap page">
         <section className="blk" id="overview">
           {S.sample && <div className="callout" style={{ marginBottom: 16, borderColor: 'var(--amber)' }}><Icon name="warn" size={18} /><span><b>Sample data.</b> Every name and number on this page is fictional, for local development. The published site shows the nightly snapshot.</span></div>}
-          <div className="blk-h"><h1>Overview</h1><p>Snapshot {S.date} {S.time} · rebuilt nightly from {SIEVE.sources.length} official lists</p></div>
+          <div className="blk-h"><h1>Overview</h1><p>Rebuilt nightly from {SIEVE.sources.length} official lists</p></div>
           <Kpis />
         </section>
         <section className="blk" id="map">
