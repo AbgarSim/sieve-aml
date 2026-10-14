@@ -21,9 +21,9 @@ type F = Feature<Geometry, { name?: string }> & { id: string };
 type Period = 'all' | '10y' | '5y' | '1y';
 type View = 'targets' | 'flows' | 'news';
 const ISO_BY_NUMERIC = Object.fromEntries(Object.entries(ISO_NUMERIC).map(([a, n]) => [n, a]));
-const AUTHORITIES: Authority[] = ['OFAC', 'OFSI', 'FINCEN', 'DOJ'];
-const ACOL: Record<Authority, string> = { OFAC: 'var(--accent)', OFSI: 'var(--amber)', FINCEN: 'var(--violet)', DOJ: 'var(--red)' };
-const ALABEL: Record<Authority, string> = { OFAC: 'OFAC', OFSI: 'OFSI', FINCEN: 'FinCEN', DOJ: 'DOJ' };
+const AUTHORITIES: Authority[] = ['OFAC', 'OFSI', 'FINCEN', 'DOJ', 'HMRC', 'BIS'];
+const ACOL: Record<Authority, string> = { OFAC: 'var(--accent)', OFSI: 'var(--amber)', FINCEN: 'var(--violet)', DOJ: 'var(--red)', HMRC: 'var(--green)', BIS: 'var(--blue)' };
+const ALABEL: Record<Authority, string> = { OFAC: 'OFAC', OFSI: 'OFSI', FINCEN: 'FinCEN', DOJ: 'DOJ', HMRC: 'HMRC', BIS: 'BIS' };
 const PERIODS: [Period, string][] = [['all', 'All years'], ['10y', '10 years'], ['5y', '5 years'], ['1y', '12 months']];
 const PAGE = 50;
 const NEWS_DAYS = 90;
@@ -80,9 +80,9 @@ function Body({ d }: { d: RawEnforcement }) {
       <div className="grid g6" style={{ marginBottom: 20 }}>
         <StatTile label="Actions" value={fmt(shown.length)} note={`${fmt(located)} placed on the map${shown[0] ? `, latest ${shown[0].date}` : ''}`} />
         <StatTile label="Last 12 months" value={fmt(shown.filter(a => a.date >= yearAgo).length)} note="published in the past year" />
-        <StatTile label="US civil penalties" value={usd ? money(usd, 'USD') : '—'} note="OFAC and FinCEN, in USD" />
-        <StatTile label="UK penalties" value={gbp ? money(gbp, 'GBP') : '—'} note="OFSI, total in GBP" />
-        <StatTile label="Criminal cases" value={fmt(shown.filter(a => a.kind === 'CRIMINAL_CASE').length)} note="DOJ press releases" />
+        <StatTile label="US civil penalties" value={usd ? money(usd, 'USD') : '—'} note="OFAC, FinCEN and BIS, in USD" />
+        <StatTile label="UK penalties" value={gbp ? money(gbp, 'GBP') : '—'} note="OFSI and HMRC, total in GBP" />
+        <StatTile label="Criminal cases" value={fmt(shown.filter(a => a.kind === 'CRIMINAL_CASE').length)} note="DOJ, BIS and HMRC releases" />
         <StatTile label="News reports" value={fmt(news.length)} note={`suspected breaches, last ${NEWS_DAYS} days, unverified`} />
       </div>
 
@@ -125,7 +125,7 @@ function Body({ d }: { d: RawEnforcement }) {
           <table className="tbl"><thead><tr><th>Source</th><th>Authority</th><th className="r">Actions</th><th>Status</th><th>Website</th></tr></thead>
             <tbody>{d.sources.map(s => <tr key={s.id}><td><span className="cl"><Flag cc={s.cc} />{s.name}</span></td><td>{s.authority}</td><td className="r num">{fmt(s.actions)}</td><td><StatusDot status={s.status === 'OK' ? 'loaded' : 'failed'} />{s.error && <span className="small muted"> {s.error}</span>}</td><td><a href={s.url} target="_blank" rel="noopener" className="cl">{host(s.url)} <Icon name="ext" size={12} /></a></td></tr>)}</tbody></table>
         </div>
-        <div className="map-foot"><span>A breach is placed on the country its sanctions program targets, as the notice names it; programs against terrorism, narcotics, proliferation or cyber activity have no country. FinCEN enforces anti-money-laundering law, so its actions are counted but placed on the map only when the notice ties a country to sanctions. Criminal cases are the DOJ releases whose title is about breaking sanctions.</span></div>
+        <div className="map-foot"><span>A breach is placed on the country its sanctions program targets, as the notice names it; programs against terrorism, narcotics, proliferation or cyber activity have no country. FinCEN enforces anti-money-laundering law, so its actions are counted but placed on the map only when the notice ties a country to sanctions. Criminal cases are the DOJ releases whose title is about breaking sanctions, and the BIS and HMRC releases about export or sanctions prosecutions. HMRC settles trade sanctions and export control offences together, and BIS enforces US export controls, so their actions are counted but placed on the map only when they name a sanctioned country.</span></div>
       </div>
     </>
   );

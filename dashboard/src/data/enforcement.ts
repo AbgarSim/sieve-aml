@@ -1,6 +1,6 @@
 import { fetchJson } from './snapshot';
 
-export type Authority = 'OFAC' | 'OFSI' | 'FINCEN' | 'DOJ';
+export type Authority = 'OFAC' | 'OFSI' | 'FINCEN' | 'DOJ' | 'HMRC' | 'BIS';
 export type Kind = 'CIVIL_PENALTY' | 'DISCLOSURE' | 'CRIMINAL_CASE';
 
 /** A published enforcement action for a sanctions breach, as enforcement.json holds it. */

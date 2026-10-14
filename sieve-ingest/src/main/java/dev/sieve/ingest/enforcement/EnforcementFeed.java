@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Fetches published enforcement actions from OFAC, OFSI, FinCEN and the DOJ.
+ * Fetches published enforcement actions from OFAC, OFSI, FinCEN, the DOJ, HMRC and BIS.
  *
  * <p>OFAC's chart does not say which programs were breached, so each notice PDF is read for them. A
  * notice is read once: actions already known with programs (from the previous night's file) keep
@@ -185,6 +185,31 @@ public final class EnforcementFeed {
                                             "US",
                                             "https://www.justice.gov/news",
                                             this::doj,
+                                            previous)));
+            runs.add(
+                    pool.submit(
+                            () ->
+                                    run(
+                                            "HMRC",
+                                            "HMRC compound settlements",
+                                            "HM Revenue and Customs",
+                                            "GB",
+                                            HmrcSettlementParser.PAGE.toString(),
+                                            this::hmrc,
+                                            previous)));
+            runs.add(
+                    pool.submit(
+                            () ->
+                                    run(
+                                            "BIS",
+                                            "BIS export enforcement",
+                                            "US Commerce Department, Bureau of Industry and"
+                                                    + " Security",
+                                            "US",
+                                            BisEnforcementParser.PAGE.toString(),
+                                            () ->
+                                                    BisEnforcementParser.parse(
+                                                            text(BisEnforcementParser.PAGE)),
                                             previous)));
         }
         List<EnforcementAction> all = new ArrayList<>();
@@ -428,6 +453,47 @@ public final class EnforcementFeed {
             Thread.sleep(300); // the API asks for fewer than 4 requests a second
         }
         return new ArrayList<>(byCase.values());
+    }
+
+    List<EnforcementAction> hmrc() throws Exception {
+        List<EnforcementAction> all =
+                new ArrayList<>(
+                        HmrcSettlementParser.parseSettlements(
+                                text(HmrcSettlementParser.SETTLEMENTS)));
+        // Each notice is two small requests (the notice, then its text); a few at a time.
+        List<Future<List<EnforcementAction>>> notices = new ArrayList<>();
+        try (ExecutorService pool =
+                Executors.newFixedThreadPool(PARALLEL_DOWNLOADS, Thread.ofVirtual().factory())) {
+            for (HmrcSettlementParser.Notice n :
+                    HmrcSettlementParser.notices(text(HmrcSettlementParser.SEARCH))) {
+                notices.add(
+                        pool.submit(
+                                () -> {
+                                    Optional<URI> att =
+                                            HmrcSettlementParser.attachment(
+                                                    text(HmrcSettlementParser.content(n.path())));
+                                    return att.isEmpty()
+                                            ? List.<EnforcementAction>of()
+                                            : HmrcSettlementParser.parseNotice(n, text(att.get()));
+                                }));
+            }
+        }
+        int failed = 0;
+        for (Future<List<EnforcementAction>> f : notices) {
+            try {
+                for (EnforcementAction a : f.get()) {
+                    // A named settlement is in both its notice and the current page; the page wins.
+                    if (all.stream().noneMatch(b -> HmrcSettlementParser.sameSettlement(a, b))) {
+                        all.add(a);
+                    }
+                }
+            } catch (ExecutionException e) {
+                failed++;
+                log.warn("HMRC notice failed [error={}]", e.getCause().toString());
+            }
+        }
+        log.info("HMRC notices read [notices={}, failed={}]", notices.size(), failed);
+        return OfacEnforcementParser.unique(all);
     }
 
     private String text(URI uri) throws IOException {
