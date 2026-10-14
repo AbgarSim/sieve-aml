@@ -4,7 +4,8 @@ import { Icon } from '../lib/icons';
 import { useTheme } from '../lib/theme';
 import { SIEVE } from '../data/snapshot';
 
-const LINKS: [string, string][] = [['About', '/'], ['Overview', 'overview'], ['Map', 'map'], ['Sources', 'sources'], ['Quality', 'quality'], ['Benchmarks', 'benchmarks'], ['Search', '/search'], ['Monitoring', '/monitoring']];
+/** The pages of the site; the overview's sections are reached from its own sub-menu. */
+const LINKS: [string, string][] = [['Search', '/search'], ['Overview', '/overview'], ['Sources', '/sources'], ['Monitoring', '/monitoring'], ['About', '/']];
 
 /** A link to a section of the overview page. The app uses hash routing, so sections are a query parameter. */
 export function SectionLink({ id, className, children, onClick, ...rest }: { id: string; className?: string; children: ReactNode; onClick?: () => void; 'aria-current'?: 'page' }) {
@@ -27,7 +28,7 @@ export function Header({ active, hideSearch, subnav, activeSection }: { active?:
         <div className="wrap hdr-in">
           <Link className="logo" to="/"><img src="sieve-aml-icon.svg" alt="" /><span className="logo-t">SIEVE<span className="byline">by Abgar Simonean</span></span></Link>
           <nav className="nav" aria-label="Primary" onClick={() => setMenu(false)}>
-            {LINKS.map(([l, to]) => (to.startsWith('/') ? <NavLink key={l} to={to} end aria-current={l === active ? 'page' : undefined}>{l}</NavLink> : <SectionLink key={l} id={to} aria-current={l === active ? 'page' : undefined}>{l}</SectionLink>))}
+            {LINKS.map(([l, to]) => <NavLink key={l} to={to} end aria-current={l === active ? 'page' : undefined}>{l}</NavLink>)}
           </nav>
           <div className="hdr-right">
             {SIEVE.snapshot.sample && <span className="pill warn" title="Fictional sample data for local development"><span className="d" />Sample data</span>}

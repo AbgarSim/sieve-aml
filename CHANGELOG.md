@@ -11,6 +11,9 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 ## [Unreleased]
 
 ### Added
+- Nightly change log: `sieve snapshot` writes `changes.json`, the records that appeared on a list, left it or changed each night (exact counts per list, the first 200 records of each kind, last 30 nights), carried from night to night like `seen.json`, which now keeps each record's name and type so delisted records can be named; the dashboard's new What changed page shows a night's new listings, delistings and changed records with a bar per night and a filter by list, and the About and Overview pages carry a strip with tonight's counts
+- Dashboard About page rewritten as a story: who built Sieve and why, the lists read every night with the night's figures, what changed tonight, the enforcement actions monitored, and how to run it
+- Dashboard Sources page: the sources table and tonight's fetch times on a page of their own
 - Sanctions breach monitoring: `sieve snapshot` writes `enforcement.json` from OFAC's civil penalties chart (2003 onward, programs read from each notice), OFSI's penalties and disclosures (GOV.UK content API), FinCEN's enforcement actions (penalty and any sanctions programs read from each notice) and DOJ press releases about criminal sanctions cases, plus news of suspected breaches from GDELT, marked unverified and kept for 90 days; the dashboard's Monitoring page maps each breach to the country its program targets, with filters by authority and period, actions per year, programs breached, the list of actions and the news (`--no-enforcement` skips it)
 - Multi-module Maven project structure (core, ingest, match, server, cli)
 - Unified domain model with Java 21 records (`SanctionedEntity`, `NameInfo`, `Address`, `Identifier`, `SanctionsProgram`)
@@ -68,6 +71,8 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - Contributor files: a rewritten `CONTRIBUTING.md` (build, test and formatting commands as CI runs them, every module and the dashboard and docs, an evidence-based checklist for a new data source, the pull request and commit conventions, and a Developer Certificate of Origin sign-off for contributions), a `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), a `SECURITY.md` with the reporting route and scope, issue forms for bugs, features and new data sources, and a pull request template
 
 ### Changed
+- Dashboard header cut to five links (Search, Overview, Sources, Monitoring, About); the Overview's sections stay reachable from its sub-menu
+- Dashboard entity page: when several lists carry the same record, each list collapses to one line that names the fields on which it differs from the others; the line opens to the list's full record
 - `SimilarityDeduplicator` blocks on every token of every name instead of the first characters of the name as written, splits blocks on common prefixes by finer keys (prefix pairs, then the whole name), blocks entities again by birth year and by shared identifier so that variants of a common name still meet, compares each pair of tokens once per entity pair, and scores candidate pairs in parallel; a name match with neither an identifier nor a date of birth to corroborate it must now reach `DeduplicationConfig.uncorroboratedNameThreshold` (0.95), so similar names alone no longer merge; an identifier value shared by more than 50 entities (a gender or programme flag stored as an identifier) no longer counts as an identifier, and a name without a letter is not matched on
 - OFAC SDN identifiers of type "Legal Entity Number" are typed `LEI` instead of `OTHER`
 - OFAC SDN identifiers of type "Digital Currency Address - <currency>" are typed `CRYPTO_ADDRESS` instead of `OTHER`, with the currency code as remarks
@@ -81,4 +86,5 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - A match that covers only part of a listed name (a lone first or family name, or a one-word query against a longer name) is discounted by 0.75 in the exact, fuzzy and phonetic engines, so it no longer scores 1.0 and falls below the default 0.80 threshold
 
 ### Fixed
+- Dashboard entity and source pages no longer overflow the screen on a phone
 - The OFAC non-SDN parser took the `uid`, `lastName` and `firstName` inside an entry's alias, address and identifier elements for the entry's own, so most non-SDN entities carried the id and the name of their last alias (or address), and it read no aliases, addresses, identifiers, nationalities or dates of birth at all. Both OFAC lists now share one parser (`OfacXmlParser`): non-SDN entities keep their own uid and name, carry all of those fields and the crypto wallets of their digital currency addresses, and their "Linked To" remarks resolve

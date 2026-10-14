@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
  *   history.json              one row per day with totals per list; rows are kept across runs
  *   relations.json            links between published records, and the country each is placed at
  *   seen.json                 when each record was first seen and last changed; kept across runs
+ *   changes.json              per night, the records that appeared, left or changed; last 30 nights
  * </pre>
  *
  * <p>An entity's key is {@code SOURCE/id}, because raw ids repeat across lists.
@@ -85,11 +86,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Each record in the entity shards carries, besides the entity's own fields, the dates of its
  * history in {@code firstSeen}, {@code lastSeen} and {@code lastChange}, read from and kept in
- * {@code seen.json} (records whose list did not load keep their row). A relation whose target is a
- * published record carries that record's key in {@code targetKey}, looked up on the holder's own
- * list first and then by id across lists, and the target lists the relation in {@code linkedFrom}.
- * Index entries carry the record's risk topics in {@code o}, left out for a record that is only
- * sanctioned, the topic of nearly every record.
+ * {@code seen.json} (records whose list did not load keep their row, and every row also keeps the
+ * record's name and type, so that a record that leaves a list can still be named). The records that
+ * appeared, left or changed go to {@code changes.json}; see {@link ChangeLog}. A relation whose
+ * target is a published record carries that record's key in {@code targetKey}, looked up on the
+ * holder's own list first and then by id across lists, and the target lists the relation in {@code
+ * linkedFrom}. Index entries carry the record's risk topics in {@code o}, left out for a record
+ * that is only sanctioned, the topic of nearly every record.
  *
  * <p>{@code relations.json} holds the links the lists state between records (ownership,
  * directorship, family, associate and plain links), for the association graph; see {@link
@@ -173,6 +176,9 @@ public final class SnapshotWriter {
         Map<String, Object> seenJson = header(now);
         seenJson.put("records", seen.rows());
         writeJson(seenFile, seenJson);
+        List<ChangeLog.Entry> removed = seen.removed();
+        ChangeLog.write(
+                mapper, outDir.resolve("changes.json"), now, seen.added(), removed, seen.changed());
         writeHistory(outDir.resolve("history.json"), stats, everything, overlap, now);
         RelationGraph graph = RelationGraph.of(all, published, countries);
         Map<String, Object> relations = header(now);
@@ -181,7 +187,8 @@ public final class SnapshotWriter {
 
         log.info(
                 "Snapshot written [dir={}, entities={}, distinct={}, links={}, countries={},"
-                        + " relations={}, linkedRecords={}, newRecords={}, changedRecords={}]",
+                        + " relations={}, linkedRecords={}, newRecords={}, removedRecords={},"
+                        + " changedRecords={}]",
                 outDir,
                 stats.totalEntities(),
                 overlap.distinctEntities(),
@@ -189,8 +196,9 @@ public final class SnapshotWriter {
                 stats.byCountry().size(),
                 published.stream().mapToInt(e -> e.relations().size()).sum(),
                 links.linkedFrom().size(),
-                seen.added(),
-                seen.changed());
+                seen.added().size(),
+                removed.size(),
+                seen.changed().size());
         return stats;
     }
 
@@ -354,7 +362,19 @@ public final class SnapshotWriter {
         byte[] json = mapper.writeValueAsBytes(entity);
         ObjectNode node = (ObjectNode) mapper.readTree(json);
         String key = key(entity);
-        String[] dates = seen.stamp(key, digest(contentOf(json, node)));
+        String[] dates =
+                seen.stamp(
+                        key,
+                        digest(contentOf(json, node)),
+                        new ChangeLog.Entry(
+                                key,
+                                entity.primaryName().fullName(),
+                                typeCode(entity.entityType()),
+                                List.copyOf(aggregator.countryCodes(entity)),
+                                entity.programs().stream()
+                                        .map(SanctionsProgram::code)
+                                        .distinct()
+                                        .toList()));
         node.put("firstSeen", dates[0]);
         node.put("lastSeen", seen.today().toString());
         node.put("lastChange", dates[1]);
@@ -592,16 +612,17 @@ public final class SnapshotWriter {
 
     /**
      * When each record was first seen and last changed, carried over from the previous snapshot's
-     * {@code seen.json}. A row is the first seen date, the last change date and a digest of the
-     * record's content.
+     * {@code seen.json}. A row is the first seen date, the last change date, a digest of the
+     * record's content, and the record's name and type code (missing in rows written before they
+     * were kept).
      */
     private static final class Seen {
 
         private final Map<String, List<String>> previous;
         private final Map<String, List<String>> rows = new TreeMap<>();
         private final LocalDate today;
-        private int added;
-        private int changed;
+        private final List<ChangeLog.Entry> added = new ArrayList<>();
+        private final List<ChangeLog.Entry> changed = new ArrayList<>();
 
         private Seen(Map<String, List<String>> previous, LocalDate today) {
             this.previous = previous;
@@ -623,7 +644,7 @@ public final class SnapshotWriter {
                                     e -> {
                                         List<String> row = new ArrayList<>();
                                         e.getValue().forEach(v -> row.add(v.asText()));
-                                        if (row.size() == 3 && e.getKey().contains("/")) {
+                                        if (row.size() >= 3 && e.getKey().contains("/")) {
                                             previous.put(e.getKey(), row);
                                         }
                                     });
@@ -645,29 +666,57 @@ public final class SnapshotWriter {
             return seen;
         }
 
-        /** Records a record's digest and returns its first seen and last change dates. */
-        String[] stamp(String key, String digest) {
+        /**
+         * Records a record's digest and returns its first seen and last change dates.
+         *
+         * @param key the record's key
+         * @param digest a digest of the record's content
+         * @param entry the record as the change log names it
+         */
+        String[] stamp(String key, String digest, ChangeLog.Entry entry) {
             List<String> old = previous.get(key);
             String now = today.toString();
             String first = old == null ? now : old.get(0);
             String change = old == null || !digest.equals(old.get(2)) ? now : old.get(1);
             if (old == null) {
-                added++;
+                added.add(entry);
             } else if (!digest.equals(old.get(2))) {
-                changed++;
+                changed.add(entry);
             }
-            rows.put(key, List.of(first, change, digest));
+            rows.put(key, List.of(first, change, digest, entry.name(), entry.type()));
             return new String[] {first, change};
         }
 
         /** Records first seen tonight. */
-        int added() {
+        List<ChangeLog.Entry> added() {
             return added;
         }
 
         /** Records seen before whose content changed tonight. */
-        int changed() {
+        List<ChangeLog.Entry> changed() {
             return changed;
+        }
+
+        /**
+         * Records seen before, on a list that loaded tonight, that are no longer published: their
+         * name and type come from the previous row, when it kept them. Call after every record of
+         * the night has been stamped.
+         */
+        List<ChangeLog.Entry> removed() {
+            List<ChangeLog.Entry> removed = new ArrayList<>();
+            previous.forEach(
+                    (key, row) -> {
+                        if (!rows.containsKey(key)) {
+                            removed.add(
+                                    new ChangeLog.Entry(
+                                            key,
+                                            row.size() > 3 ? row.get(3) : null,
+                                            row.size() > 4 ? row.get(4) : null,
+                                            List.of(),
+                                            List.of()));
+                        }
+                    });
+            return removed;
         }
 
         LocalDate today() {
@@ -679,7 +728,8 @@ public final class SnapshotWriter {
         }
     }
 
-    private static String typeCode(EntityType type) {
+    /** The one-letter type code of the search index. */
+    static String typeCode(EntityType type) {
         return switch (type) {
             case INDIVIDUAL -> "I";
             case ENTITY -> "E";
