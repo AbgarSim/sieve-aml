@@ -59,6 +59,7 @@ import dev.sieve.server.handler.AddressScreeningHandler;
 import dev.sieve.server.handler.HealthHandler;
 import dev.sieve.server.handler.ListHandler;
 import dev.sieve.server.handler.PublicFunctionHandler;
+import dev.sieve.server.handler.RiskHandler;
 import dev.sieve.server.handler.ScreeningHandler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
@@ -145,10 +146,12 @@ public final class SieveServer {
         ListHandler listHandler = new ListHandler(entityIndex, orchestrator, objectMapper);
         PublicFunctionHandler publicFunctionHandler =
                 new PublicFunctionHandler(PublicFunctionCatalog.bundled(), objectMapper);
+        RiskHandler riskHandler = new RiskHandler(matchEngine, entityIndex, objectMapper, config);
 
         router.post("/api/v1/screen").handler(screeningHandler::handle);
         router.post("/api/v1/screen/batch").handler(screeningHandler::handleBatch);
         router.post("/api/v1/screen/address").handler(addressScreeningHandler::handle);
+        router.post("/api/v1/risk/assess").handler(riskHandler::handle);
         router.get("/api/v1/health").handler(healthHandler::handle);
         router.get("/api/v1/lists").handler(listHandler::handleGetLists);
         router.get("/api/v1/lists/:source/entities").handler(listHandler::handleGetEntities);
