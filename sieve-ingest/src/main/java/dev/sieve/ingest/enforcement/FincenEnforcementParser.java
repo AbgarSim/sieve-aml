@@ -6,7 +6,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,12 +35,12 @@ public final class FincenEnforcementParser {
     private static final Pattern IN_THE_MATTER = Pattern.compile("(?i)^in the matter of:?\\s*");
     private static final DateTimeFormatter MDY = DateTimeFormatter.ofPattern("M/d/yyyy");
     private static final String AMOUNT = "\\$\\s?([\\d,]+(?:\\.\\d+)?)(\\s*(?:million|billion))?";
-    // Orders also quote statutory maxima ("a civil money penalty of up to $71,545 per day") and
-    // reporting thresholds ("at least $5,000"); those are skipped and the largest penalty kept.
+    // Orders also quote statutory maxima ("a civil money penalty of up to $71,545 per day"),
+    // reporting thresholds and the totals paid to other agencies. The penalty FinCEN imposes is
+    // stated as "a Civil Money Penalty in the amount of $X", usually more than once; an order
+    // that never says so gets no amount rather than a guess.
     private static final Pattern PENALTY =
-            Pattern.compile(
-                    "(?i)(?:civil money penalty|penalty|\\bpay)([^$.]{0,80})"
-                            + AMOUNT);
+            Pattern.compile("(?i)civil money penalty([^$.]{0,40}in the amount of\\s*)" + AMOUNT);
     private static final Pattern NOT_THE_PENALTY =
             Pattern.compile(
                     "(?i)up to|exceed|greater|maximum|not more than|at least|minimum|per\\b|each");
@@ -129,7 +131,7 @@ public final class FincenEnforcementParser {
      */
     public static Optional<Long> penaltyIn(String noticeText) {
         Matcher m = PENALTY.matcher(noticeText.replaceAll("\\s+", " "));
-        Optional<Long> largest = Optional.empty();
+        Map<Long, Integer> seen = new LinkedHashMap<>();
         while (m.find()) {
             if (NOT_THE_PENALTY.matcher(m.group(1)).find()) {
                 continue;
@@ -138,13 +140,14 @@ public final class FincenEnforcementParser {
                 double v = Double.parseDouble(m.group(2).replace(",", ""));
                 String scale = m.group(3) == null ? "" : m.group(3).strip().toLowerCase();
                 v *= scale.equals("million") ? 1e6 : scale.equals("billion") ? 1e9 : 1;
-                if (largest.isEmpty() || v > largest.get()) {
-                    largest = Optional.of((long) v);
-                }
+                seen.merge((long) v, 1, Integer::sum);
             } catch (NumberFormatException e) {
                 // not an amount
             }
         }
-        return largest;
+        // The first of the most repeated, since a LinkedHashMap keeps the order they were met.
+        return seen.entrySet().stream()
+                .reduce((x, y) -> y.getValue() > x.getValue() ? y : x)
+                .map(Map.Entry::getKey);
     }
 }
