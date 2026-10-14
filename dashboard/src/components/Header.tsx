@@ -4,7 +4,7 @@ import { Icon } from '../lib/icons';
 import { useTheme } from '../lib/theme';
 import { SIEVE } from '../data/snapshot';
 
-const LINKS: [string, string][] = [['About', '/'], ['Overview', 'overview'], ['Map', 'map'], ['Sources', 'sources'], ['Quality', 'quality'], ['Benchmarks', 'benchmarks'], ['Search', '/search']];
+const LINKS: [string, string][] = [['About', '/'], ['Overview', 'overview'], ['Map', 'map'], ['Sources', 'sources'], ['Quality', 'quality'], ['Benchmarks', 'benchmarks'], ['Search', '/search'], ['Monitoring', '/monitoring']];
 
 /** A link to a section of the overview page. The app uses hash routing, so sections are a query parameter. */
 export function SectionLink({ id, className, children, onClick, ...rest }: { id: string; className?: string; children: ReactNode; onClick?: () => void; 'aria-current'?: 'page' }) {

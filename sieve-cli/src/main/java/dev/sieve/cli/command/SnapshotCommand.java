@@ -1,5 +1,6 @@
 package dev.sieve.cli.command;
 
+import dev.sieve.cli.snapshot.EnforcementStep;
 import dev.sieve.cli.snapshot.FetchedSource;
 import dev.sieve.cli.snapshot.NewsStep;
 import dev.sieve.cli.snapshot.SnapshotFetcher;
@@ -9,6 +10,8 @@ import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.stats.DatasetStats;
 import dev.sieve.ingest.ProviderRegistry;
+import dev.sieve.ingest.enforcement.EnforcementFeed;
+import dev.sieve.ingest.media.GdeltBreachNews;
 import dev.sieve.ingest.media.GdeltGkgFeed;
 import dev.sieve.ingest.wikidata.WikidataLinks;
 import dev.sieve.match.dedup.SimilarityDeduplicator;
@@ -16,6 +19,8 @@ import dev.sieve.match.media.NewsMentionIndex;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +73,13 @@ public class SnapshotCommand implements Callable<Integer> {
                             + " published names (news.json)")
     private boolean noNews;
 
+    @Option(
+            names = "--no-enforcement",
+            description =
+                    "Skip fetching published sanctions enforcement actions from OFAC, OFSI, FinCEN"
+                            + " and the DOJ, and news of suspected breaches (enforcement.json)")
+    private boolean noEnforcement;
+
     @Override
     public Integer call() throws Exception {
         Set<ListSource> only = EnumSet.noneOf(ListSource.class);
@@ -95,6 +107,9 @@ public class SnapshotCommand implements Callable<Integer> {
         if (!noNews) {
             writeNews(fetched);
         }
+        if (!noEnforcement) {
+            writeEnforcement();
+        }
 
         long loaded =
                 fetched.stream().filter(f -> f.status() == FetchedSource.Status.LOADED).count();
@@ -111,6 +126,30 @@ public class SnapshotCommand implements Callable<Integer> {
                                         f.status(),
                                         f.error().map(e -> ": " + e).orElse("")));
         return loaded > 0 ? 0 : 2;
+    }
+
+    private void writeEnforcement() {
+        try {
+            GdeltBreachNews news = new GdeltBreachNews();
+            EnforcementStep step =
+                    new EnforcementStep(
+                            new EnforcementFeed(LocalDate.now(ZoneOffset.UTC).getYear()),
+                            noNews ? List::of : () -> news.read(Duration.ofHours(24)),
+                            Clock.systemUTC());
+            EnforcementFeed.Result result = step.write(out);
+            System.out.printf(
+                    "%,d sanctions enforcement actions and %,d news articles of suspected breaches"
+                            + " written%n",
+                    result.actions().size(), step.newsCount());
+            result.sources().stream()
+                    .filter(s -> !s.loaded())
+                    .forEach(
+                            s ->
+                                    System.out.printf(
+                                            "  %-6s FAILED: %s%n", s.id(), s.error().orElse("")));
+        } catch (Exception e) {
+            System.err.println("Enforcement actions skipped: " + e.getMessage());
+        }
     }
 
     private void writeNews(List<FetchedSource> fetched) {

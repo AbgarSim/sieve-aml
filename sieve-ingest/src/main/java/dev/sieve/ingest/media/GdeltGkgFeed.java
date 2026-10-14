@@ -186,7 +186,7 @@ public final class GdeltGkgFeed implements NewsMentionFeed {
         }
     }
 
-    private static Downloader httpDownloader() {
+    static Downloader httpDownloader() {
         HttpClient client = HttpClientFactory.createTrustAllClient(Duration.ofSeconds(15));
         return uri -> {
             HttpRequest request =

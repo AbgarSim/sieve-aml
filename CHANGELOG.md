@@ -11,6 +11,7 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 ## [Unreleased]
 
 ### Added
+- Sanctions breach monitoring: `sieve snapshot` writes `enforcement.json` from OFAC's civil penalties chart (2003 onward, programs read from each notice), OFSI's penalties and disclosures (GOV.UK content API), FinCEN's enforcement actions (penalty and any sanctions programs read from each notice) and DOJ press releases about criminal sanctions cases, plus news of suspected breaches from GDELT, marked unverified and kept for 90 days; the dashboard's Monitoring page maps each breach to the country its program targets, with filters by authority and period, actions per year, programs breached, the list of actions and the news (`--no-enforcement` skips it)
 - Multi-module Maven project structure (core, ingest, match, server, cli)
 - Unified domain model with Java 21 records (`SanctionedEntity`, `NameInfo`, `Address`, `Identifier`, `SanctionsProgram`)
 - Enums with `displayName()` and `fromString()`: `EntityType`, `ListSource`, `NameType`, `NameStrength`, `ScriptType`, `IdentifierType`
