@@ -43,14 +43,13 @@ class FincenEnforcementParserTest {
                         FincenEnforcementParser.penaltyIn(
                                 "assess a civil money penalty in the amount of $3,500,000 against"))
                 .contains(3_500_000L);
-        assertThat(FincenEnforcementParser.penaltyIn("agreed to pay $1.3 billion"))
-                .contains(1_300_000_000L);
+        assertThat(FincenEnforcementParser.penaltyIn("agreed to pay $1.3 billion")).isEmpty();
         assertThat(FincenEnforcementParser.penaltyIn("no amount here")).isEmpty();
         assertThat(
                         FincenEnforcementParser.penaltyIn(
                                 "The Bank agreed to pay $3,000,000,000 to all agencies. FinCEN"
-                                        + " will impose a Civil Money Penalty of $1,300,000,000."
-                                        + " The Civil Money Penalty of $1,300,000,000 is due."))
+                                        + " will impose a Civil Money Penalty in the amount of $1,300,000,000."
+                                        + " A Civil Money Penalty in the amount of $25,000 is the floor."))
                 .contains(1_300_000_000L);
         assertThat(FincenEnforcementParser.penaltyIn("a penalty of up to $25,000 per violation"))
                 .isEmpty();
@@ -58,7 +57,7 @@ class FincenEnforcementParserTest {
                         FincenEnforcementParser.penaltyIn(
                                 "a civil money penalty of up to $71,545 per day. A penalty"
                                         + " applies to transactions of at least $5,000. FinCEN"
-                                        + " will impose a Civil Money Penalty of $80,000,000 on"
+                                        + " will impose a Civil Money Penalty in the amount of $80,000,000 on"
                                         + " the Bank."))
                 .contains(80_000_000L);
     }

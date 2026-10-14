@@ -36,11 +36,11 @@ public final class FincenEnforcementParser {
     private static final DateTimeFormatter MDY = DateTimeFormatter.ofPattern("M/d/yyyy");
     private static final String AMOUNT = "\\$\\s?([\\d,]+(?:\\.\\d+)?)(\\s*(?:million|billion))?";
     // Orders also quote statutory maxima ("a civil money penalty of up to $71,545 per day"),
-    // reporting thresholds ("at least $5,000") and the totals paid to other agencies. Maxima and
-    // thresholds are skipped; the amount the order repeats most as the civil money penalty is
-    // FinCEN's own, and other "penalty" or "pay" amounts are used only when it names none.
+    // reporting thresholds and the totals paid to other agencies. The penalty FinCEN imposes is
+    // stated as "a Civil Money Penalty in the amount of $X", usually more than once; an order
+    // that never says so gets no amount rather than a guess.
     private static final Pattern PENALTY =
-            Pattern.compile("(?i)(civil money penalty|penalty|\\bpay)([^$.]{0,80})" + AMOUNT);
+            Pattern.compile("(?i)civil money penalty([^$.]{0,40}in the amount of\\s*)" + AMOUNT);
     private static final Pattern NOT_THE_PENALTY =
             Pattern.compile(
                     "(?i)up to|exceed|greater|maximum|not more than|at least|minimum|per\\b|each");
@@ -131,30 +131,23 @@ public final class FincenEnforcementParser {
      */
     public static Optional<Long> penaltyIn(String noticeText) {
         Matcher m = PENALTY.matcher(noticeText.replaceAll("\\s+", " "));
-        Map<Long, Integer> civil = new LinkedHashMap<>();
-        Optional<Long> other = Optional.empty();
+        Map<Long, Integer> seen = new LinkedHashMap<>();
         while (m.find()) {
-            if (NOT_THE_PENALTY.matcher(m.group(2)).find()) {
+            if (NOT_THE_PENALTY.matcher(m.group(1)).find()) {
                 continue;
             }
             try {
-                double v = Double.parseDouble(m.group(3).replace(",", ""));
-                String scale = m.group(4) == null ? "" : m.group(4).strip().toLowerCase();
+                double v = Double.parseDouble(m.group(2).replace(",", ""));
+                String scale = m.group(3) == null ? "" : m.group(3).strip().toLowerCase();
                 v *= scale.equals("million") ? 1e6 : scale.equals("billion") ? 1e9 : 1;
-                if (m.group(1).equalsIgnoreCase("civil money penalty")) {
-                    civil.merge((long) v, 1, Integer::sum);
-                } else if (other.isEmpty()) {
-                    other = Optional.of((long) v);
-                }
+                seen.merge((long) v, 1, Integer::sum);
             } catch (NumberFormatException e) {
                 // not an amount
             }
         }
-        Optional<Long> fallback = other;
         // The first of the most repeated, since a LinkedHashMap keeps the order they were met.
-        return civil.entrySet().stream()
+        return seen.entrySet().stream()
                 .reduce((x, y) -> y.getValue() > x.getValue() ? y : x)
-                .map(Map.Entry::getKey)
-                .or(() -> fallback);
+                .map(Map.Entry::getKey);
     }
 }
