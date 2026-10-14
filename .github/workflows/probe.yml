@@ -6,44 +6,26 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Candidate sources 5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      - run: mvn -B -ntp -q package -pl sieve-cli -am -DskipTests
+      - name: Enforcement with HMRC and BIS
         run: |
-          UA="sieve-aml (+https://github.com/AbgarSim/sieve-aml)"
-          curl -gsSL -A "$UA" --max-time 40 -o bis.html "https://www.bis.gov/news-updates"
-          curl -gsSL -A "$UA" --max-time 40 -o bis2.html "https://www.bis.gov/news-updates?page=1"
+          J=sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar
+          start=$(date +%s)
+          timeout -k 20 -s QUIT 900 java -jar $J snapshot --source LV_FIU --no-wikidata --out snap > run1.log 2>&1 || echo "exit $?"
+          echo "run $(( $(date +%s) - start )) s"
+          grep -v DEBUG run1.log | grep -i "Enforcement source\|HMRC\|BIS\|FAILED\|Exception" | head -40
           python3 - <<'PY'
-          import re,json,collections
-          for f in ('bis.html','bis2.html'):
-            t=open(f,encoding='utf-8',errors='replace').read()
-            d=json.loads(re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>',t,re.S).group(1))
-            pp=d['props']['pageProps'];print(f,'pageProps keys',list(pp.keys()))
-            ts=pp.get('pressReleaseTeasers',[]);print('teasers',len(ts));print('keys',list(ts[0].keys()))
-            x=dict(ts[0]);x.pop('newsUpdatesTopic',None);print(json.dumps(x)[:1200])
-            topics=collections.Counter(n['name'] for t0 in ts for n in (t0.get('newsUpdatesTopic') or []));print(topics)
-            enf=[t0 for t0 in ts if any(n['name']=='Enforcement' for n in (t0.get('newsUpdatesTopic') or []))]
-            print('enforcement',len(enf))
-            def title(t0): return next((m['attributes'].get('content') for m in t0.get('metatag',[]) if m['attributes'].get('name')=='title'),None)
-            for t0 in enf[::6]: print(' ',{k:v for k,v in t0.items() if k in('date','publishDate','fieldDate','dateline','releaseDate')}, t0['created']['time'][:10], t0.get('path'), '|', title(t0))
-            print('oldest',min(t0['created']['time'] for t0 in ts))
-          PY
-      - name: HMRC notices
-        run: |
-          UA="sieve-aml (+https://github.com/AbgarSim/sieve-aml)"
-          curl -gsSL -A "$UA" -o s.json "https://www.gov.uk/api/search.json?q=compound+settlement&filter_content_store_document_type=notice&count=200&fields=title,link,public_timestamp"
-          python3 - <<'PY'
-          import json,re,html,urllib.request
-          UA={'User-Agent':'sieve-aml (+https://github.com/AbgarSim/sieve-aml)'}
-          def get(p): return json.load(urllib.request.urlopen(urllib.request.Request('https://www.gov.uk/api/content'+p,headers=UA),timeout=40))
-          r=[x for x in json.load(open('s.json'))['results'] if re.search(r'(?i)notice to exporters',x['title']) and re.search(r'(?i)compound|fined|penalt|punished|settlement',x['title'])]
-          print(len(r))
-          for x in r:
-            d=get(x['link']);atts=[a for a in d['details'].get('attachments',[]) if a.get('attachment_type')=='html' or (a.get('url','').startswith('/'))]
-            print('##',x['public_timestamp'][:10],x['title'],'atts',[(a.get('url'),a.get('content_type')) for a in d['details'].get('attachments',[])][:3])
-            for a in atts[:1]:
-              b=get(a['url'])['details'].get('body','')
-              t=html.unescape(re.sub(r'<[^>]+>',' ',re.sub(r'</li>|</p>','\n',b)))
-              for line in t.split('\n'):
-                line=re.sub(r'\s+',' ',line).strip()
-                if re.search(r'£',line) and len(line)<400: print('   ',line)
-          d=get('/government/case-studies/11-million-compound-settlement-for-sanctions-breach');print(d['first_published_at'],re.sub(r'<[^>]+>',' ',d['details']['body'])[:1200])
+          import json, collections as C
+          d=json.load(open('snap/enforcement.json'))
+          for s in d['sources']: print(s['id'],s['status'],s['actions'],s.get('fetchMs'),s.get('error'))
+          A=d['actions']; print('actions',len(A))
+          for s in ('HMRC','BIS'):
+            xs=[a for a in A if a['source']==s]
+            print(s,len(xs),'kinds',C.Counter(a['kind'] for a in xs),'with targets',sum(1 for a in xs if a['targets']),'with amount',sum(1 for a in xs if a.get('amount')),'range',xs[-1]['date'] if xs else '',xs[0]['date'] if xs else '')
+            print(' targets',C.Counter(c for a in xs for c in a['targets']).most_common(12))
+            print(' ids dup',[k for k,v in C.Counter(a['id'] for a in xs).items() if v>1])
+            for a in xs[:400]: print(' ',a['date'],a['kind'][:5],a.get('party'),a.get('amount'),a['programs'],(a.get('summary') or '')[:110])
           PY
