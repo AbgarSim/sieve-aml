@@ -46,6 +46,12 @@ class FincenEnforcementParserTest {
         assertThat(FincenEnforcementParser.penaltyIn("agreed to pay $1.3 billion"))
                 .contains(1_300_000_000L);
         assertThat(FincenEnforcementParser.penaltyIn("no amount here")).isEmpty();
+        assertThat(
+                        FincenEnforcementParser.penaltyIn(
+                                "The Bank agreed to pay $3,000,000,000 to all agencies. FinCEN"
+                                        + " will impose a Civil Money Penalty of $1,300,000,000."
+                                        + " The Civil Money Penalty of $1,300,000,000 is due."))
+                .contains(1_300_000_000L);
         assertThat(FincenEnforcementParser.penaltyIn("a penalty of up to $25,000 per violation"))
                 .isEmpty();
         assertThat(
