@@ -1,0 +1,36 @@
+name: Breach report
+
+# Reports of suspected sanctions breaches come in through the issue form
+# (.github/ISSUE_TEMPLATE/breach_report.yml). A new report gets the breach-report label and
+# a note on how review works. When the maintainer adds the report-accepted label, the report
+# is frozen as a comment by this workflow; the nightly Dashboard build publishes the frozen
+# copies on the Monitoring page. Only people with triage access can add labels, so nothing
+# reaches the site without review. The issue text is read through the API, never a shell.
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: breach-report-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: github.event.action == 'opened' || github.event.label.name == 'report-accepted'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: dashboard/scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTION: ${{ github.event.action == 'opened' && 'opened' || 'accept' }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: node dashboard/scripts/breach-reports.mjs "$ACTION" "$ISSUE"

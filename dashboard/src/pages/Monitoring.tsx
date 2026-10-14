@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import type { Feature, Geometry } from 'geojson';
@@ -14,18 +14,21 @@ import { Chip, StatusDot } from '../components/Badges';
 import { Icon } from '../lib/icons';
 import { ISO_NUMERIC, UNNUMBERED_FEATURES, countryName } from '../data/iso';
 import { KIND_LABEL, loadEnforcement, money, type Authority, type EnforcementAction, type RawEnforcement, type SuspectedBreach } from '../data/enforcement';
+import { PROGRAM_BY_COUNTRY, loadReports, reportLink, type BreachReport } from '../data/reports';
 import { cssVar, fmt, host } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
 type F = Feature<Geometry, { name?: string }> & { id: string };
 type Period = 'all' | '10y' | '5y' | '1y';
-type View = 'targets' | 'flows' | 'news';
+type View = 'targets' | 'flows' | 'news' | 'reports';
 const ISO_BY_NUMERIC = Object.fromEntries(Object.entries(ISO_NUMERIC).map(([a, n]) => [n, a]));
 const AUTHORITIES: Authority[] = ['OFAC', 'OFSI', 'FINCEN', 'DOJ', 'HMRC', 'BIS'];
 const ACOL: Record<Authority, string> = { OFAC: 'var(--accent)', OFSI: 'var(--amber)', FINCEN: 'var(--violet)', DOJ: 'var(--red)', HMRC: 'var(--green)', BIS: 'var(--blue)' };
 const ALABEL: Record<Authority, string> = { OFAC: 'OFAC', OFSI: 'OFSI', FINCEN: 'FinCEN', DOJ: 'DOJ', HMRC: 'HMRC', BIS: 'BIS' };
 const PERIODS: [Period, string][] = [['all', 'All years'], ['10y', '10 years'], ['5y', '5 years'], ['1y', '12 months']];
 const PAGE = 50;
+const VIEW_LABEL: Record<View, string> = { targets: 'Targeted countries', flows: 'Authority to target', news: 'News reports (unverified)', reports: 'User reports (reviewed)' };
+const UNIT: Record<View, [string, string]> = { targets: ['actions', 'No published breach of a program targeting this country'], flows: ['actions', 'No published breach of a program targeting this country'], news: ['news reports, unverified', 'No news report of a breach of a program targeting this country'], reports: ['user reports, reviewed', 'No accepted user report involving this country'] };
 const NEWS_DAYS = 90;
 
 const since = (p: Period) => {
@@ -38,17 +41,26 @@ const since = (p: Period) => {
 export default function Monitoring() {
   const [data, setData] = useState<RawEnforcement | null | undefined>(undefined);
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => { document.title = 'Monitoring — Sieve'; loadEnforcement().then(setData).catch(e => setErr(String(e))); }, []);
+  const [reports, setReports] = useState<BreachReport[]>([]);
+  useEffect(() => {
+    document.title = 'Monitoring — Sieve';
+    loadEnforcement().then(setData).catch(e => setErr(String(e)));
+    loadReports().then(r => setReports(r.reports)).catch(() => setReports([]));
+  }, []);
   return (
     <>
       <Header active="Monitoring" />
       <main className="wrap page">
         <section className="blk">
           <div className="blk-h"><h1>Sanctions breach monitoring</h1><p>Penalties, disclosures and criminal cases for sanctions breaches, as the enforcing authorities publish them{data?.generatedAt ? <> · checked {data.generatedAt.slice(0, 10)}</> : null}</p></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+              <Link className="btn pri" to={reportLink()}><Icon name="warn" size={16} />Report a suspected breach</Link>
+              <span className="small muted">Seen a breach the authorities have not published? Send it with public sources; reviewed reports are added below.</span>
+            </div>
           {data === undefined && !err && <div className="card empty"><div className="skl" style={{ width: 160, height: 12, margin: '0 auto' }} /></div>}
           {err && <div className="card empty"><Icon name="warn" size={36} /><h3>Enforcement data unavailable</h3>{err}</div>}
           {data === null && <div className="card empty"><Icon name="info" size={36} /><h3>No enforcement data yet</h3>The nightly snapshot adds it from its next run.</div>}
-          {data && <Body d={data} />}
+          {data && <Body d={data} reports={reports} />}
         </section>
       </main>
       <Footer />
@@ -56,7 +68,7 @@ export default function Monitoring() {
   );
 }
 
-function Body({ d }: { d: RawEnforcement }) {
+function Body({ d, reports }: { d: RawEnforcement; reports: BreachReport[] }) {
   const [params, setParams] = useSearchParams();
   const [auth, setAuth] = useState<Set<Authority>>(new Set(AUTHORITIES));
   const [period, setPeriod] = useState<Period>('all');
@@ -66,6 +78,7 @@ function Body({ d }: { d: RawEnforcement }) {
   const shown = useMemo(() => d.actions.filter(a => auth.has(a.source) && a.date >= from), [d, auth, from]);
   const listed = useMemo(() => (country ? shown.filter(a => a.targets.includes(country)) : shown), [shown, country]);
   const newsListed = useMemo(() => { const n = d.suspected ?? []; return country ? n.filter(b => b.targets.includes(country)) : n; }, [d, country]);
+  const reportsListed = useMemo(() => (country ? reports.filter(r => r.targets.includes(country)) : reports), [reports, country]);
 
   const yearAgo = since('1y');
   const sum = (cur: string) => shown.filter(a => a.currency === cur && a.kind === 'CIVIL_PENALTY').reduce((s, a) => s + (a.amount ?? 0), 0);
@@ -92,7 +105,7 @@ function Body({ d }: { d: RawEnforcement }) {
           <span className="sp" />
           <div className="seg" role="group" aria-label="Period">{PERIODS.map(([p, l]) => <button key={p} aria-pressed={period === p} onClick={() => setPeriod(p)}>{l}</button>)}</div>
         </div>
-        <BreachMap actions={shown} news={news} selected={country} onSelect={setCountry} />
+        <BreachMap actions={shown} news={news} reports={reports} selected={country} onSelect={setCountry} />
       </div>
 
       <div className="grid g2" style={{ marginBottom: 20 }}>
@@ -119,6 +132,17 @@ function Body({ d }: { d: RawEnforcement }) {
         <div className="map-foot"><span>Articles from the GDELT news index whose title names sanctions together with evasion, a violation or an enforcement step, kept for {NEWS_DAYS} days. They report suspicions and allegations, not findings: an article may also be about lawful activity or someone else.</span></div>
       </div>
 
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-h" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h3>{country ? <span className="cl"><Flag cc={country} />Reports from users involving {countryName(country)}</span> : 'Reports from users'}</h3>
+          <span className="badge tp amber">Reviewed, not an official finding</span>
+          <span className="small muted" style={{ marginLeft: 'auto' }}>{fmt(reportsListed.length)} reports</span>
+          <Link className="btn sm" to={reportLink(country ? PROGRAM_BY_COUNTRY[country] : undefined)}>Report a suspected breach</Link>
+        </div>
+        <Reports items={reportsListed} />
+        <div className="map-foot"><span>Anyone can report a suspected sanctions breach with the report form, citing public sources; the report is filed as a public issue on GitHub. The maintainer checks each report against its sources, and only accepted reports are shown here, as their reporters wrote them. A report is an allegation backed by the linked sources, not a finding by any authority. To report a crime, contact the enforcing authority.</span></div>
+      </div>
+
       <div className="card">
         <div className="card-h"><h3>Sources</h3></div>
         <div style={{ overflowX: 'auto' }}>
@@ -131,7 +155,7 @@ function Body({ d }: { d: RawEnforcement }) {
   );
 }
 
-function BreachMap({ actions, news, selected, onSelect }: { actions: EnforcementAction[]; news: SuspectedBreach[]; selected: string | null; onSelect: (cc: string | null) => void }) {
+function BreachMap({ actions, news, reports, selected, onSelect }: { actions: EnforcementAction[]; news: SuspectedBreach[]; reports: BreachReport[]; selected: string | null; onSelect: (cc: string | null) => void }) {
   const { theme } = useTheme();
   const [features, setFeatures] = useState<F[] | null>(null);
   const [geoErr, setGeoErr] = useState(false);
@@ -146,6 +170,7 @@ function BreachMap({ actions, news, selected, onSelect }: { actions: Enforcement
   const byCountry = useMemo(() => {
     const m: Record<string, { n: number; by: Record<string, number>; usd: number; gbp: number; last: string }> = {};
     if (view === 'news') { for (const b of news) for (const cc of b.targets) { const r = (m[cc] ??= { n: 0, by: {}, usd: 0, gbp: 0, last: '' }); r.n++; if (b.seenAt.slice(0, 10) > r.last) r.last = b.seenAt.slice(0, 10); } return m; }
+    if (view === 'reports') { for (const b of reports) for (const cc of b.targets) { const r = (m[cc] ??= { n: 0, by: {}, usd: 0, gbp: 0, last: '' }); r.n++; if (b.acceptedAt > r.last) r.last = b.acceptedAt; } return m; }
     for (const a of actions) for (const cc of a.targets) {
       const r = (m[cc] ??= { n: 0, by: {}, usd: 0, gbp: 0, last: '' });
       r.n++; r.by[a.source] = (r.by[a.source] ?? 0) + 1;
@@ -153,7 +178,7 @@ function BreachMap({ actions, news, selected, onSelect }: { actions: Enforcement
       if (a.date > r.last) r.last = a.date;
     }
     return m;
-  }, [actions, news, view]);
+  }, [actions, news, reports, view]);
   const flows = useMemo(() => { const m = new Map<string, number>(); actions.forEach(a => a.targets.forEach(t => { const k = a.cc + '>' + t; m.set(k, (m.get(k) ?? 0) + 1); })); return [...m].map(([k, n]) => [...k.split('>'), n] as [string, string, number]); }, [actions]);
 
   const geo = useMemo(() => {
@@ -184,7 +209,7 @@ function BreachMap({ actions, news, selected, onSelect }: { actions: Enforcement
   return (
     <>
       <div className="tabs" role="tablist" style={{ padding: '0 16px' }}>
-        {(['targets', 'flows', 'news'] as View[]).map(v => <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{v === 'targets' ? 'Targeted countries' : v === 'flows' ? 'Authority to target' : 'News reports (unverified)'}</button>)}
+        {(['targets', 'flows', 'news', 'reports'] as View[]).map(v => <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{VIEW_LABEL[v]}</button>)}
       </div>
       <div className="map-wrap" ref={wrap}>
         {geo && (
@@ -204,17 +229,17 @@ function BreachMap({ actions, news, selected, onSelect }: { actions: Enforcement
         )}
         {!geo && !geoErr && <div className="empty"><div className="skl" style={{ width: 160, height: 12, margin: '0 auto' }} /></div>}
         {geoErr && <div className="empty"><Icon name="globe" size={36} /><h3>Map geometry unavailable</h3></div>}
-        {geo && <div className="legend"><span className="num">0</span><span className="bar" style={{ background: `linear-gradient(90deg,${cssVar('--map-0')},${cssVar('--map-1')},${cssVar('--map-2')})` }} /><span className="num">{fmt(geo.max)}</span><span>{view === 'news' ? 'news reports' : 'actions'}</span></div>}
+        {geo && <div className="legend"><span className="num">0</span><span className="bar" style={{ background: `linear-gradient(90deg,${cssVar('--map-0')},${cssVar('--map-1')},${cssVar('--map-2')})` }} /><span className="num">{fmt(geo.max)}</span><span>{UNIT[view][0].split(',')[0]}</span></div>}
         {tip && (
           <div className="tip on" style={{ left: tip.x, top: tip.y }}>
             <div className="t"><Flag cc={tip.cc} />{countryName(tip.cc)}</div>
-            <div className="n num">{fmt(t?.n ?? 0)}<span className="small muted" style={{ fontSize: 12 }}> {view === 'news' ? 'news reports, unverified' : 'actions'}</span></div>
+            <div className="n num">{fmt(t?.n ?? 0)}<span className="small muted" style={{ fontSize: 12 }}> {UNIT[view][0]}</span></div>
             {t ? <>
               {AUTHORITIES.filter(a => t.by[a]).map(a => <div key={a} className="row"><span>{ALABEL[a]}</span><span className="num">{fmt(t.by[a])}</span></div>)}
               {t.usd > 0 && <div className="row"><span>Penalties (USD)</span><span className="num">{money(t.usd, 'USD')}</span></div>}
               {t.gbp > 0 && <div className="row"><span>Penalties (GBP)</span><span className="num">{money(t.gbp, 'GBP')}</span></div>}
               <div className="row"><span>Latest</span><span className="num">{t.last}</span></div>
-            </> : <div className="muted">{view === 'news' ? 'No news report of a breach of a program targeting this country' : 'No published breach of a program targeting this country'}</div>}
+            </> : <div className="muted">{UNIT[view][1]}</div>}
           </div>
         )}
       </div>
@@ -291,6 +316,31 @@ function News({ items }: { items: SuspectedBreach[] }) {
               <td style={{ minWidth: 260 }}><a href={b.url} target="_blank" rel="noopener nofollow">{b.title}</a></td>
               <td><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{b.programs.map(p => <Chip key={p}>{p}</Chip>)}</div></td>
               <td className="small muted">{b.domain}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      {n < items.length && <div className="map-foot"><span>Showing {fmt(n)} of {fmt(items.length)}</span><button className="btn sm" onClick={() => setN(v => v + 100)}>Show more</button></div>}
+    </>
+  );
+}
+
+function Reports({ items }: { items: BreachReport[] }) {
+  const [n, setN] = useState(25);
+  useEffect(() => setN(25), [items]);
+  if (!items.length) return <div className="empty">No accepted reports in this selection.</div>;
+  return (
+    <>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="tbl">
+          <thead><tr><th>Accepted</th><th>Reported party</th><th>Programs</th><th>Sources</th><th /></tr></thead>
+          <tbody>{items.slice(0, n).map(r => (
+            <tr key={r.id}>
+              <td className="num" style={{ whiteSpace: 'nowrap' }}>{r.acceptedAt}</td>
+              <td style={{ minWidth: 260 }}>{r.party}<div className="xs muted">{r.summary}</div>{(r.when || r.where) && <div className="xs muted">{[r.when, r.where].filter(Boolean).join(' · ')}</div>}</td>
+              <td><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{r.programs.map(p => <Chip key={p}>{p}</Chip>)}{r.otherProgram && <Chip>Other</Chip>}</div></td>
+              <td className="small">{r.sources.map(u => <div key={u}><a href={u} target="_blank" rel="noopener nofollow ugc" className="cl">{host(u)} <Icon name="ext" size={12} /></a></div>)}</td>
+              <td><a href={r.url} target="_blank" rel="noopener" className="small" style={{ whiteSpace: 'nowrap' }}>Report #{r.issue}</a></td>
             </tr>
           ))}</tbody>
         </table>

@@ -73,3 +73,5 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Test breach report scripts
+        run: npm test

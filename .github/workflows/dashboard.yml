@@ -19,6 +19,8 @@ on:
 
 permissions:
   contents: read
+  # Reads the breach reports accepted on issues
+  issues: read
 
 concurrency:
   group: dashboard
@@ -106,6 +108,10 @@ jobs:
         with:
           name: dashboard-snapshot
           path: dashboard/dist/data
+      - name: Collect accepted breach reports
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node dashboard/scripts/breach-reports.mjs collect dashboard/dist/data/reports.json || echo "Breach reports not collected"
       - uses: actions/upload-artifact@v4
         with:
           name: dashboard-site
