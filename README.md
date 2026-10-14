@@ -26,7 +26,7 @@ Releases are not yet tagged; `main` is built and tested on every change and the 
 
 ## Demo
 
-A recording of the [dashboard](#dashboard) on the real lists: screening a name, one profile combining a person's records across lists, and that person's association graph. It is kept in [`docs/demo/`](docs/demo/) and re-recorded by the Demo workflow when the dashboard changes.
+A recording of the [dashboard](#dashboard) on the real lists: the About page, the overview, screening a name, one profile combining a person's records across lists, that person's association graph, the list's own page, what changed overnight, sanctions enforcement monitoring and the form for reporting a suspected breach. It is kept in [`docs/demo/`](docs/demo/) and re-recorded by the Demo workflow when the dashboard changes.
 
 <p align="center">
   <img src="docs/demo/walkthrough.gif" alt="Walkthrough: screening a name, one profile across lists, the association graph" width="640">
