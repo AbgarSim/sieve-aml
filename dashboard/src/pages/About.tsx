@@ -32,7 +32,7 @@ export default function About() {
             <h2 id="about-me">Abgar Simonean</h2>
             <p className="muted small">Author of Sieve</p>
             <p>I have spent much of my career in finance, building financial applications for many years. I have worked on the development of central bank applications and settlement engines, and on sanctions screening and AML compliance projects.</p>
-            <p>That work left me concerned about sanctions hygiene in the current landscape of the world. I built Sieve as an open-source sanctions project, so that anyone can run it, inspect it and improve it.</p>
+            <p>I am concerned about sanctions hygiene in the current landscape of the world. I built Sieve as an open-source sanctions project, so that anyone can run it, inspect it and improve it.</p>
           </div>
         </section>
       </main>
