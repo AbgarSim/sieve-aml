@@ -43,7 +43,9 @@ In dev and preview, `/data/` is served from `$SIEVE_DATA_DIR`, else `../snapshot
 
 ## Demo
 
-`demo/record.mjs` records the demo from a built site, so that the demo is the application as built that night. It picks from `search-index.json` the person on OFAC SDN who is on the most other lists (the person on the most lists when none is on OFAC SDN; ties go to the most relations), drives the site in a headless Chromium with a drawn pointer and captions (overview, search typed letter by letter, the profile, the association graph, a list's page, the light theme) and records a video (`walkthrough.webm` and `.mp4`), a GIF of the screening steps encoded coarser, then cut shorter, to stay under 4 MB (the Demo page omits the GIF link when it still cannot), and a screenshot per step. With `--api` it waits for a Vert.x server to report a loaded index (the workflow first waits for every list to be in, so start the server and let it finish loading before recording locally) and records a health call, a screening of the name as listed, a misspelling and a batch; with `--cli` it runs `sieve screen` (which fetches OFAC SDN first). Everything, with timings, goes into `demo/manifest.json`, which the Demo page (`/demo`) reads; the files are listed in it so that the workflow can carry a demo over when a night's recording fails.
+`demo/record.mjs` records the demo from a built site. It picks from `search-index.json` the person on OFAC SDN who is on the most other lists (the person on the most lists when none is on OFAC SDN; ties go to the most relations), drives the site in a headless Chromium with a drawn pointer and captions (overview, search typed letter by letter, the profile, the association graph, a list's page, the light theme) and records a video (`walkthrough.webm` and `.mp4`), a GIF of the screening steps encoded coarser, then cut shorter, to stay under 4 MB, and a screenshot per step. With `--api` it waits for a Vert.x server to report a loaded index (start the server and let it finish loading every list before recording) and records a health call, a screening of the name as listed, a misspelling and a batch; with `--cli` it runs `sieve screen` (which fetches OFAC SDN first). Everything, with timings, goes into `manifest.json` next to the files.
+
+The demo is not part of the published site. `.github/workflows/demo.yml`, run by hand, builds the site from the branch it runs on, serves it with `demo/serve.py` (which takes the data files from the published site), records it and commits the GIF and the step screenshots to `docs/demo/` on that branch, where the README shows them.
 
 ```bash
 npm run build && npm run preview                       # in one terminal: the site on a snapshot, port 4173
@@ -55,8 +57,8 @@ It needs `ffmpeg` and the Chromium that `npx playwright install chromium` fetche
 
 ## Publish
 
-`.github/workflows/dashboard.yml` runs nightly at 03:00 UTC: it fetches every list, writes the snapshot, builds this site with last night's demo carried over from the published site, records tonight's demo from the built site and the server once every list is loaded, and deploys everything to GitHub Pages. A failed recording keeps last night's demo. It needs **Settings → Pages → Source: GitHub Actions**. A run with the `sources` input set builds and records but does not deploy.
+`.github/workflows/dashboard.yml` runs nightly at 03:00 UTC: it fetches every list, writes the snapshot, builds this site and deploys it to GitHub Pages. It needs **Settings → Pages → Source: GitHub Actions**. A run with the `sources` input set builds but does not deploy.
 
-Routes: `/`, `/search?q=&source=&topic=&country=`, `/entity/SOURCE/id`, `/source/SOURCE`, `/demo`, `/components`.
+Routes: `/` (about the project and its author), `/overview?section=`, `/search?q=&source=&topic=&country=`, `/entity/SOURCE/id`, `/source/SOURCE`, `/components`. The author's photo is `public/about/abgar-simonean.jpg`; the About page shows initials until it is there.
 
 Sieve is a screening tool, not legal advice. Official lists are authoritative.
