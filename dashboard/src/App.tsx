@@ -7,6 +7,7 @@ import About from './pages/About';
 import Sources from './pages/Sources';
 import Changes from './pages/Changes';
 import Monitoring from './pages/Monitoring';
+import Report from './pages/Report';
 import ComponentSheet from './pages/ComponentSheet';
 
 /** The site opens on About; links from before the overview moved to /overview still land there. */
@@ -26,6 +27,7 @@ export default function App() {
       <Route path="/source/:id" element={<Source />} />
       <Route path="/changes" element={<Changes />} />
       <Route path="/monitoring" element={<Monitoring />} />
+      <Route path="/report" element={<Report />} />
       <Route path="/components" element={<ComponentSheet />} />
     </Routes>
   );

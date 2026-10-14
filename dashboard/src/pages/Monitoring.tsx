@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import type { Feature, Geometry } from 'geojson';
@@ -54,7 +54,7 @@ export default function Monitoring() {
         <section className="blk">
           <div className="blk-h"><h1>Sanctions breach monitoring</h1><p>Penalties, disclosures and criminal cases for sanctions breaches, as the enforcing authorities publish them{data?.generatedAt ? <> · checked {data.generatedAt.slice(0, 10)}</> : null}</p></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-              <a className="btn pri" href={reportLink()} target="_blank" rel="noopener"><Icon name="warn" size={16} />Report a suspected breach</a>
+              <Link className="btn pri" to={reportLink()}><Icon name="warn" size={16} />Report a suspected breach</Link>
               <span className="small muted">Seen a breach the authorities have not published? Send it with public sources; reviewed reports are added below.</span>
             </div>
           {data === undefined && !err && <div className="card empty"><div className="skl" style={{ width: 160, height: 12, margin: '0 auto' }} /></div>}
@@ -137,10 +137,10 @@ function Body({ d, reports }: { d: RawEnforcement; reports: BreachReport[] }) {
           <h3>{country ? <span className="cl"><Flag cc={country} />Reports from users involving {countryName(country)}</span> : 'Reports from users'}</h3>
           <span className="badge tp amber">Reviewed, not an official finding</span>
           <span className="small muted" style={{ marginLeft: 'auto' }}>{fmt(reportsListed.length)} reports</span>
-          <a className="btn sm" href={reportLink(country ? PROGRAM_BY_COUNTRY[country] : undefined)} target="_blank" rel="noopener">Report a suspected breach</a>
+          <Link className="btn sm" to={reportLink(country ? PROGRAM_BY_COUNTRY[country] : undefined)}>Report a suspected breach</Link>
         </div>
         <Reports items={reportsListed} />
-        <div className="map-foot"><span>Anyone can report a suspected sanctions breach through a public form on GitHub, citing public sources. The maintainer checks each report against its sources, and only accepted reports are shown here, as their reporters wrote them. A report is an allegation backed by the linked sources, not a finding by any authority. To report a crime, contact the enforcing authority.</span></div>
+        <div className="map-foot"><span>Anyone can report a suspected sanctions breach with the report form, citing public sources; the report is filed as a public issue on GitHub. The maintainer checks each report against its sources, and only accepted reports are shown here, as their reporters wrote them. A report is an allegation backed by the linked sources, not a finding by any authority. To report a crime, contact the enforcing authority.</span></div>
       </div>
 
       <div className="card">
