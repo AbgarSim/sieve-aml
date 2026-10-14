@@ -1,0 +1,36 @@
+name: TEMP probe
+on:
+  push:
+    branches: [claude/sanctions-breach-monitoring-ekuuag]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Candidate sources
+        run: |
+          UA="sieve-aml (+https://github.com/AbgarSim/sieve-aml)"
+          get() { echo "=== $1"; curl -gsSL -A "$UA" --max-time 40 -o out -w "%{http_code} %{content_type} %{size_download}\n" "$1" || echo FAIL; }
+          get "https://www.gov.uk/api/search.json?filter_organisations=office-of-trade-sanctions-implementation&count=50&fields=title,link,public_timestamp,content_store_document_type"
+          python3 -c "import json;d=json.load(open('out'));print(d.get('total'));[print(r.get('public_timestamp','')[:10],r.get('content_store_document_type'),r['title'][:100],r['link']) for r in d['results'][:50]]" || head -c 500 out
+          get "https://www.gov.uk/api/search.json?q=compound+settlement+export+control&count=40&fields=title,link,public_timestamp,content_store_document_type"
+          python3 -c "import json;d=json.load(open('out'));print(d.get('total'));[print(r.get('public_timestamp','')[:10],r.get('content_store_document_type'),r['title'][:100],r['link']) for r in d['results'][:40]]" || head -c 500 out
+          get "https://www.gov.uk/api/content/government/collections/notices-to-exporters"
+          python3 -c "import json;d=json.load(open('out'));print(d['title']);b=json.dumps(d);import re;print(len(b));[print(m) for m in sorted(set(re.findall(r'notice-to-exporters-20\d\d-\d+[^\"]{0,80}',b)))[:60]]" || head -c 300 out
+          for u in https://www.bis.gov/enforcement https://www.bis.gov/enforcement/penalties https://www.bis.gov/about-bis/bis-leadership-and-offices/EE https://www.bis.gov/news-updates "https://efoia.bis.doc.gov/index.php/electronic-foia/index-of-documents/7-electronic-foia/227-export-violations"; do
+            get "$u"; grep -oiE '(penalt|settle|order)[^<]{0,80}' out | head -8
+          done
+          get "https://www.federalreserve.gov/supervisionreg/enforcementactions.htm"
+          grep -oE '[a-zA-Z0-9/_.-]+\.(json|csv)' out | sort -u | head
+          get "https://www.federalreserve.gov/json/enforcementactions.json"; head -c 600 out; echo
+          get "https://www.dfs.ny.gov/industry-guidance/enforcement-actions"
+          grep -oiE '(sanction|OFAC)[^<]{0,100}' out | head -8; grep -oE 'href="[^"]*(enforcement|consent)[^"]*"' out | head -10
+          get "https://www.occ.gov/topics/laws-and-regulations/enforcement-actions/index-enforcement-actions.html"
+          grep -oE 'href="[^"]*"' out | grep -i -E 'search|csv|xls|api' | head
+          get "https://apps.occ.gov/EASearch/"; head -c 300 out; echo
+          get "https://www.sec.gov/litigation/litreleases.json"; head -c 200 out; echo
+          get "https://www.dfat.gov.au/international-relations/security/sanctions/enforcement"; grep -oiE '(penalt|convict|prosecut)[^<]{0,100}' out | head -5
+          get "https://www.seco.admin.ch/seco/en/home/Aussenwirtschaftspolitik_Wirtschaftliche_Zusammenarbeit/Wirtschaftsbeziehungen/exportkontrollen-und-sanktionen/sanktionen-embargos.html"; echo
+          get "https://www.om.nl/onderwerpen/sancties"; grep -oiE 'sanctie[^<]{0,100}' out | head -5
+          get "https://www.justice.gov/nsd/national-security-division-corporate-enforcement"; grep -oiE '(declin|resolution)[^<]{0,100}' out | head -5
+          get "https://www.gov.uk/government/collections/enforcement-of-trade-sanctions"; grep -oiE 'penalt[^<]{0,100}' out | head -5
+          get "https://www.gov.uk/api/content/government/publications/hmrc-compound-settlements-for-breaches-of-export-control-and-sanctions"; head -c 400 out; echo
