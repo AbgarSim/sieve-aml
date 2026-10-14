@@ -6,7 +6,6 @@ import type { Feature, Geometry } from 'geojson';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import WORLD from 'world-atlas/countries-110m.json?url';
 import { Flag } from '../../components/Flag';
-import { SectionLink } from '../../components/Header';
 import { HBar } from '../../components/HBar';
 import { SlideOver } from '../../components/SlideOver';
 import { Chip, StatusDot } from '../../components/Badges';
@@ -158,7 +157,7 @@ export function WorldMap() {
 
       <SlideOver open={!!sel} onClose={() => setSel(null)} title={sel && <><Flag cc={sel.cc} />{sel.name}</>}
         aside={sel && (tab === 'authorities' ? <span className="badge acc">Authority</span> : <Chip>{sel.cc}</Chip>)}
-        footer={sel && (tab === 'authorities' ? <SectionLink id="sources" className="btn" onClick={() => setSel(null)}>Open sources table</SectionLink> : <><button className="btn pri" onClick={() => nav(`/search?country=${sel.cc}`)}>View entities <Icon name="right" /></button><button className="btn" onClick={() => setSel(null)}>Close</button></>)}>
+        footer={sel && (tab === 'authorities' ? <button className="btn" onClick={() => nav('/sources')}>Open sources</button> :<><button className="btn pri" onClick={() => nav(`/search?country=${sel.cc}`)}>View entities <Icon name="right" /></button><button className="btn" onClick={() => setSel(null)}>Close</button></>)}>
         {sel && (tab === 'authorities' ? <AuthorityPanel c={sel} /> : <CountryPanel c={sel} v={cval(sel)} sources={sources} basis={basis} type={type} />)}
       </SlideOver>
     </div>

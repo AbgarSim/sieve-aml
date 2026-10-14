@@ -1,29 +1,12 @@
 import { Fragment } from 'react';
-import * as d3 from 'd3';
 import { LineChart } from '../../components/LineChart';
-import { SIEVE } from '../../data/snapshot';
 import { BENCH } from '../../data/benchmarks';
 import { fmt } from '../../lib/format';
 
 const DOCS = 'https://github.com/AbgarSim/sieve-aml/blob/main/' + BENCH.source;
 
-/** Fetch time of every list in tonight's snapshot. Lists are fetched in parallel, so bars start together. */
-function IngestChart() {
-  const rows = SIEVE.sources.filter(s => s.fetchMs != null).sort((a, b) => (b.fetchMs ?? 0) - (a.fetchMs ?? 0));
-  if (!rows.length) return <span className="muted small">No fetch timings in this snapshot.</span>;
-  const tmax = (d3.max(rows, r => r.fetchMs!) ?? 1) * 1.04, w = 600, rh = 11, h = rows.length * rh + 22, lw = 118;
-  const x = d3.scaleLinear([0, tmax], [lw, w - 8]);
-  const fill = (s: (typeof rows)[number]) => (s.status === 'failed' ? 'var(--red)' : s.status !== 'loaded' ? 'var(--amber)' : s.fetchMs! > 3000 ? 'var(--map-2)' : 'var(--map-1)');
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto', fontFamily: "'JetBrains Mono', monospace", fontSize: 9 }} role="img" aria-label="Fetch time per list">
-      {x.ticks(6).map(t => <g key={t}><line x1={x(t)} x2={x(t)} y1={0} y2={h - 18} stroke="var(--border)" /><text x={x(t)} y={h - 5} textAnchor="middle" fill="var(--muted)">{t >= 1000 ? (t / 1000).toFixed(1) + 's' : t + 'ms'}</text></g>)}
-      {rows.map((r, i) => <g key={r.id}><text x={lw - 8} y={i * rh + 8} textAnchor="end" fill="var(--text-2)">{r.name}</text><rect x={x(0)} y={i * rh + 1} width={Math.max(2, x(r.fetchMs!) - x(0))} height={rh - 3} rx={2} fill={fill(r)}><title>{`${r.name}: ${fmt(r.fetchMs!)} ms`}</title></rect></g>)}
-    </svg>
-  );
-}
-
-function Card({ t, s, foot, span, children }: { t: string; s: string; foot: React.ReactNode; span?: boolean; children: React.ReactNode }) {
-  return <div className="card" style={span ? { gridColumn: '1 / -1' } : undefined}><div className="card-h"><h3>{t}</h3><span className="xs muted">{s}</span></div><div className="card-b">{children}</div><div className="card-f">{foot}</div></div>;
+function Card({ t, s, foot, children }: { t: string; s: string; foot: React.ReactNode; children: React.ReactNode }) {
+  return <div className="card"><div className="card-h"><h3>{t}</h3><span className="xs muted">{s}</span></div><div className="card-b">{children}</div><div className="card-f">{foot}</div></div>;
 }
 
 export function Benchmarks() {
@@ -52,7 +35,6 @@ export function Benchmarks() {
             <tbody>{B.thresholds.map(r => <tr key={r[0]}><td className="num" style={{ color: 'var(--heading)' }}>{r[0].toFixed(2)}</td><td className="r num">{fmt(r[1])}</td><td className="r num">{r[2]}</td><td className="r num">{r[3]}</td></tr>)}</tbody>
           </table>
         </Card>
-        <Card t="Ingest timeline" s={`tonight's fetch of ${SIEVE.sources.length} lists, in parallel`} foot={<>Measured by the nightly snapshot run · {SIEVE.snapshot.date}</>} span><IngestChart /></Card>
       </div>
     </>
   );

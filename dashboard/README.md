@@ -18,7 +18,8 @@ The site is static. At runtime it reads the files written by `sieve snapshot` fr
 | `entities/SOURCE/N.json` | entity profiles |
 | `relations.json` | association graph on the entity page, loaded on first use |
 | `enforcement.json` | Monitoring page: published sanctions enforcement actions (OFAC civil penalties, OFSI penalties and disclosures, FinCEN actions, DOJ criminal cases) with the programs breached and the countries they target, and news of suspected breaches (`suspected`, unverified), loaded on first use |
-| `seen.json` | not read by the UI: when each record was first seen and last changed, carried from night to night |
+| `changes.json` | What changed page and the About and Overview strips: per night, the records that appeared, left or changed (counts per list, the first 200 records of each kind), last 30 nights, loaded on first use |
+| `seen.json` | not read by the UI: when each record was first seen and last changed, with its name and type, carried from night to night |
 
 
 One entity listed by several authorities is matched across lists when the snapshot is written (by name, identifiers and date of birth); the records of such an entity share a group id (`g` in `search-index.json`), which the search folds into one result and the entity page lists as the same entity on other lists. `overview.json` counts the distinct entities in `dedup`, and each list's row in `sources.json` says in `onOtherLists` how many of its records another list also carries.
