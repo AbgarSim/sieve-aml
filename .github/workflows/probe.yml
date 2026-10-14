@@ -10,6 +10,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21', cache: maven }
       - run: mvn -B -ntp -q package -pl sieve-cli -am -DskipTests
+      - name: FinCEN penalties
         run: |
           J=sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar
           start=$(date +%s)
