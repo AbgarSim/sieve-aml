@@ -52,11 +52,58 @@ function collect<T>(recs: Rec[], get: (r: RawEntity) => T[] | undefined, key: (v
   return [...out.values()];
 }
 
-const goTo = (n: number) => document.getElementById(`src-${n}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-/** Reference numbers of the sources stating a value, left out when every source states it; each one scrolls to that source's section. */
-function Refs({ refs, recs }: { refs: number[]; recs: Rec[] }) {
+/** Reference numbers of the sources stating a value, left out when every source states it; each one opens that source's record. */
+function Refs({ refs, recs, go }: { refs: number[]; recs: Rec[]; go: (n: number) => void }) {
   if (recs.length < 2 || refs.length === recs.length) return null;
-  return <span className="refs">{refs.map(n => <button key={n} onClick={() => goTo(n)} title={recs[n - 1].src?.name ?? recs[n - 1].e.source}>{n}</button>)}</span>;
+  return <span className="refs">{refs.map(n => <button key={n} onClick={() => go(n)} title={recs[n - 1].src?.name ?? recs[n - 1].e.source}>{n}</button>)}</span>;
+}
+
+/** A field on which one list's record differs from the others: what only this record states, and what the others state. */
+interface Diff { field: string; mine: string[]; theirs: string[]; noun?: [string, string] }
+
+const sameText = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+/** A partial date agrees with a fuller one: 1965 and 1965-03-01 are not a disagreement. */
+const sameDate = (a: string, b: string) => a.startsWith(b) || b.startsWith(a);
+const nameKey = (n: string) => normalize(n).split(' ').filter(Boolean).sort().join(' ');
+const addrKey = (a: string) => a.toLowerCase().replace(/[\s,.]+/g, ' ').trim();
+const idText = (i: NonNullable<RawEntity['identifiers']>[number]) => `${ID_TYPE[i.type] ?? i.type} ${i.value}`;
+const idKey = (i: NonNullable<RawEntity['identifiers']>[number]) => `${i.type}:${i.value.replace(/[\s-]/g, '').toUpperCase()}`;
+
+/**
+ * The fields on which a record disagrees with the entity's other records, or adds to them: a value it states that no other
+ * record states. Listing details (programs, dates) are left out, since every list has its own.
+ */
+function differences(x: Rec, recs: Rec[]): Diff[] {
+  const others = recs.filter(o => o !== x);
+  if (!others.length) return [];
+  const out: Diff[] = [];
+  const cmp = (field: string, get: (r: RawEntity) => string[], same = sameText, known = get, noun?: [string, string]) => {
+    const mine = get(x.r).filter(Boolean), stated = others.flatMap(o => known(o.r)).filter(Boolean);
+    const only = mine.filter(v => !stated.some(t => same(v, t)));
+    if (!only.length) return;
+    const theirs = others.flatMap(o => get(o.r)).filter(Boolean).filter((v, i, vs) => vs.findIndex(w => same(v, w)) === i);
+    out.push({ field, mine: only, theirs, noun });
+  };
+  const allNames = (r: RawEntity) => [r.primaryName, ...(r.aliases ?? [])].map(n => n.fullName);
+  const person = RAW_TYPE[x.r.entityType] === 'individual';
+  cmp('Name', r => [r.primaryName.fullName], (a, b) => nameKey(a) === nameKey(b), allNames);
+  cmp('Aliases', r => (r.aliases ?? []).map(n => n.fullName), (a, b) => nameKey(a) === nameKey(b), allNames, ['alias', 'aliases']);
+  if (person) {
+    cmp('Date of birth', r => r.datesOfBirth ?? [], sameDate);
+    cmp('Place of birth', r => r.placesOfBirth ?? []);
+    cmp('Gender', r => (r.gender ? [GENDER[r.gender] ?? r.gender] : []));
+  }
+  cmp(person ? 'Nationality' : 'Jurisdiction', r => r.nationalities ?? []);
+  cmp('Citizenship', r => r.citizenships ?? []);
+  if (x.r.vessel) {
+    cmp('Flag', r => (r.vessel?.flag ? [r.vessel.flag] : []));
+    cmp('Call sign', r => (r.vessel?.callSign ? [r.vessel.callSign] : []));
+  }
+  cmp('Addresses', r => (r.addresses ?? []).map(address), (a, b) => addrKey(a) === addrKey(b), undefined, ['address', 'addresses']);
+  const knownIds = new Set(others.flatMap(o => (o.r.identifiers ?? []).map(idKey)));
+  const onlyIds = (x.r.identifiers ?? []).filter(i => !knownIds.has(idKey(i)));
+  if (onlyIds.length) out.push({ field: 'Identifiers', mine: onlyIds.map(idText), theirs: [], noun: ['identifier', 'identifiers'] });
+  return out;
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -83,7 +130,7 @@ export default function Entity() {
   if (error) return <Shell><div className="card empty"><Icon name="warn" size={36} /><h3>Snapshot unavailable</h3><p>{error}</p></div></Shell>;
   if (!ix || recs === undefined) return <Shell><div className="card" style={{ padding: 24, display: 'grid', gap: 12 }}><div className="skl" style={{ height: 28, width: '40%' }} /><div className="skl" style={{ height: 14, width: '25%' }} /><div className="skl" style={{ height: 180 }} /></div></Shell>;
   if (!entry || !recs) return <Shell><div className="card empty"><Icon name="warn" size={36} /><h3>No record {key}</h3><p>It is not in the latest snapshot; it may have been delisted. <Link to="/search">Back to search</Link></p></div></Shell>;
-  return <Shell><Profile ix={ix} entry={entry} recs={recs} toast={toast} /></Shell>;
+  return <Shell><Profile key={entry.key} ix={ix} entry={entry} recs={recs} toast={toast} /></Shell>;
 }
 
 function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Rec[]; toast: ReturnType<typeof useToast> }) {
@@ -93,6 +140,10 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
     loadNews().then(n => live && setNews({ days: n.days, records: n.records ?? {} }), () => {});
     return () => { live = false; };
   }, []);
+  // Which lists' records are expanded: a lone record is open, several start collapsed to one line each
+  const [open, setOpen] = useState<Set<number>>(() => new Set(recs.length === 1 ? [1] : []));
+  const toggle = (n: number) => setOpen(s => { const t = new Set(s); t.has(n) ? t.delete(n) : t.add(n); return t; });
+  const goTo = (n: number) => { setOpen(s => new Set(s).add(n)); requestAnimationFrame(() => document.getElementById(`src-${n}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
   const D = SIEVE, S = D.snapshot;
   const here = recs.find(x => x.e.key === entry.key) ?? recs[0];
   const rec = here.r, type = RAW_TYPE[rec.entityType], isPerson = type === 'individual';
@@ -145,8 +196,8 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
   const copy = async () => { const u = location.href; try { await navigator.clipboard.writeText(u); toast.show('Permalink copied'); } catch { prompt('Copy permalink', u); } };
   const download = () => { const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([JSON.stringify(recs.map(x => x.r), null, 2)], { type: 'application/json' })), download: `${entry.source}-${entry.id}.json` }); a.click(); URL.revokeObjectURL(a.href); toast.show('Downloading JSON'); };
   const Row = ({ k, children }: { k: string; children: ReactNode }) => <tr><th>{k}</th><td>{children}</td></tr>;
-  const Vals = ({ xs, mono, render }: { xs: Sourced<string>[]; mono?: boolean; render?: (v: string) => ReactNode }) => xs.length === 1 && recs.length < 2 ? <span className={mono ? 'num' : ''}>{render ? render(xs[0].v) : xs[0].v}</span> : <ul>{xs.map(x => <li key={x.v}><span className={mono ? 'num' : ''}>{render ? render(x.v) : x.v}</span><Refs refs={x.refs} recs={recs} /></li>)}</ul>;
-  const nameRow = (a: Sourced<RawName>) => <li key={a.v.fullName + a.v.nameType}><span className={a.v.strength === 'WEAK' ? 'muted' : ''}>{a.v.fullName}</span> <span className="xs muted num">{NAME_TYPE[a.v.nameType] ?? a.v.nameType.toLowerCase()}{a.v.strength === 'WEAK' && ' · weak'}</span><Refs refs={a.refs} recs={recs} /></li>;
+  const Vals = ({ xs, mono, render }: { xs: Sourced<string>[]; mono?: boolean; render?: (v: string) => ReactNode }) => xs.length === 1 && recs.length < 2 ? <span className={mono ? 'num' : ''}>{render ? render(xs[0].v) : xs[0].v}</span> : <ul>{xs.map(x => <li key={x.v}><span className={mono ? 'num' : ''}>{render ? render(x.v) : x.v}</span><Refs refs={x.refs} recs={recs} go={goTo} /></li>)}</ul>;
+  const nameRow = (a: Sourced<RawName>) => <li key={a.v.fullName + a.v.nameType}><span className={a.v.strength === 'WEAK' ? 'muted' : ''}>{a.v.fullName}</span> <span className="xs muted num">{NAME_TYPE[a.v.nameType] ?? a.v.nameType.toLowerCase()}{a.v.strength === 'WEAK' && ' · weak'}</span><Refs refs={a.refs} recs={recs} go={goTo} /></li>;
   const entityLink = (o: Entry | undefined, fallback: string) => o
     ? <Link to={entityPath(o)} className="cl" style={{ display: 'inline-flex' }}><Icon name={TYPE_ICON[o.type]} size={14} style={{ color: 'var(--muted)' }} />{o.name}</Link>
     : <span className="muted num" title="Not among the published records">{fallback}</span>;
@@ -166,7 +217,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
       </div>
 
       <div className="eprof">
-        <div style={{ display: 'grid', gap: 20, minWidth: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 20, minWidth: 0 }}>
           <div className="card">
             <div className="card-h"><h3>Profile</h3><span className="xs muted">{recs.length > 1 ? `merged from ${recs.length} lists; numbers cite the sources stating a value when not all of them do` : `from ${srcNames[0]}`}</span></div>
             <table className="facts"><tbody>
@@ -183,7 +234,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
               {cits.length > 0 && <Row k="Citizenship"><Vals xs={cits} /></Row>}
               {countries.length > 0 && <Row k="Countries"><span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{countries.map(c => <Badge key={c} cc={c}>{D.countryByCc[c]?.name ?? countryName(c)}</Badge>)}</span></Row>}
               {addrs.length > 0 && <Row k="Addresses"><Vals xs={addrs} /></Row>}
-              {ids.length > 0 && <Row k="Identifiers"><table className="idt"><tbody>{ids.map(({ v: i, refs }) => <tr key={i.type + i.value}><td className="muted">{ID_TYPE[i.type] ?? i.type}</td><td className="num">{i.value}</td><td className="small muted">{i.issuingCountry}{i.remarks && ` · ${i.remarks}`}</td><td><Refs refs={refs} recs={recs} /></td></tr>)}</tbody></table></Row>}
+              {ids.length > 0 && <Row k="Identifiers"><table className="idt"><tbody>{ids.map(({ v: i, refs }) => <tr key={i.type + i.value}><td className="muted">{ID_TYPE[i.type] ?? i.type}</td><td className="num">{i.value}</td><td className="small muted">{i.issuingCountry}{i.remarks && ` · ${i.remarks}`}</td><td><Refs refs={refs} recs={recs} go={goTo} /></td></tr>)}</tbody></table></Row>}
               {(firstSeen || lastChange) && <Row k="Record history"><span className="small">{firstSeen && <>First seen <span className="num">{firstSeen}</span></>}{lastChange && <> · last changed <span className="num">{lastChange}</span></>}{lastSeen && <> · last seen <span className="num">{lastSeen}</span></>}</span></Row>}
             </tbody></table>
           </div>
@@ -216,7 +267,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
                     <li key={l.url}>
                       <a href={l.url} target="_blank" rel="noopener noreferrer" className="cl">{l.title ?? host(l.url)} <Icon name="ext" size={12} /></a>
                       <span className="xs muted">{host(l.url)}{l.date && <> · <span className="num">{l.date}</span></>}</span>
-                      <Refs refs={refs} recs={recs} />
+                      <Refs refs={refs} recs={recs} go={goTo} />
                     </li>))}
                   </ul>
                 </div>))}
@@ -233,7 +284,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
                   <li key={a.url}>
                     <a href={a.url} target="_blank" rel="noopener noreferrer" className="cl">{a.title || host(a.url)} <Icon name="ext" size={12} /></a>
                     <span className="xs muted">{a.domain ?? host(a.url)} · <span className="num">{day(a.seenAt)}</span>{a.mentionedAs && <> · as “{a.mentionedAs}”</>}{a.terms?.length ? <> · {a.terms.join(', ')}</> : null}</span>
-                    <Refs refs={refs} recs={recs} />
+                    <Refs refs={refs} recs={recs} go={goTo} />
                   </li>))}
                 </ul>
               </div>
@@ -251,7 +302,7 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
                       <td><b style={{ fontWeight: 500, color: 'var(--heading)' }}>{(REL[r.type] ?? [r.type, r.type])[r.dir]}</b>{r.role && <div className="xs muted">{r.role}</div>}</td>
                       <td>{entityLink(r.other, r.otherId)}{r.other && <div className="xs muted">{D.byId[r.other.source]?.name ?? r.other.source}</div>}</td>
                       <td className="small">{[r.share != null && `${r.share}%`, r.start && `from ${r.start}`, r.end && `until ${r.end}`].filter(Boolean).join(' · ') || <span className="muted">—</span>}</td>
-                      {recs.length > 1 && <td><Refs refs={r.refs} recs={recs} /></td>}
+                      {recs.length > 1 && <td><Refs refs={r.refs} recs={recs} go={goTo} /></td>}
                     </tr>))}
                   </tbody>
                 </table>
@@ -262,8 +313,8 @@ function Profile({ ix, entry, recs, toast }: { ix: Index; entry: Entry; recs: Re
           <AssociationGraph entry={entry} ix={ix} />
 
           <section>
-            <div className="blk-h" style={{ marginBottom: 12 }}><h2>Data sources</h2><p>What each list publishes on this {TYPE_LABEL[type].toLowerCase()}, as tonight's snapshot read it.</p></div>
-            <div style={{ display: 'grid', gap: 16 }}>{recs.map(x => <SourceRecord key={x.e.key} x={x} many={recs.length > 1} current={x === here} />)}</div>
+            <div className="blk-h" style={{ marginBottom: 12 }}><h2>Data sources</h2><p>{recs.length > 1 ? `One line per list; a line names the fields on which that list differs from the others. Open it for the list's full record.` : `What ${srcNames[0]} publishes on this ${TYPE_LABEL[type].toLowerCase()}, as tonight's snapshot read it.`}</p></div>
+            <div style={{ display: 'grid', gap: 12 }}>{recs.map(x => <SourceRecord key={x.e.key} x={x} many={recs.length > 1} current={x === here} open={open.has(x.n)} onToggle={() => toggle(x.n)} diffs={differences(x, recs)} />)}</div>
           </section>
         </div>
 
@@ -309,19 +360,50 @@ function Photo({ img, name, logo }: { img: RawImage; name: string; logo: boolean
 
 const Stat = ({ l, v }: { l: string; v?: string }) => <div><div className="xs muted" style={{ textTransform: 'uppercase', letterSpacing: '.04em' }}>{l}</div><div className="num" style={{ fontSize: 15, color: v ? 'var(--heading)' : 'var(--muted)' }}>{v ?? '—'}</div></div>;
 
-/** One list's record of the entity: the list's description, then what it says, with its listing details and dates. */
-function SourceRecord({ x, many, current }: { x: Rec; many: boolean; current: boolean }) {
+/**
+ * One list's record of the entity, collapsed to a line that names the list, its record and where it differs from the other
+ * lists; opened, it shows those differences, then everything the list says, with its listing details and dates.
+ */
+function SourceRecord({ x, many, current, open, onToggle, diffs }: { x: Rec; many: boolean; current: boolean; open: boolean; onToggle: () => void; diffs: Diff[] }) {
   const { r, src, e } = x;
   const progs = (r.programs ?? []).filter((p, i, ps) => ps.findIndex(q => q.code === p.code) === i);
   const aliases = (r.aliases ?? []).filter(a => a.fullName !== r.primaryName.fullName);
+  // A disagreement is a single-valued fact the lists state differently; the rest is what only this list adds
+  const differs = diffs.filter(d => !d.noun && d.theirs.length), extra = diffs.filter(d => d.noun || !d.theirs.length);
+  const extraTxt = extra.map(d => (d.noun ? `${d.mine.length} ${d.noun[d.mine.length === 1 ? 0 : 1]}` : d.field.toLowerCase())).join(', ');
+  const listed = day(r.listedDate);
   return (
     <div className={'card srcrec' + (current ? ' cur' : '')} id={`src-${x.n}`}>
-      <div className="card-h">
-        <span className="cl" style={{ minWidth: 0 }}>{many && <span className="refs"><span>{x.n}</span></span>}<Flag cc={src?.cc} /><b style={{ color: 'var(--heading)' }}>{src?.name ?? e.source}</b>{src && <Chip>{src.format}</Chip>}{current && <span className="xs muted">· the record you opened</span>}</span>
-        <span className="cl xs">{src && <Link to={`/source/${src.id}`}>About this source</Link>}</span>
-      </div>
-      <div className="card-b" style={{ display: 'grid', gap: 14 }}>
+      <button className="srch" aria-expanded={open} aria-controls={`srcb-${x.n}`} onClick={onToggle}>
+        <Icon name="right" className="cv" />
+        {many && <span className="refs"><span>{x.n}</span></span>}
+        <Flag cc={src?.cc} />
+        <b style={{ color: 'var(--heading)' }}>{src?.name ?? e.source}</b>
+        {src && <Chip>{src.format}</Chip>}
+        <span className="xs muted num">{r.id}</span>
+        {listed && <span className="xs muted">listed <span className="num">{listed}</span></span>}
+        {many && current && <span className="xs muted">· opened</span>}
+        {many && (
+          <span className={'sum' + (differs.length ? ' diff' : '')}>
+            {differs.length ? <><Icon name="warn" size={13} />Differs: {list(differs.map(d => d.field.toLowerCase()))}{extra.length > 0 && <span className="muted"> · {extraTxt} only here</span>}</>
+              : extra.length ? <>{extraTxt} only here</>
+              : <><Icon name="check" size={13} />Agrees with the other lists</>}
+          </span>
+        )}
+      </button>
+      {open && <div className="card-b" id={`srcb-${x.n}`} style={{ display: 'grid', gap: 14 }}>
         {src?.description && <p className="small" style={{ color: 'var(--text-2)' }}>{src.description}</p>}
+        {diffs.length > 0 && (
+          <div className="diffs">
+            <div className="t">Where this list differs</div>
+            {diffs.map(d => (
+              <div className="diff-row" key={d.field}>
+                <span className="f">{d.field}</span>
+                <span className="v">{d.mine.slice(0, 6).join(' · ')}{d.mine.length > 6 && <span className="muted"> +{d.mine.length - 6} more</span>}</span>
+                <span className="xs muted">{d.noun || !d.theirs.length ? 'not on the other lists' : `others: ${d.theirs.slice(0, 3).join(' · ')}`}</span>
+              </div>))}
+          </div>
+        )}
         <dl className="kv">
           <div><dt>Name on this list</dt><dd>{r.primaryName.fullName}</dd></div>
           <div><dt>Record id</dt><dd className="num">{r.id}</dd></div>
@@ -335,8 +417,8 @@ function SourceRecord({ x, many, current }: { x: Rec; many: boolean; current: bo
         {progs.length > 0 && <div><div className="flab">Programs</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{progs.map(p => <span key={p.code} title={p.name}><Chip accent>{p.code}</Chip></span>)}</div>{progs.some(p => p.name && p.name !== p.code) && <ul className="small muted" style={{ margin: '6px 0 0', paddingLeft: 16 }}>{progs.filter(p => p.name && p.name !== p.code).map(p => <li key={p.code}>{p.name}</li>)}</ul>}</div>}
         {(r.listingReasons?.length ?? 0) > 0 && <div><div className="flab">Reasons for listing</div>{r.listingReasons!.map((t, i) => <p key={i} className="small" style={{ whiteSpace: 'pre-line', marginTop: i ? 6 : 0 }}>{t}</p>)}</div>}
         {r.remarks && <div><div className="flab">Remarks</div><p className="small" style={{ whiteSpace: 'pre-line' }}>{r.remarks}</p></div>}
-        {src && <div className="xs muted cl" style={{ flexWrap: 'wrap', gap: 12 }}><span>Published by {src.authority}</span><a href={src.homepage} target="_blank" rel="noopener" className="cl">{host(src.homepage)} <Icon name="ext" size={12} /></a>{src.listUri && <a href={src.listUri} target="_blank" rel="noopener" className="cl">Data file <Icon name="ext" size={12} /></a>}</div>}
-      </div>
+        {src && <div className="xs muted cl" style={{ flexWrap: 'wrap', gap: 12 }}><span>Published by {src.authority}</span><a href={src.homepage} target="_blank" rel="noopener" className="cl">{host(src.homepage)} <Icon name="ext" size={12} /></a>{src.listUri && <a href={src.listUri} target="_blank" rel="noopener" className="cl">Data file <Icon name="ext" size={12} /></a>}<Link to={`/source/${src.id}`}>About this source</Link></div>}
+      </div>}
     </div>
   );
 }

@@ -363,7 +363,61 @@ class SnapshotWriterTest {
         assertThat(third.get("firstSeen").asText()).isEqualTo("2026-10-02");
         JsonNode records = read("seen.json").get("records");
         assertThat(records.get("UN_CONSOLIDATED/u1").get(0).asText()).isEqualTo("2026-10-01");
+        assertThat(records.get("UN_CONSOLIDATED/u1").get(3).asText()).isEqualTo("Oleg Sidorov");
         assertThat(records.size()).isEqualTo(4);
+    }
+
+    @Test
+    void shouldLogRecordsThatAppearLeaveOrChangeEachNight() throws IOException {
+        SanctionedEntity before = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia");
+        SanctionedEntity leaving = entity("2", ListSource.OFAC_SDN, "Acme Ltd", null);
+        SanctionedEntity elsewhere = entity("u1", ListSource.UN_CONSOLIDATED, "Oleg Sidorov", "RU");
+        write(
+                List.of(
+                        loaded(ListSource.OFAC_SDN, before, leaving),
+                        loaded(ListSource.UN_CONSOLIDATED, elsewhere)),
+                Instant.parse("2026-10-01T03:00:00Z"));
+
+        JsonNode firstNight = read("changes.json").get("nights");
+        assertThat(firstNight).hasSize(1);
+        assertThat(firstNight.get(0).get("date").asText()).isEqualTo("2026-10-01");
+        assertThat(firstNight.get(0).get("added").asInt()).isEqualTo(3);
+        assertThat(firstNight.get(0).get("removed").asInt()).isZero();
+
+        SanctionedEntity after = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Belarus");
+        SanctionedEntity added = entity("3", ListSource.OFAC_SDN, "Oleg Ivanov", "RU");
+        List<FetchedSource> tonight = new ArrayList<>();
+        tonight.add(loaded(ListSource.OFAC_SDN, after, added));
+        tonight.add(
+                new FetchedSource(
+                        ListSource.UN_CONSOLIDATED,
+                        FetchedSource.Status.FAILED,
+                        List.of(),
+                        Optional.empty(),
+                        Duration.ZERO,
+                        Optional.of("HTTP 503")));
+        write(tonight, NOW);
+        write(tonight, NOW.plusSeconds(3600));
+
+        JsonNode nights = read("changes.json").get("nights");
+        assertThat(nights).hasSize(2);
+        JsonNode night = nights.get(1);
+        assertThat(night.get("date").asText()).isEqualTo("2026-10-02");
+        assertThat(night.get("added").asInt()).isEqualTo(1);
+        assertThat(night.get("removed").asInt()).isEqualTo(1);
+        assertThat(night.get("changed").asInt()).isEqualTo(1);
+        assertThat(night.get("bySource").get("OFAC_SDN"))
+                .extracting(JsonNode::asInt)
+                .containsExactly(1, 1, 1);
+        assertThat(night.get("bySource").has("UN_CONSOLIDATED")).isFalse();
+        JsonNode records = night.get("records");
+        assertThat(records.get("added").get(0).get("k").asText()).isEqualTo("OFAC_SDN/3");
+        assertThat(records.get("added").get(0).get("n").asText()).isEqualTo("Oleg Ivanov");
+        assertThat(records.get("added").get(0).get("t").asText()).isEqualTo("I");
+        assertThat(records.get("added").get(0).get("c").get(0).asText()).isEqualTo("RU");
+        assertThat(records.get("removed").get(0).get("k").asText()).isEqualTo("OFAC_SDN/2");
+        assertThat(records.get("removed").get(0).get("n").asText()).isEqualTo("Acme Ltd");
+        assertThat(records.get("changed").get(0).get("k").asText()).isEqualTo("OFAC_SDN/1");
     }
 
     @Test
