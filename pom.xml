@@ -27,9 +27,11 @@
         <module>sieve-address</module>
         <module>sieve-ingest</module>
         <module>sieve-match</module>
+        <module>sieve-risk</module>
         <module>sieve-spring-server</module>
         <module>sieve-server</module>
         <module>sieve-cli</module>
+        <module>sieve-beam</module>
         <module>sieve-benchmark</module>
     </modules>
 
@@ -50,6 +52,7 @@
         <poi.version>5.3.0</poi.version>
         <pdfbox.version>3.0.5</pdfbox.version>
         <icu4j.version>78.3</icu4j.version>
+        <beam.version>2.76.0</beam.version>
 
         <!-- Test dependency versions -->
         <junit-bom.version>5.11.3</junit-bom.version>
@@ -117,6 +120,11 @@
             <dependency>
                 <groupId>dev.sieve</groupId>
                 <artifactId>sieve-match</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.sieve</groupId>
+                <artifactId>sieve-risk</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

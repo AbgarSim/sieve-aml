@@ -85,6 +85,7 @@ Supported Sanctions Lists
    api/index
    cli/index
    algorithms/index
+   behavioural-risk
    architecture/index
    performance/index
    java-api/index

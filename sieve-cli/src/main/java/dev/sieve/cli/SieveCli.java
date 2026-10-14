@@ -3,6 +3,7 @@ package dev.sieve.cli;
 import dev.sieve.cli.command.ExportCommand;
 import dev.sieve.cli.command.FetchCommand;
 import dev.sieve.cli.command.MediaCommand;
+import dev.sieve.cli.command.RiskCommand;
 import dev.sieve.cli.command.ScreenCommand;
 import dev.sieve.cli.command.SnapshotCommand;
 import dev.sieve.cli.command.StatsCommand;
@@ -27,6 +28,7 @@ import picocli.CommandLine.Command;
             ExportCommand.class,
             SnapshotCommand.class,
             MediaCommand.class,
+            RiskCommand.class,
             CommandLine.HelpCommand.class
         })
 public class SieveCli implements Runnable {
