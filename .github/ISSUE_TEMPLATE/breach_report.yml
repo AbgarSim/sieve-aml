@@ -1,0 +1,89 @@
+name: Report a suspected sanctions breach
+description: Tell Sieve about a suspected sanctions breach, backed by public sources, for review and possible listing on the Monitoring page.
+title: "[Breach report] "
+labels: ["breach-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports are reviewed by the maintainer before anything reaches the Sieve site. An accepted report is shown on the Monitoring page marked as reported by a user and reviewed, never as an official finding. A report that is not accepted is never shown there.
+
+        **This issue is public on GitHub.** Rely only on public sources, such as news articles, court filings, ship-tracking pages or company records, and do not include personal details of private individuals beyond what those sources publish. To report a crime, contact the authorities: OFAC, OFSI, your financial intelligence unit or the police.
+  - type: input
+    id: party
+    attributes:
+      label: Who is suspected
+      description: The company, vessel, person in a public role or network the report is about, as the sources name it.
+    validations:
+      required: true
+  - type: dropdown
+    id: programs
+    attributes:
+      label: Sanctions programs
+      description: The sanctions the activity may breach. Pick every one that applies.
+      multiple: true
+      options:
+        - Russia
+        - Belarus
+        - Iran
+        - North Korea
+        - Syria
+        - Cuba
+        - Venezuela
+        - Burma
+        - Sudan
+        - South Sudan
+        - Iraq
+        - Libya
+        - Yemen
+        - Afghanistan
+        - Lebanon
+        - Nicaragua
+        - Mali
+        - Somalia
+        - DR Congo
+        - Central African Republic
+        - Zimbabwe
+        - Terrorism
+        - Narcotics
+        - Proliferation
+        - Cyber
+        - Human rights
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: When
+      description: The date or period of the activity, for example 2026-09 or March to June 2026.
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Countries, ports or routes involved.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What the sources show, in a few sentences. Say what is established and what is suspected.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Public sources
+      description: One link per line. A report needs at least one.
+      placeholder: |
+        https://
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before you submit
+      options:
+        - label: Everything in this report comes from the public sources I linked.
+          required: true
+        - label: I understand this issue is public, and that Sieve shows only reports the maintainer has reviewed and accepted.
+          required: true
