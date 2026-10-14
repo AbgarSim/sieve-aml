@@ -6,45 +6,39 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Candidate sources 3
+      - name: Candidate sources 4
         run: |
           UA="sieve-aml (+https://github.com/AbgarSim/sieve-aml)"
           get() { echo "=== $1"; curl -gsSL -A "$UA" --max-time 40 -o out -w "%{http_code} %{content_type} %{size_download}\n" "$1" || echo FAIL; }
-          body() { python3 - "$1" <<'PY'
-          import json,re,html,sys;d=json.load(open('out'));b=d['details'].get('body','')
-          b=re.sub(r'</t[dh]>','|',b);b=re.sub(r'</tr>','\n',b);b=re.sub(r'</p>|<br ?/?>|</h\d>|</li>','\n',b)
-          t=html.unescape(re.sub(r'<[^>]+>','',b));t=re.sub(r'[ \t]+',' ',t);t=re.sub(r'\n\s*\n+','\n',t);print(t[:int(sys.argv[1])])
-          PY
-          }
-          get "https://www.gov.uk/api/content/government/publications/businesses-agreeing-to-a-compound-settlement-for-strategic-export-and-sanction-offences/agreed-compound-settlements-for-strategic-export-and-sanction-offences"; body 4000
-          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202615-firm-named-after-russia-sanctions-breach-settlement/notice-to-exporters-202615-firm-named-after-russia-sanctions-breach-settlement"; body 2000
-          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202429-compound-settlement-for-breaches-of-russian-sanctions-august-2024"
-          python3 -c "import json;d=json.load(open('out'));[print(a.get('url'),a.get('content_type'),a.get('attachment_type')) for a in d['details'].get('attachments',[])]"
-          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202422-second-quarter-compound-settlements"
-          python3 -c "import json;d=json.load(open('out'));[print(a.get('url'),a.get('content_type'),a.get('attachment_type')) for a in d['details'].get('attachments',[])];print(d['details'].get('body','')[:300])"
-          U=$(python3 -c "import json;d=json.load(open('out'));a=d['details'].get('attachments',[]);print(a[0]['url'] if a else '')")
-          [ -n "$U" ] && case "$U" in /*) get "https://www.gov.uk/api/content$U"; body 3000;; *) get "$U"; file out; head -c 300 out;; esac
-          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202016-uk-exporters-fined-for-unlicensed-exports"
-          python3 -c "import json;d=json.load(open('out'));[print(a.get('url'),a.get('content_type')) for a in d['details'].get('attachments',[])];print(d['details'].get('body','')[:1500])"
-          get "https://www.gov.uk/api/content/government/publications/enforcement-notice-russian-flagged-cargo-vessel-sinegorsk"; body 800
+          get "https://www.gov.uk/api/content/government/publications/businesses-agreeing-to-a-compound-settlement-for-strategic-export-and-sanction-offences/agreed-compound-settlements-for-strategic-export-and-sanction-offences"
+          python3 -c "import json;d=json.load(open('out'));b=d['details']['body'];print(b[:2500]);print('...');import re;print(re.findall(r'<h[1-4][^>]*>.*?</h[1-4]>',b))"
+          get "https://www.gov.uk/api/search.json?q=compound+settlement&filter_content_store_document_type=notice&count=200&fields=title,link,public_timestamp"
+          python3 -c "import json;d=json.load(open('out'));r=d['results'];print(len(r));[print(x['public_timestamp'][:10],x['link'],'|',x['title']) for x in r]"
+          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202429-compound-settlement-for-breaches-of-russian-sanctions-august-2024/nte-202429-compound-settlement-for-breaches-of-russian-sanctions-august-2024"
+          python3 -c "import json;d=json.load(open('out'));print(d['details']['body'][:2500])"
+          get "https://www.gov.uk/api/content/government/collections/sanctions-enforcement-action"
+          python3 -c "
+          import json;d=json.load(open('out'))
+          docs={x['content_id']:x for x in d['links'].get('documents',[])}
+          for g in d['details'].get('collection_groups',[]):
+            print('GROUP',g['title'])
+            for c in g['documents']:
+              x=docs.get(c,{});print('  ',x.get('public_updated_at','')[:10],x.get('document_type'),x.get('base_path'),'|',x.get('title'))
+          "
           get "https://www.bis.gov/news-updates"
           python3 - <<'PY'
           import re,json
           t=open('out',encoding='utf-8',errors='replace').read()
           m=re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>',t,re.S)
-          print('next data',bool(m))
-          titles=re.findall(r'\\?"title\\?":\\?"([^"\\]{10,200})',t)
-          print(len(titles))
-          for x in titles[:5]: print(' ',x)
-          hits=[x for x in titles if re.search(r'(?i)penalt|settle|charged|order|plead|sentenc|denial',x)]
-          print('hits',len(hits));[print(' H',x) for x in hits[:30]]
-          for k in ('"date"','publishedDate','"slug"','"url"'): print(k,t.count(k))
-          PY
-          get "https://www.dfs.ny.gov/industry_guidance/enforcement_actions"
-          python3 - <<'PY'
-          import re,html
-          t=open('out',encoding='utf-8',errors='replace').read()
-          rows=re.findall(r'(?s)<tr[^>]*>(.*?)</tr>',t);print('rows',len(rows))
-          for r in rows[1:6]: print(html.unescape(re.sub(r'\s+',' ',re.sub(r'<[^>]+>',' | ',r)))[:300])
-          print([html.unescape(re.sub(r'<[^>]+>','',r))[:100].strip() for r in rows if re.search(r'(?i)sanction|ofac',r)][:10])
+          d=json.loads(m.group(1))
+          def walk(o,p=''):
+            if isinstance(o,dict):
+              if 'title' in o and isinstance(o['title'],str) and 'Settlement with Lambda' in o['title']:
+                print('PATH',p);print(json.dumps(o)[:1500])
+              for k,v in o.items(): walk(v,p+'/'+k)
+            elif isinstance(o,list):
+              for i,v in enumerate(o): walk(v,p+'/'+str(i))
+          walk(d)
+          print('NEXTDATA size',len(m.group(1)))
+          i=t.find('Settlement with Lambda');print(t[max(0,i-1500):i+500])
           PY
