@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Records the demo of a built site: a browser walkthrough (video, GIF and screenshots) of the
-// dashboard, REST calls against a running Vert.x server, one CLI screening, and manifest.json.
+// dashboard (About, overview, search, profile, association graph, source page, what changed,
+// enforcement monitoring and the report form), REST calls against a running Vert.x server, one CLI screening, and manifest.json.
 //
 //   node demo/record.mjs --site http://localhost:4173/ [--api http://localhost:8080 | none]
 //        [--cli sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar | none] [--out dist/demo]
@@ -85,6 +86,12 @@ async function walkthrough() {
   let recordedPath = null;
   const at = () => Math.round((Date.now() - t0) / 100) / 10;
   const pause = ms => page.waitForTimeout(ms);
+  // Waits for a page's data: its loading placeholders gone and the network quiet
+  const settle = async () => {
+    await page.waitForFunction(() => !document.querySelector('.skl'), null, { timeout: 60000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    await pause(2500);
+  };
   const say = text => page.evaluate(t => window.__demo?.caption(t), text);
   const shot = async name => {
     await page.evaluate(() => window.__demo?.hide(true));
@@ -126,17 +133,28 @@ async function walkthrough() {
   };
 
   async function record() {
-  await page.goto(site + '#/overview', { waitUntil: 'networkidle' });
-  await page.waitForSelector('#overview .kpi');
+  await page.goto(site + '#/', { waitUntil: 'networkidle' });
+  await page.waitForSelector('.about-hero h1');
   await page.mouse.move(720, 460);
   await pause(800);
 
+  await step('about', 'About', 'Sieve: open-source sanctions screening, rebuilt every night from the official lists', async () => {
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    await pause(2500);
+    const shotName = await shot('about.png');
+    await page.evaluate(() => window.scrollBy({ top: 700, behavior: 'smooth' }));
+    await pause(2500);
+    return shotName;
+  });
+
   await step('overview', 'Overview', `${fmt(overview.totalEntities)} records from ${manifestSources()} lists, fetched and counted overnight`, async () => {
+    await go('#/overview');
+    await page.waitForSelector('#overview .kpi');
     await pause(2500);
     const shotName = await shot('overview.png');
     await scrollTo(page.locator('#map'));
     await pause(3500);
-    await scrollTo(page.locator('#sources'));
+    await scrollTo(page.locator('#composition'));
     await pause(3000);
     return shotName;
   });
@@ -206,6 +224,30 @@ async function walkthrough() {
     await page.waitForSelector('.ehd h1');
     await pause(3000);
     return shot('source.png');
+  });
+
+  await step('changes', 'What changed overnight', 'What changed overnight: new listings, delistings and changed records, per list', async () => {
+    await go('#/changes');
+    await page.waitForSelector('.page h1');
+    await settle();
+    return shot('changes.png');
+  });
+
+  await step('monitoring', 'Sanctions enforcement', 'Sanctions enforcement: published penalties and criminal cases from six authorities, on a map', async () => {
+    await go('#/monitoring');
+    await page.waitForSelector('.page h1');
+    await settle();
+    const shotName = await shot('monitoring.png');
+    await page.evaluate(() => window.scrollBy({ top: 800, behavior: 'smooth' }));
+    await pause(3000);
+    return shotName;
+  });
+
+  await step('report', 'Reporting a suspected breach', 'Anyone can report a suspected breach with its public sources; reports are published only after review', async () => {
+    await go('#/report');
+    await page.waitForSelector('.page h1');
+    await pause(3000);
+    return shot('report.png');
   });
 
   await step('light', 'Rebuilt every night', 'Rebuilt every night from the current code, in dark and light', async () => {

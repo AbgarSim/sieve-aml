@@ -50,7 +50,7 @@ jobs:
       - name: Commit the recording
         run: |
           mkdir -p docs/demo
-          for f in walkthrough.gif overview.png search.png entity.png graph.png source.png overview-light.png; do
+          for f in walkthrough.gif about.png overview.png search.png entity.png graph.png source.png changes.png monitoring.png report.png overview-light.png; do
             cp "$RUNNER_TEMP/demo/$f" docs/demo/
           done
           git add docs/demo
