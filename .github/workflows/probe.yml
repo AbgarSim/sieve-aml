@@ -6,31 +6,43 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Candidate sources
+      - name: Candidate sources 2
         run: |
           UA="sieve-aml (+https://github.com/AbgarSim/sieve-aml)"
           get() { echo "=== $1"; curl -gsSL -A "$UA" --max-time 40 -o out -w "%{http_code} %{content_type} %{size_download}\n" "$1" || echo FAIL; }
-          get "https://www.gov.uk/api/search.json?filter_organisations=office-of-trade-sanctions-implementation&count=50&fields=title,link,public_timestamp,content_store_document_type"
-          python3 -c "import json;d=json.load(open('out'));print(d.get('total'));[print(r.get('public_timestamp','')[:10],r.get('content_store_document_type'),r['title'][:100],r['link']) for r in d['results'][:50]]" || head -c 500 out
-          get "https://www.gov.uk/api/search.json?q=compound+settlement+export+control&count=40&fields=title,link,public_timestamp,content_store_document_type"
-          python3 -c "import json;d=json.load(open('out'));print(d.get('total'));[print(r.get('public_timestamp','')[:10],r.get('content_store_document_type'),r['title'][:100],r['link']) for r in d['results'][:40]]" || head -c 500 out
-          get "https://www.gov.uk/api/content/government/collections/notices-to-exporters"
-          python3 -c "import json;d=json.load(open('out'));print(d['title']);b=json.dumps(d);import re;print(len(b));[print(m) for m in sorted(set(re.findall(r'notice-to-exporters-20\d\d-\d+[^\"]{0,80}',b)))[:60]]" || head -c 300 out
-          for u in https://www.bis.gov/enforcement https://www.bis.gov/enforcement/penalties https://www.bis.gov/about-bis/bis-leadership-and-offices/EE https://www.bis.gov/news-updates "https://efoia.bis.doc.gov/index.php/electronic-foia/index-of-documents/7-electronic-foia/227-export-violations"; do
-            get "$u"; grep -oiE '(penalt|settle|order)[^<]{0,80}' out | head -8
-          done
-          get "https://www.federalreserve.gov/supervisionreg/enforcementactions.htm"
-          grep -oE '[a-zA-Z0-9/_.-]+\.(json|csv)' out | sort -u | head
-          get "https://www.federalreserve.gov/json/enforcementactions.json"; head -c 600 out; echo
-          get "https://www.dfs.ny.gov/industry-guidance/enforcement-actions"
-          grep -oiE '(sanction|OFAC)[^<]{0,100}' out | head -8; grep -oE 'href="[^"]*(enforcement|consent)[^"]*"' out | head -10
-          get "https://www.occ.gov/topics/laws-and-regulations/enforcement-actions/index-enforcement-actions.html"
-          grep -oE 'href="[^"]*"' out | grep -i -E 'search|csv|xls|api' | head
-          get "https://apps.occ.gov/EASearch/"; head -c 300 out; echo
-          get "https://www.sec.gov/litigation/litreleases.json"; head -c 200 out; echo
-          get "https://www.dfat.gov.au/international-relations/security/sanctions/enforcement"; grep -oiE '(penalt|convict|prosecut)[^<]{0,100}' out | head -5
-          get "https://www.seco.admin.ch/seco/en/home/Aussenwirtschaftspolitik_Wirtschaftliche_Zusammenarbeit/Wirtschaftsbeziehungen/exportkontrollen-und-sanktionen/sanktionen-embargos.html"; echo
-          get "https://www.om.nl/onderwerpen/sancties"; grep -oiE 'sanctie[^<]{0,100}' out | head -5
-          get "https://www.justice.gov/nsd/national-security-division-corporate-enforcement"; grep -oiE '(declin|resolution)[^<]{0,100}' out | head -5
-          get "https://www.gov.uk/government/collections/enforcement-of-trade-sanctions"; grep -oiE 'penalt[^<]{0,100}' out | head -5
-          get "https://www.gov.uk/api/content/government/publications/hmrc-compound-settlements-for-breaches-of-export-control-and-sanctions"; head -c 400 out; echo
+          strip() { python3 -c "import re,sys,html;t=open('out',encoding='utf-8',errors='replace').read();t=re.sub(r'(?s)<script.*?</script>|<style.*?</style>','',t);t=re.sub(r'<[^>]+>',' ',t);t=html.unescape(re.sub(r'\s+',' ',t));print(t[int(sys.argv[1]):int(sys.argv[1])+int(sys.argv[2])])" "$@"; }
+          get "https://www.gov.uk/api/content/government/collections/sanctions-enforcement-action"
+          python3 - <<'PY'
+          import json;d=json.load(open('out'));print(d['title'],'|',d.get('description'))
+          for g in d['details'].get('collection_groups',[]): print('GROUP',g.get('title'),len(g.get('documents',[])))
+          for l in d.get('links',{}).get('documents',[])[:40]: print(' ',l.get('public_updated_at','')[:10],l.get('document_type'),l['title'][:90],l['base_path'])
+          PY
+          get "https://www.gov.uk/api/content/government/publications/businesses-agreeing-to-a-compound-settlement-for-strategic-export-and-sanction-offences"
+          python3 - <<'PY'
+          import json;d=json.load(open('out'));print(d['title'],'|',d.get('description'))
+          det=d['details'];print(list(det.keys()))
+          for a in det.get('attachments',[])[:10]: print(' ATT',a.get('title'),a.get('url'),a.get('content_type'))
+          print(str(det.get('body',''))[:1500])
+          PY
+          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202615-firm-named-after-russia-sanctions-breach-settlement"
+          python3 - <<'PY'
+          import json,re,html;d=json.load(open('out'));det=d['details']
+          for a in det.get('attachments',[])[:5]: print(' ATT',a.get('title'),a.get('url'),a.get('content_type'))
+          b=det.get('body','');print(html.unescape(re.sub(r'<[^>]+>',' ',b))[:2500])
+          PY
+          get "https://www.gov.uk/api/content/government/publications/notice-to-exporters-202616-compound-settlement-for-breaches-of-export-control"
+          python3 - <<'PY'
+          import json,re,html;d=json.load(open('out'));det=d['details']
+          for a in det.get('attachments',[])[:5]: print(' ATT',a.get('title'),a.get('url'),a.get('content_type'))
+          b=det.get('body','');print(html.unescape(re.sub(r'<[^>]+>',' ',b))[:2500])
+          PY
+          get "https://www.gov.uk/api/search.json?filter_content_store_document_type=notice&q=notice+to+exporters+compound&count=200&fields=title,link,public_timestamp"
+          python3 -c "import json;d=json.load(open('out'));print('total',d['total']);r=[x for x in d['results'] if 'ompound' in x['title'] or 'fined' in x['title'] or 'sanction' in x['title'].lower()];print(len(r));[print(x['public_timestamp'][:10],x['title'][:110]) for x in r]"
+          get "https://www.federalreserve.gov/supervisionreg/ea-cms-recent.json"; head -c 1500 out; echo
+          python3 -c "import json;d=json.load(open('out',encoding='utf-8-sig'));print(type(d),len(d));import collections;x=d if isinstance(d,list) else list(d.values())[0];print(x[0] if x else '');s=[e for e in x if 'sanction' in json.dumps(e).lower() or 'ofac' in json.dumps(e).lower()];print('sanctions',len(s));[print(json.dumps(e)[:300]) for e in s[:8]]"
+          get "https://www.federalreserve.gov/supervisionreg/ea-old.json"; head -c 600 out; echo
+          python3 -c "import json;d=json.load(open('out',encoding='utf-8-sig'));x=d if isinstance(d,list) else list(d.values())[0];print(len(x));s=[e for e in x if 'sanction' in json.dumps(e).lower() or 'ofac' in json.dumps(e).lower()];print('sanctions',len(s));[print(json.dumps(e)[:300]) for e in s[:8]]"
+          get "https://www.bis.gov/enforcement/penalties"; strip 0 4000
+          grep -oE '"(/[^"]*\.(pdf|json))"' out | head -20
+          get "https://www.dfs.ny.gov/industry_guidance/enforcement_actions"; strip 0 2500
+          get "https://apps.occ.gov/EASearch/api/Search?Search=OFAC"; head -c 500 out; echo
