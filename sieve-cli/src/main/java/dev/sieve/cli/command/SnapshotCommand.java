@@ -76,8 +76,8 @@ public class SnapshotCommand implements Callable<Integer> {
     @Option(
             names = "--no-enforcement",
             description =
-                    "Skip fetching published sanctions enforcement actions from OFAC, OFSI, FinCEN"
-                            + " and the DOJ, and news of suspected breaches (enforcement.json)")
+                    "Skip fetching published sanctions enforcement actions from OFAC, OFSI, FinCEN,"
+                            + " the DOJ, HMRC and BIS, and news of suspected breaches (enforcement.json)")
     private boolean noEnforcement;
 
     @Override

@@ -43,7 +43,7 @@ class EnforcementFeedTest {
         assertThat(result.unread()).containsExactly("OFAC-20261013-bank-of-america-n-a");
         assertThat(result.sources())
                 .extracting(EnforcementFeed.SourceResult::loaded)
-                .containsExactly(true, false, false, false);
+                .containsExactly(true, false, false, false, false, false);
     }
 
     @Test

@@ -138,13 +138,13 @@ export default function About() {
                 </ul>
               </div>
             ) : null}>
-            <p>Listing is one half of sanctions; enforcement is the other. Sieve follows the civil penalties, disclosures and criminal cases that OFAC, OFSI, FinCEN and the US Department of Justice publish for sanctions breaches, reads the programs each one breached, and places it on the country those programs target. News reports of suspected breaches are kept apart from the official record and marked unverified.</p>
+            <p>Listing is one half of sanctions; enforcement is the other. Sieve follows the civil penalties, disclosures and criminal cases that OFAC, OFSI, FinCEN, the US Department of Justice, HMRC and the Bureau of Industry and Security publish for sanctions breaches, reads the programs each one breached, and places it on the country those programs target. News reports of suspected breaches are kept apart from the official record and marked unverified.</p>
             {enf === undefined ? <Skeleton h={48} /> : enf ? (
               <div className="grid g4 about-tiles">
                 <StatTile label="Actions" value={fmt(actions.length)} note="published enforcement actions" />
                 <StatTile label="Last 12 months" value={fmt(lastYear)} note="published in the past year" />
-                <StatTile label="US civil penalties" value={usd ? money(usd, 'USD') : '—'} note="OFAC and FinCEN, in USD" />
-                <StatTile label="UK penalties" value={gbp ? money(gbp, 'GBP') : '—'} note="OFSI, total in GBP" />
+                <StatTile label="US civil penalties" value={usd ? money(usd, 'USD') : '—'} note="OFAC, FinCEN and BIS, in USD" />
+                <StatTile label="UK penalties" value={gbp ? money(gbp, 'GBP') : '—'} note="OFSI and HMRC, total in GBP" />
               </div>
             ) : <p className="muted">Enforcement data arrives with the next nightly run.</p>}
             <More to="/monitoring">Open the monitoring map</More>
