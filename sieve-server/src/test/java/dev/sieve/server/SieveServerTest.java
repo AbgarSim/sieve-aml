@@ -21,6 +21,7 @@ import dev.sieve.match.NgramIndex;
 import dev.sieve.match.NormalizedNameCache;
 import dev.sieve.server.handler.HealthHandler;
 import dev.sieve.server.handler.PublicFunctionHandler;
+import dev.sieve.server.handler.RiskHandler;
 import dev.sieve.server.handler.ScreeningHandler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -80,6 +81,8 @@ class SieveServerTest {
                 new PublicFunctionHandler(PublicFunctionCatalog.bundled(), objectMapper);
 
         router.post("/api/v1/screen").handler(screeningHandler::handle);
+        router.post("/api/v1/risk/assess")
+                .handler(new RiskHandler(matchEngine, entityIndex, objectMapper, config)::handle);
         router.get("/api/v1/health").handler(healthHandler::handle);
         router.get("/api/v1/pep/functions").handler(publicFunctionHandler::handleGetSummary);
         router.get("/api/v1/pep/functions/:jurisdiction")
@@ -140,6 +143,74 @@ class SieveServerTest {
                                                 .isGreaterThan(0);
                                         assertThat(json).containsKey("results");
                                         assertThat(json).containsKey("screenedAt");
+                                        testContext.completeNow();
+                                    });
+                        })
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void riskEndpointScoresEachSubject(Vertx vertx, VertxTestContext testContext) throws Exception {
+        HttpClient client = vertx.createHttpClient();
+        String requestBody =
+                """
+                {"transactions":[
+                  {"id":"t1","subjectId":"acct-1","counterparty":"PUTIN, Vladimir Vladimirovich",
+                   "counterpartyCountry":"RU","amount":"730.25","currency":"USD",
+                   "timestamp":"2026-10-01T09:00:00Z","direction":"out"},
+                  {"id":"t2","subjectId":"acct-2","counterparty":"Grocer",
+                   "counterpartyCountry":"US","amount":84.12,"currency":"USD",
+                   "timestamp":"2026-10-01T09:00:00Z","direction":"out"}
+                ]}
+                """;
+
+        client.request(HttpMethod.POST, actualPort, "localhost", "/api/v1/risk/assess")
+                .compose(
+                        req ->
+                                req.putHeader("content-type", "application/json")
+                                        .send(Buffer.buffer(requestBody)))
+                .compose(HttpClientResponse::body)
+                .onSuccess(
+                        body -> {
+                            testContext.verify(
+                                    () -> {
+                                        Map<String, Object> json =
+                                                objectMapper.readValue(body.getBytes(), Map.class);
+                                        assertThat(json.get("subjects")).isEqualTo(2);
+                                        List<Map<String, Object>> assessments =
+                                                (List<Map<String, Object>>) json.get("assessments");
+                                        assertThat(assessments.get(0))
+                                                .containsEntry("subjectId", "acct-1")
+                                                .containsEntry("level", "HIGH");
+                                        assertThat(assessments.get(1))
+                                                .containsEntry("subjectId", "acct-2")
+                                                .containsEntry("score", 0);
+                                        testContext.completeNow();
+                                    });
+                        })
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void riskEndpointReturns400WhenTransactionsMissing(Vertx vertx, VertxTestContext testContext)
+            throws Exception {
+        HttpClient client = vertx.createHttpClient();
+
+        client.request(HttpMethod.POST, actualPort, "localhost", "/api/v1/risk/assess")
+                .compose(
+                        req ->
+                                req.putHeader("content-type", "application/json")
+                                        .send(Buffer.buffer("{}")))
+                .onSuccess(
+                        resp -> {
+                            testContext.verify(
+                                    () -> {
+                                        assertThat(resp.statusCode()).isEqualTo(400);
                                         testContext.completeNow();
                                     });
                         })

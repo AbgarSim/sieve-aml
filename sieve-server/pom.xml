@@ -32,6 +32,10 @@
             <groupId>dev.sieve</groupId>
             <artifactId>sieve-address</artifactId>
         </dependency>
+        <dependency>
+            <groupId>dev.sieve</groupId>
+            <artifactId>sieve-risk</artifactId>
+        </dependency>
 
         <!-- Vert.x -->
         <dependency>

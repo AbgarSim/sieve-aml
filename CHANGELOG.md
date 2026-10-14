@@ -11,6 +11,8 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 ## [Unreleased]
 
 ### Added
+- Behavioural risk analysis (`sieve-risk`): scores each subject's transactions on six rules (listed counterparty, structuring just under the reporting threshold, high-risk jurisdiction, pass-through, velocity, round amounts) and returns a 0 to 100 score, a level and every rule that fired with what it saw; available as `sieve risk`, `POST /api/v1/risk/assess` on the Vert.x server and `BehaviouralRiskScorer`
+- Apache Beam pipeline (`sieve-beam`): the `ScoreTransactions` transform and `TransactionRiskPipeline` screen and score a batch of transactions on the direct runner or any Beam runner, tested with `TestPipeline` and `PAssert`
 - Nightly change log: `sieve snapshot` writes `changes.json`, the records that appeared on a list, left it or changed each night (exact counts per list, the first 200 records of each kind, last 30 nights), carried from night to night like `seen.json`, which now keeps each record's name and type so delisted records can be named; the dashboard's new What changed page shows a night's new listings, delistings and changed records with a bar per night and a filter by list, and the About and Overview pages carry a strip with tonight's counts
 - Dashboard About page rewritten as a story: who built Sieve and why, the lists read every night with the night's figures, what changed tonight, the enforcement actions monitored, and how to run it
 - Dashboard Sources page: the sources table and tonight's fetch times on a page of their own
