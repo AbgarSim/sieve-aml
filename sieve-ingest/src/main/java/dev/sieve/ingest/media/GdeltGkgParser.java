@@ -103,7 +103,7 @@ final class GdeltGkgParser {
         return values;
     }
 
-    private static String title(String extras) {
+    static String title(String extras) {
         Matcher m = PAGE_TITLE.matcher(extras);
         if (!m.find()) {
             return "";

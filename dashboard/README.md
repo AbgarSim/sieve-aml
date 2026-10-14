@@ -17,6 +17,7 @@ The site is static. At runtime it reads the files written by `sieve snapshot` fr
 | `search-index.json` | search, loaded on first use |
 | `entities/SOURCE/N.json` | entity profiles |
 | `relations.json` | association graph on the entity page, loaded on first use |
+| `enforcement.json` | Monitoring page: published sanctions enforcement actions (OFAC civil penalties, OFSI penalties and disclosures, FinCEN actions, DOJ criminal cases) with the programs breached and the countries they target, and news of suspected breaches (`suspected`, unverified), loaded on first use |
 | `seen.json` | not read by the UI: when each record was first seen and last changed, carried from night to night |
 
 

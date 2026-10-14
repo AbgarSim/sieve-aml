@@ -53,6 +53,9 @@ jobs:
           # News mentions of published names from earlier nights
           curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/news.json" -o snapshot/news.json \
             || { echo "No published news mentions yet"; rm -f snapshot/news.json; }
+          # Sanctions enforcement actions, so that only new notices are read
+          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/enforcement.json" -o snapshot/enforcement.json \
+            || { echo "No published enforcement actions yet"; rm -f snapshot/enforcement.json; }
       - name: Fetch lists and write snapshot
         env:
           SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}

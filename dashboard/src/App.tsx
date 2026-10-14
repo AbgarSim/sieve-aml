@@ -4,6 +4,7 @@ import Search from './pages/Search';
 import Entity from './pages/Entity';
 import Source from './pages/Source';
 import About from './pages/About';
+import Monitoring from './pages/Monitoring';
 import ComponentSheet from './pages/ComponentSheet';
 
 /** The site opens on About; links from before the overview moved to /overview still land there. */
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/search" element={<Search />} />
       <Route path="/entity/:source/:id" element={<Entity />} />
       <Route path="/source/:id" element={<Source />} />
+      <Route path="/monitoring" element={<Monitoring />} />
       <Route path="/components" element={<ComponentSheet />} />
     </Routes>
   );
