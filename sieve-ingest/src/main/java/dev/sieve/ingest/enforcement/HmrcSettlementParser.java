@@ -262,8 +262,9 @@ public final class HmrcSettlementParser {
     }
 
     /**
-     * Whether two settlements are the same one announced twice: the same amount within a few months
-     * (a named settlement appears both in its notice and on the current page).
+     * Whether two settlements are the same one announced twice: the same amount, give or take the
+     * rounding of "more than £6.4 million", within a few months (a named settlement appears both in
+     * its notice and on the current page).
      *
      * @param a one settlement
      * @param b another
@@ -273,7 +274,9 @@ public final class HmrcSettlementParser {
         return a.kind() == Kind.CIVIL_PENALTY
                 && b.kind() == Kind.CIVIL_PENALTY
                 && a.amount().isPresent()
-                && a.amount().equals(b.amount())
+                && b.amount().isPresent()
+                && Math.abs(a.amount().get() - b.amount().get())
+                        <= Math.max(a.amount().get(), b.amount().get()) / 50
                 && Math.abs(a.date().toEpochDay() - b.date().toEpochDay()) <= 120;
     }
 

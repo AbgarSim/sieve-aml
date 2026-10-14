@@ -44,13 +44,22 @@ public final class BisEnforcementParser {
                             + "extradited|admits)\\b");
     // A criminal case counts when it is about exports or sanctions, not fraud or corruption.
     private static final Pattern TRADE =
-            Pattern.compile("(?i)export|sanction|smuggl|evad|evasion|circumvent|divert|ship");
+            Pattern.compile("(?i)export|sanction|smuggl|evad|evasion|circumvent|divert|\\bship");
     private static final Pattern NOT_A_CASE =
             Pattern.compile(
                     "(?i)\\bentity list|guidance|\\breward|fact sheet|don.t let this happen");
     private static final Pattern SETTLED_WITH =
             Pattern.compile("(?i)settlement with (.+?)(\\s+order)?\\s*$");
-    private static final Pattern PENALTY_ON = Pattern.compile("(?i)penalt(?:y|ies) on (.+)$");
+    private static final Pattern PENALTY_ON =
+            Pattern.compile("(?i)penalt(?:y|ies) (?:on|against) (.+)$");
+    // What follows the name in a title: the reason, or a note the page appended.
+    private static final Pattern AFTER_NAME =
+            Pattern.compile(
+                    "(?i)\\s+(to resolve|for |related to|additional information|resolving|,"
+                            + " resolving).*$");
+    // "a Pennsylvania company" says who, not which.
+    private static final Pattern NOT_A_NAME =
+            Pattern.compile("(?i)^(an? )?([a-z]+ )?(company|manufacturer|contractor)\\b.*");
     private static final Pattern PAYS =
             Pattern.compile("(?i)^(.+?)\\s*(?:\\(.*?\\)\\s*)?(?:to|agrees to|will) pay\\b");
     private static final Pattern DOLLARS =
@@ -150,8 +159,14 @@ public final class BisEnforcementParser {
         for (Pattern p : List.of(SETTLED_WITH, PENALTY_ON, PAYS)) {
             Matcher m = p.matcher(title);
             if (m.find()) {
-                String name = m.group(1).trim().replaceAll(",+$", "");
-                if (!name.isEmpty() && name.length() <= 160) {
+                String name =
+                        AFTER_NAME
+                                .matcher(m.group(1).trim())
+                                .replaceFirst("")
+                                .replaceAll(",+$", "");
+                if (!name.isEmpty()
+                        && name.length() <= 160
+                        && !NOT_A_NAME.matcher(name).matches()) {
                     return Optional.of(name);
                 }
             }

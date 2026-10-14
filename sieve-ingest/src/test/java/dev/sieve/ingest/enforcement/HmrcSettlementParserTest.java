@@ -191,5 +191,23 @@ class HmrcSettlementParserTest {
                                                 + " Customs a compound settlement of £569,157.07.</p>"))
                         .get(0);
         assertThat(HmrcSettlementParser.sameSettlement(page, notice)).isTrue();
+
+        var rounded =
+                HmrcSettlementParser.parseSettlements(
+                                content(
+                                        "<h2>Airbus Operations Limited (published 30 July 2026)</h2>"
+                                                + "<p>AOL has paid more than £6.4 million to HMRC.</p>"))
+                        .get(0);
+        var exact =
+                HmrcSettlementParser.parseNotice(
+                                new HmrcSettlementParser.Notice(
+                                        "Notice to exporters 2026/17: company named in compound settlement",
+                                        "/government/publications/nte-2026-17",
+                                        LocalDate.of(2026, 7, 30)),
+                                content(
+                                        "<p>Airbus have paid a compound settlement of £6,409,388.</p>"))
+                        .get(0);
+        assertThat(HmrcSettlementParser.sameSettlement(rounded, exact)).isTrue();
+        assertThat(HmrcSettlementParser.sameSettlement(page, exact)).isFalse();
     }
 }

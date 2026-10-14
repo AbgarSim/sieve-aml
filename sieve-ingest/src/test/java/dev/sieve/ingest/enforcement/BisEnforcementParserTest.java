@@ -113,6 +113,26 @@ class BisEnforcementParserTest {
                                 "Robert Bosch GmbH (Bosch) To Pay $36 Million Penalty to BIS for Violations"))
                 .contains("Robert Bosch GmbH");
         assertThat(
+                        BisEnforcementParser.party(
+                                "BIS Imposes $180,000 Mitigated Penalty Against Indium Corporation for 11 Exports"))
+                .contains("Indium Corporation");
+        assertThat(
+                        BisEnforcementParser.party(
+                                "BIS Imposes Penalty on Quantum Corporation to Resolve Alleged Violations of the Antiboycott Regulations"))
+                .contains("Quantum Corporation");
+        assertThat(
+                        BisEnforcementParser.party(
+                                "BIS Reaches Administrative Enforcement Settlement with Thermotron Industries, Inc. Additional information on the settlement is available online at"))
+                .contains("Thermotron Industries, Inc.");
+        assertThat(
+                        BisEnforcementParser.party(
+                                "BIS Imposes Administrative Penalty on Virginia Company for Exports to Russian Military End User"))
+                .isEmpty();
+        assertThat(
+                        BisEnforcementParser.kind(
+                                "Former federal agent convicted of corruption in connection to illicit Syrian relationship"))
+                .isEmpty();
+        assertThat(
                         BisEnforcementParser.amount(
                                 "Robert Bosch GmbH (Bosch) To Pay $36 Million Penalty"))
                 .contains(36_000_000L);
