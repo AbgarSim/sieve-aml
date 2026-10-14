@@ -35,7 +35,9 @@ import org.slf4j.LoggerFactory;
  * index, {@code c} the countries and {@code p} the program codes. The Dashboard workflow restores
  * the previous file from the published site, like {@code seen.json}. A second run on the same day
  * sees only what changed since the first, because {@code seen.json} was restored from it, so its
- * changes are added to that day's night rather than replacing it.
+ * changes are added to that day's night rather than replacing it. {@code digestVersion} names the
+ * {@link SnapshotWriter#DIGEST_VERSION record digest} the nights were counted with; nights counted
+ * with an older one are dropped, because their changed counts are not comparable.
  */
 final class ChangeLog {
 
@@ -96,9 +98,19 @@ final class ChangeLog {
         List<JsonNode> nights = new ArrayList<>();
         if (Files.exists(file)) {
             try {
-                for (JsonNode night : mapper.readTree(file.toFile()).path("nights")) {
-                    if (night.hasNonNull("date")) {
-                        nights.add(night);
+                JsonNode root = mapper.readTree(file.toFile());
+                int digestVersion = root.path("digestVersion").asInt(1);
+                if (digestVersion != SnapshotWriter.DIGEST_VERSION) {
+                    log.info(
+                            "Dropping nights recorded with an older digest [file={},"
+                                    + " digestVersion={}]",
+                            file,
+                            digestVersion);
+                } else {
+                    for (JsonNode night : root.path("nights")) {
+                        if (night.hasNonNull("date")) {
+                            nights.add(night);
+                        }
                     }
                 }
             } catch (IOException e) {
@@ -123,6 +135,7 @@ final class ChangeLog {
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("formatVersion", SnapshotWriter.FORMAT_VERSION);
+        out.put("digestVersion", SnapshotWriter.DIGEST_VERSION);
         out.put("generatedAt", now);
         out.put("nights", nights);
         mapper.writeValue(file.toFile(), out);

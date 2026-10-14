@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import dev.sieve.core.ListIngestionException;
 import dev.sieve.core.geo.CountryNormalizer;
 import dev.sieve.core.model.Address;
@@ -421,6 +424,63 @@ class SnapshotWriterTest {
     }
 
     @Test
+    void shouldNotCountAFreshLastUpdatedStampAsAChange() throws IOException {
+        SanctionedEntity stamped =
+                entity(
+                        "1",
+                        ListSource.OFAC_SDN,
+                        "Ivan Petrov",
+                        "Russia",
+                        Instant.parse("2026-10-01T03:00:10Z"));
+        write(List.of(loaded(ListSource.OFAC_SDN, stamped)), Instant.parse("2026-10-01T03:00:00Z"));
+
+        SanctionedEntity restamped =
+                entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia", NOW.plusSeconds(10));
+        write(List.of(loaded(ListSource.OFAC_SDN, restamped)), NOW);
+
+        JsonNode record = read("entities/OFAC_SDN/0.json").get(0);
+        assertThat(record.get("lastUpdated").asText()).isEqualTo("2026-10-02T03:00:10Z");
+        assertThat(record.get("lastChange").asText()).isEqualTo("2026-10-01");
+        JsonNode night = read("changes.json").get("nights").get(1);
+        assertThat(night.get("date").asText()).isEqualTo("2026-10-02");
+        assertThat(night.get("changed").asInt()).isZero();
+    }
+
+    @Test
+    void shouldTreatRowsWithAnOlderDigestAsABaseline() throws IOException {
+        SanctionedEntity before = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia");
+        write(List.of(loaded(ListSource.OFAC_SDN, before)), Instant.parse("2026-09-30T03:00:00Z"));
+        // The files as an older digest wrote them: bare digests and no digest version
+        ObjectNode seen = (ObjectNode) read("seen.json");
+        seen.get("records")
+                .forEach(row -> ((ArrayNode) row).set(2, TextNode.valueOf("0123456789abcdef")));
+        mapper.writeValue(out.resolve("seen.json").toFile(), seen);
+        ObjectNode changes = (ObjectNode) read("changes.json");
+        changes.remove("digestVersion");
+        mapper.writeValue(out.resolve("changes.json").toFile(), changes);
+
+        SanctionedEntity after = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Belarus");
+        write(List.of(loaded(ListSource.OFAC_SDN, after)), Instant.parse("2026-10-01T03:00:00Z"));
+
+        JsonNode record = read("entities/OFAC_SDN/0.json").get(0);
+        assertThat(record.get("firstSeen").asText()).isEqualTo("2026-09-30");
+        assertThat(record.get("lastChange").asText()).isEqualTo("2026-09-30");
+        JsonNode nights = read("changes.json").get("nights");
+        assertThat(nights).hasSize(1);
+        assertThat(nights.get(0).get("date").asText()).isEqualTo("2026-10-01");
+        assertThat(nights.get(0).get("changed").asInt()).isZero();
+
+        SanctionedEntity later = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Kazakhstan");
+        write(List.of(loaded(ListSource.OFAC_SDN, later)), NOW);
+
+        assertThat(read("entities/OFAC_SDN/0.json").get(0).get("lastChange").asText())
+                .isEqualTo("2026-10-02");
+        nights = read("changes.json").get("nights");
+        assertThat(nights).hasSize(2);
+        assertThat(nights.get(1).get("changed").asInt()).isEqualTo(1);
+    }
+
+    @Test
     void shouldPublishPhotosAndLinksWithoutMarkingTheRecordChanged() throws IOException {
         SanctionedEntity plain = entity("1", ListSource.OFAC_SDN, "Ivan Petrov", "Russia");
         write(List.of(loaded(ListSource.OFAC_SDN, plain)), Instant.parse("2026-10-01T03:00:00Z"));
@@ -514,6 +574,11 @@ class SnapshotWriterTest {
 
     private static SanctionedEntity entity(
             String id, ListSource source, String name, String nationality) {
+        return entity(id, source, name, nationality, NOW);
+    }
+
+    private static SanctionedEntity entity(
+            String id, ListSource source, String name, String nationality, Instant lastUpdated) {
         return new SanctionedEntity(
                 id,
                 EntityType.INDIVIDUAL,
@@ -529,7 +594,7 @@ class SnapshotWriterTest {
                 null,
                 List.of(new SanctionsProgram("P1", null, source)),
                 null,
-                NOW);
+                lastUpdated);
     }
 
     private static FetchedSource loaded(ListSource source, SanctionedEntity... entities) {
