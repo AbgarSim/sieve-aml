@@ -12,7 +12,7 @@ import { clock, fmt, host, ms } from '../lib/format';
 export default function Source() {
   const { id = '' } = useParams();
   const D = SIEVE, s = D.byId[id];
-  if (!s) return <><Header active="Sources" /><main className="wrap page"><div className="card empty"><Icon name="warn" size={36} /><h3>No source {id}</h3><p><Link to="/?section=sources">All sources</Link></p></div></main><Footer /></>;
+  if (!s) return <><Header active="Sources" /><main className="wrap page"><div className="card empty"><Icon name="warn" size={36} /><h3>No source {id}</h3><p><Link to="/overview?section=sources">All sources</Link></p></div></main><Footer /></>;
   document.title = `${s.name} — Sieve`;
   const none = !s.entities;
   const topics = [...s.topics].sort((a, b) => byTopicOrder(a[0], b[0]));
@@ -23,7 +23,7 @@ export default function Source() {
     <>
       <Header active="Sources" />
       <main className="wrap page">
-        <nav className="small muted" style={{ marginBottom: 14 }} aria-label="Breadcrumb"><Link to="/?section=sources">Sources</Link> <span style={{ margin: '0 6px' }}>/</span> <span>{s.name}</span></nav>
+        <nav className="small muted" style={{ marginBottom: 14 }} aria-label="Breadcrumb"><Link to="/overview?section=sources">Sources</Link> <span style={{ margin: '0 6px' }}>/</span> <span>{s.name}</span></nav>
         <div className="ehd">
           <div style={{ flex: '1 1 480px', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}><Chip>{s.format}</Chip>{topics.map(([k]) => <TopicBadge key={k} topic={k} />)}<StatusDot status={s.status} /></div>

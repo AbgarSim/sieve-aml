@@ -1,14 +1,13 @@
 #!/usr/bin/env node
-// Records the demo of the site as built tonight, so that it is always the current application:
-// a browser walkthrough (video, GIF and screenshots) of the dashboard, REST calls against a
-// running Vert.x server, one CLI screening, and demo/manifest.json, which the Demo page reads.
+// Records the demo of a built site: a browser walkthrough (video, GIF and screenshots) of the
+// dashboard, REST calls against a running Vert.x server, one CLI screening, and manifest.json.
 //
 //   node demo/record.mjs --site http://localhost:4173/ [--api http://localhost:8080 | none]
 //        [--cli sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar | none] [--out dist/demo]
 //        [--api-timeout 600] [--commit SHA]
 //
-// The Dashboard workflow runs it after the site is built; `npm run demo` runs it locally against
-// `vite preview`. The entity it screens is chosen from the data every time: the person on OFAC SDN
+// The Demo workflow runs it on demand and commits the GIF and screenshots to docs/demo/, which
+// the README shows; `npm run demo` runs it locally against `vite preview`. The entity it screens is chosen from the data every time: the person on OFAC SDN
 // who is on the most other lists (the person on the most lists when none is on OFAC SDN), then the
 // one with the most relations.
 import fs from 'node:fs';
@@ -127,7 +126,7 @@ async function walkthrough() {
   };
 
   async function record() {
-  await page.goto(site, { waitUntil: 'networkidle' });
+  await page.goto(site + '#/overview', { waitUntil: 'networkidle' });
   await page.waitForSelector('#overview .kpi');
   await page.mouse.move(720, 460);
   await pause(800);
@@ -210,7 +209,7 @@ async function walkthrough() {
   });
 
   await step('light', 'Rebuilt every night', 'Rebuilt every night from the current code, in dark and light', async () => {
-    await go('#/');
+    await go('#/overview');
     await page.waitForSelector('#overview .kpi');
     await pause(1200);
     const toggle = page.locator('button[aria-label="Toggle theme"]');

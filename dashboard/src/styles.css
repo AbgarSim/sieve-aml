@@ -312,16 +312,24 @@ tr[aria-expanded="true"] .cv{transform:rotate(90deg)}
 .boot{min-height:60vh;display:grid;place-items:center;color:var(--muted);font-size:13px}
 .news-note{margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
-/* Demo page: the nightly recording, its steps, and the REST and CLI transcripts */
-.demo-lead{max-width:860px;color:var(--text-2);font-size:14px}
-.demo-video{display:block;width:100%;height:auto;aspect-ratio:16/10;background:#000;border-radius:12px 12px 0 0}
-.demo-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border)}
-.demo-steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-.demo-step{display:grid;gap:8px;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:inherit;font:inherit;text-align:left;cursor:pointer;overflow:hidden}
-.demo-step:hover,.demo-step:focus-visible{border-color:var(--accent)}
-.demo-step img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-bottom:1px solid var(--border)}
-.demo-step>div{display:grid;gap:4px;padding:0 12px 12px}
-.demo-call{display:grid;gap:10px;padding:14px 16px;border-top:1px solid var(--border)}
-.demo-call:nth-child(2){border-top:0}
-.demo-call .h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
-.demo-pre{margin:0;padding:12px 14px;max-height:420px;overflow:auto;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);font:12.5px/1.5 'JetBrains Mono',ui-monospace,monospace;white-space:pre-wrap;word-break:break-word}
+.logo-t{display:flex;align-items:baseline;gap:12px}
+.logo .byline{font-weight:400;letter-spacing:0;font-size:12px;color:var(--muted);white-space:nowrap}
+.about{max-width:880px}
+.about-hero{text-align:center;padding:40px 0 32px}
+.about-hero h1{font-size:30px;margin-bottom:14px}
+.about-hero p{color:var(--text-2);font-size:15px;line-height:1.6;max-width:680px;margin:0 auto}
+.about-cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.about-me{display:flex;gap:28px;align-items:center;padding:28px;margin-bottom:40px}
+.about-me p{line-height:1.65;margin-top:10px;color:var(--text-2)}
+.about-me .muted.small{margin-top:2px}
+.about-photo{flex:none;width:160px;height:160px;border-radius:50%;overflow:hidden;background:var(--accent-soft);color:var(--accent-text);display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:600;letter-spacing:.04em}
+.about-photo img{width:100%;height:100%;object-fit:cover}
+@media (max-width:720px){.about-hero h1{font-size:24px}.about-me{flex-direction:column;text-align:center;padding:22px}.logo-t{flex-direction:column;gap:2px;line-height:1.1}.hdr-in{gap:10px}.hdr-right{gap:6px}.logo{gap:8px}.search input{width:48px}.logo .byline{font-size:10px}}
+.facet.conf summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none}
+.facet.conf summary::-webkit-details-marker{display:none}
+.facet.conf summary h4{margin:0;flex:1}
+.facet.conf summary h4::before{content:'▸';display:inline-block;width:12px;transition:transform .15s}
+.facet.conf[open] summary h4::before{transform:rotate(90deg)}
+.facet.conf summary .num{font-size:12px;color:var(--text-2)}
+.facet.conf input[type=range]{width:100%;margin-top:10px;accent-color:var(--accent)}
+.conf-scale{display:flex;justify-content:space-between;gap:8px}

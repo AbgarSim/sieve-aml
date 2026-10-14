@@ -83,10 +83,15 @@ export default function Search() {
             <Icon name="search" size={20} /><input id="big-q" ref={inp} value={q} onChange={e => setQ(e.target.value)} placeholder="Name or alias, in any script… typos are fine" autoComplete="off" aria-label="Search" /><span className="kbd">/</span>
             {q && <button type="button" className="btn sm" onClick={() => set('')}>Clear</button>}
           </form>
-          <div className="small muted" style={{ marginTop: 8, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>Jaro-Winkler fuzzy match, threshold <span className="num">{th.toFixed(2)}</span><input type="range" min={70} max={95} value={th * 100} onChange={e => setTh(+e.target.value / 100)} style={{ width: 110, accentColor: 'var(--accent)' }} aria-label="Match threshold" /><span style={{ marginLeft: 'auto' }} className="num">{!ix ? (error ? 'Index unavailable' : 'Loading index…') : debounced ? `${fmt(shown.length)} match${shown.length === 1 ? '' : 'es'} · ${took} ms` : `${fmt(ix.entries.length)} records indexed`}</span></div>
+          <div className="small muted" style={{ marginTop: 8, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>Jaro-Winkler fuzzy match at confidence <span className="num">{th.toFixed(2)}</span><span style={{ marginLeft: 'auto' }} className="num">{!ix ? (error ? 'Index unavailable' : 'Loading index…') : debounced ? `${fmt(shown.length)} match${shown.length === 1 ? '' : 'es'} · ${took} ms` : `${fmt(ix.entries.length)} records indexed`}</span></div>
         </div>
         <div className="sgrid">
           <aside>
+            <details className="facet conf">
+              <summary><h4>Confidence</h4><span className="num">{th.toFixed(2)}</span></summary>
+              <input type="range" min={70} max={95} value={th * 100} onChange={e => setTh(+e.target.value / 100)} aria-label="Confidence" />
+              <div className="xs muted conf-scale"><span>0.70 · more matches</span><span>0.95 · closer matches</span></div>
+            </details>
             {groups.map(([key, title, items, lab]) => { const sel = f[key], lim = more[key] ? items.length : 6; const rows = items.filter(([k]) => sel.has(k)).concat(items.filter(([k]) => !sel.has(k))).slice(0, Math.max(lim, sel.size)); return (
               <div className="facet" key={key}>
                 <h4>{title}{sel.size > 0 && <button className="xs" style={{ color: 'var(--link)', textTransform: 'none', letterSpacing: 0, marginLeft: 6 }} onClick={() => clear(key)}>clear</button>}</h4>
@@ -103,7 +108,7 @@ export default function Search() {
             : !debounced && !anyFilter ? (
               <div className="empty"><Icon name="search" size={36} /><h3>Screen a name against {D.sources.filter(s => !s.countsOnly).length} sanctions lists</h3><p>Every name and alias in tonight's snapshot is searchable, with typo tolerance.{D.unpublished > 0 && <> Politically exposed persons and their relatives and close associates are counted on the overview but not searchable here.</>}{examples.length > 0 && <> Try {examples.map((x, i) => <span key={x}>{i > 0 && ', '}<button className="xs" style={{ color: 'var(--link)' }} onClick={() => set(x)}>{x}</button></span>)}.</>}</p></div>
             ) : !shown.length ? (
-              <div className="empty"><Icon name="funnel" size={36} /><h3>No matches{debounced && ` for “${debounced}”`}</h3><p>Lower the threshold, check the spelling, or <button className="xs" style={{ color: 'var(--link)' }} onClick={() => setF({ source: new Set(), topic: new Set(), type: new Set(), country: new Set(), program: new Set() })}>clear filters</button>.</p></div>
+              <div className="empty"><Icon name="funnel" size={36} /><h3>No matches{debounced && ` for “${debounced}”`}</h3><p>Lower the confidence under filters, check the spelling, or <button className="xs" style={{ color: 'var(--link)' }} onClick={() => setF({ source: new Set(), topic: new Set(), type: new Set(), country: new Set(), program: new Set() })}>clear filters</button>.</p></div>
             ) : (
               <>
                 <div className="card-h"><h3>{debounced ? 'Results' : 'Filtered records'}</h3><span className="xs muted">{shown.length > SHOWN ? `first ${SHOWN} of ${fmt(shown.length)}` : `${shown.length} shown`}{debounced && ' · sorted by score'}</span></div>
