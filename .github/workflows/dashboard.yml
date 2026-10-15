@@ -43,24 +43,25 @@ jobs:
         run: java -cp "sieve-cli/target/lib/*" com.microsoft.playwright.CLI install --with-deps chromium
       - name: Restore history from the published site
         env:
-          OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.event.repository.name }}
+          SITE: https://sieveaml.org
         run: |
           mkdir -p snapshot
-          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/history.json" -o snapshot/history.json \
-            || { echo "No published history yet"; rm -f snapshot/history.json; }
+          # The site has been published since October 2026, so a missing file means the fetch
+          # failed (DNS, certificate, outage). Stop rather than start the history over and
+          # publish a site that has lost it.
+          restore() {
+            curl -fsSL --retry 3 --retry-delay 10 "$SITE/data/$1" -o "snapshot/$1" \
+              || { echo "::error::Could not restore $1 from $SITE"; exit 1; }
+          }
+          restore history.json
           # When each record was first seen and last changed
-          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/seen.json" -o snapshot/seen.json \
-            || { echo "No published record history yet"; rm -f snapshot/seen.json; }
+          restore seen.json
           # The records that appeared, left or changed on earlier nights
-          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/changes.json" -o snapshot/changes.json \
-            || { echo "No published change log yet"; rm -f snapshot/changes.json; }
+          restore changes.json
           # News mentions of published names from earlier nights
-          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/news.json" -o snapshot/news.json \
-            || { echo "No published news mentions yet"; rm -f snapshot/news.json; }
+          restore news.json
           # Sanctions enforcement actions, so that only new notices are read
-          curl -fsSL "https://${OWNER,,}.github.io/${REPO}/data/enforcement.json" -o snapshot/enforcement.json \
-            || { echo "No published enforcement actions yet"; rm -f snapshot/enforcement.json; }
+          restore enforcement.json
       - name: Fetch lists and write snapshot
         env:
           SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}

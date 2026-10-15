@@ -1,7 +1,7 @@
 """Serves a built dashboard for the demo recorder, taking data files the build does not have
 from the published site, so that a recording shows the current code with real data.
 
-    python3 demo/serve.py dist 4173 https://abgarsim.github.io/sieve-aml/
+    python3 demo/serve.py dist 4173 https://sieveaml.org/
 """
 import http.server
 import os

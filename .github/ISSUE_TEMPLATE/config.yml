@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/AbgarSim/sieve-aml/blob/main/SECURITY.md
     about: Do not open a public issue. SECURITY.md says how to report privately.
   - name: Try Sieve on the public dashboard
-    url: https://abgarsim.github.io/sieve-aml/
+    url: https://sieveaml.org/
     about: Search every list, read entity profiles and watch the nightly demo before opening an issue.
