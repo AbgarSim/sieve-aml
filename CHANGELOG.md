@@ -11,6 +11,8 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 ## [Unreleased]
 
 ### Added
+- Maven Central release setup: the library modules (`sieve-core`, `sieve-address`, `sieve-ingest`, `sieve-match`, `sieve-risk` and the parent POM) carry the metadata Central requires, a `release` profile builds sources and javadoc jars, signs them and uploads them to the Central Portal, and the Release workflow runs it when a `vX.Y.Z` tag is pushed; see RELEASING.md
+
 - Breach reports from users: a report form on the dashboard (`/report`, also as a GitHub issue form) takes a report with its public sources; the maintainer accepts it by adding the `report-accepted` label, the Breach report workflow freezes the accepted text as a bot comment, and the nightly Dashboard build publishes the frozen reports in `reports.json`, shown on the Monitoring page in a "User reports (reviewed)" map tab and table marked as not an official finding
 - Behavioural risk analysis (`sieve-risk`): scores each subject's transactions on six rules (listed counterparty, structuring just under the reporting threshold, high-risk jurisdiction, pass-through, velocity, round amounts) and returns a 0 to 100 score, a level and every rule that fired with what it saw; available as `sieve risk`, `POST /api/v1/risk/assess` on the Vert.x server and `BehaviouralRiskScorer`
 - Apache Beam pipeline (`sieve-beam`): the `ScoreTransactions` transform and `TransactionRiskPipeline` screen and score a batch of transactions on the direct runner or any Beam runner, tested with `TestPipeline` and `PAssert`
@@ -75,6 +77,8 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 - Contributor files: a rewritten `CONTRIBUTING.md` (build, test and formatting commands as CI runs them, every module and the dashboard and docs, an evidence-based checklist for a new data source, the pull request and commit conventions, and a Developer Certificate of Origin sign-off for contributions), a `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), a `SECURITY.md` with the reporting route and scope, issue forms for bugs, features and new data sources, and a pull request template
 
 ### Changed
+- The Maven group id is now `org.sieveaml` (was `dev.sieve`); Java package names are unchanged
+- Playwright is an optional dependency of `sieve-ingest`, so library users no longer download its 200 MB browser driver; the Israel and Turkey loaders report a clear error when it is missing, and the CLI and both servers still include it
 - The demo recording also shows the About page, what changed overnight, the sanctions enforcement Monitoring page and the breach report form, and was re-recorded on the lists of 2026-10-14; its overview step no longer waits for the sources table that moved to the Sources page
 - Dashboard header cut to five links (Search, Overview, Sources, Monitoring, About); the Overview's sections stay reachable from its sub-menu
 - Dashboard entity page: when several lists carry the same record, each list collapses to one line that names the fields on which it differs from the others; the line opens to the list's full record

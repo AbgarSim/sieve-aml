@@ -14,6 +14,7 @@ import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.HttpClientFactory;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.PlaywrightSupport;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -94,6 +95,7 @@ public final class TrMasakProvider implements ListProvider {
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
+        PlaywrightSupport.requireAvailable(ListSource.TR_MASAK);
         log.info("Fetching TR MASAK list [page={}]", pageUrl);
         Instant start = Instant.now();
 

@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dev.sieve</groupId>
+        <groupId>org.sieveaml</groupId>
         <artifactId>sieve</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
@@ -14,14 +14,26 @@
     <name>Sieve Spring Server</name>
     <description>Spring Boot REST API for Sieve sanctions screening</description>
 
+    <properties>
+        <!-- Application module: built, but not published to Maven Central -->
+        <maven.source.skip>true</maven.source.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <gpg.skip>true</gpg.skip>
+    </properties>
+
     <dependencies>
+        <dependency>
+            <!-- Needed by the IL and TR list providers (optional in sieve-ingest) -->
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+        </dependency>
         <!-- Internal modules -->
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-ingest</artifactId>
             <exclusions>
                 <!-- PDFBox logs through Commons Logging; Spring's spring-jcl already provides those classes -->
@@ -32,11 +44,11 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-match</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-address</artifactId>
         </dependency>
 

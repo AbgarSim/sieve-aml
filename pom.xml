@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
+         child.project.url.inherit.append.path="false"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>dev.sieve</groupId>
+    <groupId>org.sieveaml</groupId>
     <artifactId>sieve</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Sieve</name>
-    <description>Open-source sanctions screening platform</description>
+    <description>Open-source sanctions screening and AML risk platform</description>
     <url>https://github.com/AbgarSim/sieve-aml</url>
     <inceptionYear>2026</inceptionYear>
 
@@ -21,6 +22,28 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <developers>
+        <developer>
+            <id>AbgarSim</id>
+            <name>Abgar Simonean</name>
+            <url>https://github.com/AbgarSim</url>
+        </developer>
+    </developers>
+
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
+        <connection>scm:git:https://github.com/AbgarSim/sieve-aml.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/AbgarSim/sieve-aml.git</developerConnection>
+        <url>https://github.com/AbgarSim/sieve-aml</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/AbgarSim/sieve-aml/issues</url>
+    </issueManagement>
 
     <modules>
         <module>sieve-core</module>
@@ -69,6 +92,12 @@
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
         <google-java-format.version>1.24.0</google-java-format.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
+        <versions-maven-plugin.version>2.18.0</versions-maven-plugin.version>
+        <playwright.version>1.49.0</playwright.version>
 
         <!-- JUnit tags skipped by default; override with -Dtest.excludedGroups=none -->
         <test.excludedGroups>integration</test.excludedGroups>
@@ -103,37 +132,37 @@
 
             <!-- Internal modules -->
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-address</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-ingest</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-match</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-risk</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-spring-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dev.sieve</groupId>
+                <groupId>org.sieveaml</groupId>
                 <artifactId>sieve-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -165,6 +194,11 @@
             </dependency>
 
             <!-- Excel (XLSX) -->
+            <dependency>
+                <groupId>com.microsoft.playwright</groupId>
+                <artifactId>playwright</artifactId>
+                <version>${playwright.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.poi</groupId>
                 <artifactId>poi-ooxml</artifactId>
@@ -334,6 +368,36 @@
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot.version}</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven-source-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                    <configuration>
+                        <!-- Report missing comments as warnings; real javadoc errors still fail -->
+                        <doclint>all,-missing</doclint>
+                        <quiet>true</quiet>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven-gpg-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>${central-publishing-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>${versions-maven-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -360,4 +424,81 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          Builds what Maven Central requires (sources and javadoc jars, GPG signatures) and
+          uploads the library modules to the Central Portal. Used by the Release workflow;
+          see RELEASING.md. The applications (servers, CLI, Beam pipeline, benchmarks) are
+          built but not published.
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                            <waitUntil>validated</waitUntil>
+                            <deploymentName>Sieve ${project.version}</deploymentName>
+                            <excludeArtifacts>
+                                <artifact>sieve-spring-server</artifact>
+                                <artifact>sieve-server</artifact>
+                                <artifact>sieve-cli</artifact>
+                                <artifact>sieve-beam</artifact>
+                                <artifact>sieve-benchmark</artifact>
+                            </excludeArtifacts>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

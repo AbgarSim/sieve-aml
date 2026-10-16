@@ -6,33 +6,36 @@ Get screening in under five minutes.
 Dependencies
 ------------
 
+Sieve's libraries are published to Maven Central under the group id ``org.sieveaml``. Until
+the first release (0.1.0) is out, run ``mvn install`` in a checkout and use ``0.1.0-SNAPSHOT``.
+
 **Maven**
 
 .. code-block:: xml
 
    <dependency>
-       <groupId>dev.sieve</groupId>
+       <groupId>org.sieveaml</groupId>
        <artifactId>sieve-core</artifactId>
-       <version>0.1.0-SNAPSHOT</version>
+       <version>0.1.0</version>
    </dependency>
    <dependency>
-       <groupId>dev.sieve</groupId>
+       <groupId>org.sieveaml</groupId>
        <artifactId>sieve-ingest</artifactId>
-       <version>0.1.0-SNAPSHOT</version>
+       <version>0.1.0</version>
    </dependency>
    <dependency>
-       <groupId>dev.sieve</groupId>
+       <groupId>org.sieveaml</groupId>
        <artifactId>sieve-match</artifactId>
-       <version>0.1.0-SNAPSHOT</version>
+       <version>0.1.0</version>
    </dependency>
 
 **Gradle**
 
 .. code-block:: groovy
 
-   implementation 'dev.sieve:sieve-core:0.1.0-SNAPSHOT'
-   implementation 'dev.sieve:sieve-ingest:0.1.0-SNAPSHOT'
-   implementation 'dev.sieve:sieve-match:0.1.0-SNAPSHOT'
+   implementation 'org.sieveaml:sieve-core:0.1.0'
+   implementation 'org.sieveaml:sieve-ingest:0.1.0'
+   implementation 'org.sieveaml:sieve-match:0.1.0'
 
 Minimal Example
 ---------------

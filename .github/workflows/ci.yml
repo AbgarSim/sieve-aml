@@ -44,6 +44,8 @@ jobs:
           cache: maven
       - name: Build and run unit tests
         run: mvn -B -ntp verify
+      - name: Check the Maven Central release build (sources and javadoc jars)
+        run: mvn -B -ntp -Prelease -Dgpg.skip -DskipTests package
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
