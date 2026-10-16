@@ -92,7 +92,7 @@ export function toReport(fields) {
 export function acceptedComment(report) {
   return [
     MARKER,
-    'This report was reviewed and accepted. The next nightly build shows it on the [Monitoring page](https://abgarsim.github.io/sieve-aml/#/monitoring), marked as reported by a user, with the details below. Later edits to the issue are not published; to publish a corrected version, remove the `report-accepted` label and add it again. Removing the label takes the report off the site.',
+    'This report was reviewed and accepted. The next nightly build shows it on the [Monitoring page](https://sieveaml.org/#/monitoring), marked as reported by a user, with the details below. Later edits to the issue are not published; to publish a corrected version, remove the `report-accepted` label and add it again. Removing the label takes the report off the site.',
     '',
     '```json',
     JSON.stringify(report, null, 2),
