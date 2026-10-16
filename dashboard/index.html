@@ -3,15 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sieve — Sanctions screening dashboard</title>
+    <title>Sieve — Open-source sanctions and AML screening</title>
+    <meta name="description" content="Free, open-source sanctions and AML screening. Sieve fetches 36 official sanctions, export-control, wanted-person and PEP lists every night, combines them into one searchable database and screens names with typo tolerance." />
+    <meta name="keywords" content="sanctions screening, AML, anti-money laundering, sanctions list search, OFAC SDN, EU sanctions, UN sanctions, UK sanctions, PEP screening, watchlist screening, KYC, open source" />
+    <meta name="author" content="Abgar Simonean" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#06111F" />
+    <link rel="canonical" href="https://sieveaml.org/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sieve" />
+    <meta property="og:url" content="https://sieveaml.org/" />
+    <meta property="og:title" content="Sieve — Open-source sanctions and AML screening" />
+    <meta property="og:description" content="Free, open-source sanctions and AML screening. Sieve fetches 36 official sanctions, export-control, wanted-person and PEP lists every night, combines them into one searchable database and screens names with typo tolerance." />
+    <meta property="og:image" content="https://sieveaml.org/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Sieve dashboard overview: entity counts and a world map of sanctioned entities" />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sieve — Open-source sanctions and AML screening" />
+    <meta name="twitter:description" content="Free, open-source sanctions and AML screening. Sieve fetches 36 official sanctions, export-control, wanted-person and PEP lists every night, combines them into one searchable database and screens names with typo tolerance." />
+    <meta name="twitter:image" content="https://sieveaml.org/og-image.jpg" />
+    <meta name="twitter:image:alt" content="Sieve dashboard overview: entity counts and a world map of sanctioned entities" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://sieveaml.org/#website",
+          "url": "https://sieveaml.org/",
+          "name": "Sieve",
+          "alternateName": "Sieve AML",
+          "description": "Free, open-source sanctions and AML screening. Sieve fetches 36 official sanctions, export-control, wanted-person and PEP lists every night, combines them into one searchable database and screens names with typo tolerance.",
+          "inLanguage": "en",
+          "author": { "@id": "https://sieveaml.org/#author" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://sieveaml.org/#software",
+          "name": "Sieve",
+          "alternateName": "Sieve AML",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Sanctions and AML screening",
+          "operatingSystem": "Any (Java 21)",
+          "url": "https://sieveaml.org/",
+          "downloadUrl": "https://github.com/AbgarSim/sieve-aml",
+          "softwareHelp": "https://github.com/AbgarSim/sieve-aml#readme",
+          "license": "https://opensource.org/licenses/MIT",
+          "isAccessibleForFree": true,
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "image": "https://sieveaml.org/og-image.jpg",
+          "description": "Free, open-source sanctions and AML screening. Sieve fetches 36 official sanctions, export-control, wanted-person and PEP lists every night, combines them into one searchable database and screens names with typo tolerance.",
+          "author": { "@id": "https://sieveaml.org/#author" }
+        },
+        {
+          "@type": "SoftwareSourceCode",
+          "@id": "https://sieveaml.org/#code",
+          "name": "sieve-aml",
+          "codeRepository": "https://github.com/AbgarSim/sieve-aml",
+          "programmingLanguage": ["Java", "TypeScript"],
+          "license": "https://opensource.org/licenses/MIT",
+          "targetProduct": { "@id": "https://sieveaml.org/#software" },
+          "author": { "@id": "https://sieveaml.org/#author" }
+        },
+        {
+          "@type": "Person",
+          "@id": "https://sieveaml.org/#author",
+          "name": "Abgar Simonean",
+          "url": "https://abgarsim.dev/",
+          "sameAs": ["https://github.com/AbgarSim"]
+        }
+      ]
+    }
+    </script>
     <link rel="icon" href="./sieve-aml-icon.svg" />
-    <meta name="description" content="Live statistics, world map and entity search across 25 official sanctions lists, rebuilt nightly by Sieve." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('sieve-theme') || 'dark');</script>
   </head>
   <body>
     <div id="root"><div class="boot">Loading snapshot…</div></div>
+    <noscript>
+      <h1>Sieve — Open-source sanctions and AML screening</h1>
+      <p>Free, open-source sanctions and AML screening. Sieve fetches 36 official sanctions, export-control, wanted-person and PEP lists every night, combines them into one searchable database and screens names with typo tolerance.</p>
+      <p>This site needs JavaScript. The code and documentation are on <a href="https://github.com/AbgarSim/sieve-aml">GitHub</a>.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
