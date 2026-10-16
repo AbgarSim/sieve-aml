@@ -2,7 +2,8 @@ name: Dashboard
 
 # Nightly: fetches every sanctions list, writes the snapshot data files, builds the
 # dashboard in dashboard/ and publishes it to GitHub Pages. History is carried over from
-# the published site, so trends grow by one row per night. The demo recording is not part
+# the published site (or, if it can't be reached, from the last published run's snapshot
+# artifact), so trends grow by one row per night. The demo recording is not part
 # of the site: it lives in docs/demo/ and is refreshed by the Demo workflow.
 #
 # Requires Settings > Pages > Source: GitHub Actions.
@@ -21,6 +22,8 @@ permissions:
   contents: read
   # Reads the breach reports accepted on issues
   issues: read
+  # Falls back to the last published run's snapshot when the site can't be reached
+  actions: read
 
 concurrency:
   group: dashboard
@@ -44,24 +47,38 @@ jobs:
       - name: Restore history from the published site
         env:
           SITE: https://sieveaml.org
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p snapshot
-          # The site has been published since October 2026, so a missing file means the fetch
-          # failed (DNS, certificate, outage). Stop rather than start the history over and
-          # publish a site that has lost it.
-          restore() {
-            curl -fsSL --retry 3 --retry-delay 10 "$SITE/data/$1" -o "snapshot/$1" \
-              || { echo "::error::Could not restore $1 from $SITE"; exit 1; }
+          FILES=(
+            history.json      # one row per night of totals
+            seen.json         # when each record was first seen and last changed
+            changes.json      # the records that appeared, left or changed on earlier nights
+            news.json         # news mentions of published names from earlier nights
+            enforcement.json  # sanctions enforcement actions, so that only new notices are read
+          )
+          fetch_site() {
+            for f in "${FILES[@]}"; do
+              curl -fsSL --retry 3 --retry-delay 10 --retry-all-errors "$SITE/data/$f" -o "snapshot/$f" || return 1
+            done
           }
-          restore history.json
-          # When each record was first seen and last changed
-          restore seen.json
-          # The records that appeared, left or changed on earlier nights
-          restore changes.json
-          # News mentions of published names from earlier nights
-          restore news.json
-          # Sanctions enforcement actions, so that only new notices are read
-          restore enforcement.json
+          # The snapshot artifact of the newest run that was deployed holds the same files
+          fetch_artifact() {
+            for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/dashboard.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id'); do
+              deployed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" --jq '.jobs[] | select(.name == "deploy") | .conclusion')
+              [ "$deployed" = success ] || continue
+              echo "Restoring from the snapshot of run $id"
+              gh run download "$id" -R "$GITHUB_REPOSITORY" -n dashboard-snapshot -D prev || return 1
+              for f in "${FILES[@]}"; do cp "prev/$f" "snapshot/$f" || return 1; done
+              rm -rf prev
+              return 0
+            done
+            return 1
+          }
+          # The site has been published since October 2026, so a missing file means the fetch
+          # failed. Stop rather than start the history over and publish a site that has lost it.
+          fetch_site || { echo "::warning::Could not restore history from $SITE, trying the last published snapshot"; fetch_artifact; } \
+            || { echo "::error::Could not restore history from $SITE or from a published snapshot"; exit 1; }
       - name: Fetch lists and write snapshot
         env:
           SIEVE_NSDC_API_KEY: ${{ secrets.SIEVE_NSDC_API_KEY }}
