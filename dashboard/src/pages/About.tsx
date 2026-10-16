@@ -41,7 +41,7 @@ export default function About() {
   const [photo, setPhoto] = useState(true);
   const { changes } = useChanges();
   const [enf, setEnf] = useState<RawEnforcement | null | undefined>(undefined);
-  useEffect(() => { document.title = 'Sieve — Sanctions screening'; let live = true; loadEnforcement().then(e => live && setEnf(e), () => live && setEnf(null)); return () => { live = false; }; }, []);
+  useEffect(() => { document.title = 'Sieve — Open-source sanctions and AML screening'; let live = true; loadEnforcement().then(e => live && setEnf(e), () => live && setEnf(null)); return () => { live = false; }; }, []);
   const screen = (e: FormEvent) => { e.preventDefault(); const v = q.current?.value.trim(); nav(v ? '/search?q=' + encodeURIComponent(v) : '/search'); };
 
   // What the lists gave tonight
