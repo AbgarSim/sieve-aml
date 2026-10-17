@@ -14,6 +14,7 @@ import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.core.model.SanctionsProgram;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.ListProvider;
+import dev.sieve.ingest.PlaywrightSupport;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -80,6 +81,7 @@ public final class IlWmdTerrorProvider implements ListProvider {
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
+        PlaywrightSupport.requireAvailable(ListSource.IL_WMD_TERROR);
         log.info("Fetching IL WMD/Terror lists via Playwright");
         Instant start = Instant.now();
 

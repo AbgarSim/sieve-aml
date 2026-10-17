@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
  * <p>Entities within the same source list are never merged, directly or transitively: they are
  * considered distinct by the issuing authority.
  *
- * <h3>Algorithm</h3>
+ * <h2>Algorithm</h2>
  *
  * <ol>
  *   <li><b>Blocking</b> — entities of one type are grouped by the first characters of every token

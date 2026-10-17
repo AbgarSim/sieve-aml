@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dev.sieve</groupId>
+        <groupId>org.sieveaml</groupId>
         <artifactId>sieve</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
@@ -13,6 +13,13 @@
     <artifactId>sieve-beam</artifactId>
     <name>Sieve Beam</name>
     <description>Apache Beam pipeline that screens and risk-scores batches of transactions</description>
+
+    <properties>
+        <!-- Application module: built, but not published to Maven Central -->
+        <maven.source.skip>true</maven.source.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <gpg.skip>true</gpg.skip>
+    </properties>
 
     <!-- Beam reads its options with Jackson: keep jackson-core and annotations at the same
          version as jackson-databind, which the parent sets above the Spring Boot BOM's -->
@@ -34,15 +41,15 @@
     <dependencies>
         <!-- Internal modules -->
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-match</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.sieve</groupId>
+            <groupId>org.sieveaml</groupId>
             <artifactId>sieve-risk</artifactId>
         </dependency>
 
