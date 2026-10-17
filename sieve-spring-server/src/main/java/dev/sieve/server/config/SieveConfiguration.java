@@ -103,7 +103,7 @@ public class SieveConfiguration {
                     ukHmtConfig.url() != null
                             ? URI.create(ukHmtConfig.url())
                             : URI.create(
-                                    "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml");
+                                    "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml");
             providers.add(new UkHmtProvider(ukUri));
             log.info("Registered UK HMT provider [url={}]", ukUri);
         }

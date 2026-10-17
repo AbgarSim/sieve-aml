@@ -111,10 +111,10 @@ public final class SourceCatalog {
         put(
                 map,
                 ListSource.UK_HMT,
-                "HM Treasury, Office of Financial Sanctions Implementation",
+                "Foreign, Commonwealth and Development Office",
                 "GB",
                 Format.XML,
-                "https://www.gov.uk/government/publications/financial-sanctions-consolidated-list-of-targets");
+                "https://www.gov.uk/government/publications/the-uk-sanctions-list");
         put(
                 map,
                 ListSource.CA_CONSOLIDATED,
@@ -359,9 +359,10 @@ public final class SourceCatalog {
                             + "(Da'esh) and Al-Qaida, Taliban, DPRK and Libya regimes. All UN member states "
                             + "must apply it.";
             case UK_HMT ->
-                    "The UK consolidated list of financial sanctions targets, kept by HM Treasury's "
-                            + "Office of Financial Sanctions Implementation. It lists those subject to asset "
-                            + "freezes under UK sanctions regulations, with the UK's statement of reasons.";
+                    "The UK Sanctions List, kept by the Foreign, Commonwealth and Development Office "
+                            + "and since 28 January 2026 the only source of UK sanctions designations. It "
+                            + "lists everyone designated under UK sanctions regulations, whether for an asset "
+                            + "freeze, a travel ban or a ship measure, with the UK's statement of reasons.";
             case CA_CONSOLIDATED ->
                     "Canada's Consolidated Canadian Autonomous Sanctions List, kept by Global Affairs"
                             + " Canada, of people and entities listed under the Special Economic Measures Act "

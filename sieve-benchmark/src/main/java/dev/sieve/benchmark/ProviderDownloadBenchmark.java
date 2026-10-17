@@ -40,7 +40,7 @@ public final class ProviderDownloadBenchmark {
                 "UK HMT",
                 new UkHmtProvider(
                         URI.create(
-                                "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml")));
+                                "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml")));
         providers.put(
                 "EU Consolidated",
                 new EuConsolidatedProvider(

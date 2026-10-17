@@ -26,23 +26,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -52,12 +49,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Fetches and parses the UK HM Treasury / OFSI Consolidated List of Financial Sanctions Targets.
+ * Fetches and parses the UK Sanctions List published by the Foreign, Commonwealth and Development
+ * Office (FCDO).
  *
- * <p>The XML uses a flat structure where each {@code <FinancialSanctionsTarget>} row represents a
- * single name entry. Multiple rows share the same {@code <GroupID>} to represent aliases of the
- * same entity. This provider groups rows by {@code GroupID}, selects the "Primary name" entry as
- * the entity's primary name, and collects the rest as aliases.
+ * <p>Since 28 January 2026 the UK Sanctions List is the only source of UK sanctions designations;
+ * the former OFSI Consolidated List is closed and no longer updated. Each {@code <Designation>}
+ * holds one target with all its names, addresses and identifiers. Entity ids are {@code uk-}
+ * followed by the list's unique id (such as {@code RUS0001}), the same ids the OFSI list used, so
+ * records keep their ids across the switch.
  *
  * <p>A row's other information often names another target ("Associate of ...", "Owned by ...");
  * each such name that matches exactly one target, written either as the list writes it or given
@@ -65,26 +64,26 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses StAX (streaming) XML parsing for memory-efficient processing.
  *
- * @see <a href="https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml">UK
- *     HMT Consolidated XML</a>
+ * @see <a href="https://www.gov.uk/government/publications/the-uk-sanctions-list">The UK Sanctions
+ *     List</a>
  */
 public final class UkHmtProvider implements ListProvider {
 
     private static final Logger log = LoggerFactory.getLogger(UkHmtProvider.class);
 
     private static final String DEFAULT_URL =
-            "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml";
+            "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
 
-    private static final DateTimeFormatter HMT_DATETIME_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    private static final DateTimeFormatter UK_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final URI sourceUri;
     private final HttpClient httpClient;
     private volatile ListMetadata currentMetadata;
 
-    /** Creates a provider with the default UK HMT URL. */
+    /** Creates a provider with the default UK Sanctions List URL. */
     public UkHmtProvider() {
         this(URI.create(DEFAULT_URL));
     }
@@ -92,7 +91,7 @@ public final class UkHmtProvider implements ListProvider {
     /**
      * Creates a provider with a custom source URI.
      *
-     * @param sourceUri the URI to fetch the consolidated list XML from
+     * @param sourceUri the URI to fetch the UK Sanctions List XML from
      */
     public UkHmtProvider(URI sourceUri) {
         this.sourceUri = Objects.requireNonNull(sourceUri, "sourceUri must not be null");
@@ -103,7 +102,7 @@ public final class UkHmtProvider implements ListProvider {
     /**
      * Creates a provider with a custom source URI and HTTP client (for testing).
      *
-     * @param sourceUri the URI to fetch the consolidated list XML from
+     * @param sourceUri the URI to fetch the UK Sanctions List XML from
      * @param httpClient the HTTP client to use for requests
      */
     public UkHmtProvider(URI sourceUri, HttpClient httpClient) {
@@ -124,7 +123,7 @@ public final class UkHmtProvider implements ListProvider {
 
     @Override
     public List<SanctionedEntity> fetch() throws ListIngestionException {
-        log.info("Fetching UK HMT consolidated list [uri={}]", sourceUri);
+        log.info("Fetching UK Sanctions List [uri={}]", sourceUri);
         Instant start = Instant.now();
 
         try {
@@ -226,410 +225,402 @@ public final class UkHmtProvider implements ListProvider {
     // ---- XML parsing -------------------------------------------------------
 
     /**
-     * Parses the UK HMT consolidated list XML into sanctioned entities.
+     * Parses the UK Sanctions List XML into sanctioned entities.
      *
-     * <p>The XML is a flat list of {@code <FinancialSanctionsTarget>} rows. Rows sharing the same
-     * {@code <GroupID>} are aliases of a single entity. This method groups rows by GroupID, selects
-     * the "Primary name" row as the entity's primary name, and collects all others as aliases.
+     * <p>Each {@code <Designation>} element becomes one entity. Its first "Primary name" is the
+     * primary name, every other name and every non-Latin name an alias.
      *
      * @param xmlContent the raw XML bytes
      * @return the parsed entities
      * @throws ListIngestionException if the XML cannot be parsed
      */
     List<SanctionedEntity> parseXml(byte[] xmlContent) throws ListIngestionException {
-        Map<String, List<HmtRow>> groups = new LinkedHashMap<>();
+        List<SanctionedEntity> entities = new ArrayList<>();
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
         try (InputStream input = new ByteArrayInputStream(xmlContent)) {
-            XMLStreamReader reader =
-                    factory.createXMLStreamReader(input, StandardCharsets.UTF_8.name());
-
+            XMLStreamReader reader = factory.createXMLStreamReader(input);
             while (reader.hasNext()) {
                 int event = reader.next();
                 if (event == XMLStreamConstants.START_ELEMENT
-                        && "FinancialSanctionsTarget".equals(reader.getLocalName())) {
-                    HmtRow row = parseRow(reader);
-                    if (row != null && row.groupId != null) {
-                        groups.computeIfAbsent(row.groupId, k -> new ArrayList<>()).add(row);
+                        && "Designation".equals(reader.getLocalName())) {
+                    SanctionedEntity entity = toEntity(readNode(reader));
+                    if (entity != null) {
+                        entities.add(entity);
                     }
                 }
             }
-
             reader.close();
         } catch (XMLStreamException e) {
             throw new ListIngestionException(
-                    "Failed to parse UK HMT XML: " + e.getMessage(), ListSource.UK_HMT, e);
+                    "Failed to parse UK Sanctions List XML: " + e.getMessage(),
+                    ListSource.UK_HMT,
+                    e);
         } catch (IOException e) {
             throw new ListIngestionException(
-                    "IO error reading UK HMT XML: " + e.getMessage(), ListSource.UK_HMT, e);
-        }
-
-        List<SanctionedEntity> entities = new ArrayList<>(groups.size());
-        for (Map.Entry<String, List<HmtRow>> entry : groups.entrySet()) {
-            SanctionedEntity entity = mergeGroup(entry.getKey(), entry.getValue());
-            if (entity != null) {
-                entities.add(entity);
-            }
+                    "IO error reading UK Sanctions List XML: " + e.getMessage(),
+                    ListSource.UK_HMT,
+                    e);
         }
 
         return RemarkRelations.byName(entities, "UK HMT", RemarkRelations::givenNameFirst);
     }
 
-    /** Merges all rows sharing a GroupID into a single {@link SanctionedEntity}. */
-    private SanctionedEntity mergeGroup(String groupId, List<HmtRow> rows) {
-        HmtRow primary = null;
-        for (HmtRow row : rows) {
-            if ("Primary name".equalsIgnoreCase(row.aliasType)) {
-                primary = row;
-                break;
-            }
+    /** Builds one entity from a {@code <Designation>}, or null when it has no usable name. */
+    private static SanctionedEntity toEntity(Node designation) {
+        String uniqueId = designation.text("UniqueID");
+        if (uniqueId == null) {
+            log.debug("Skipping UK designation without a unique id");
+            return null;
         }
-        if (primary == null) {
-            primary = rows.getFirst();
-        }
+        EntityType entityType = mapType(designation.text("IndividualEntityShip"));
+        boolean individual = entityType == EntityType.INDIVIDUAL;
+        String title = designation.child("Titles").map(t -> t.text("Title")).orElse(null);
 
+        NameInfo primaryName = null;
         List<NameInfo> aliases = new ArrayList<>();
-        Set<String> seenAddresses = new LinkedHashSet<>();
-        List<Address> addresses = new ArrayList<>();
-        List<Identifier> identifiers = new ArrayList<>();
-        Set<String> nationalities = new LinkedHashSet<>();
-        Set<String> citizenships = new LinkedHashSet<>();
-        List<LocalDate> datesOfBirth = new ArrayList<>();
-        Set<String> placesOfBirth = new LinkedHashSet<>();
-        Set<String> regimes = new LinkedHashSet<>();
-        Set<String> reasons = new LinkedHashSet<>();
-        Set<String> otherInformation = new LinkedHashSet<>();
-        Gender gender = null;
-        String shipFlag = null;
-        String shipType = null;
-        Integer shipTonnage = null;
-        Instant listedDate = parseInstant(primary.dateListed);
-        Instant lastUpdated = parseInstant(primary.lastUpdated);
-
-        for (HmtRow row : rows) {
-            // Collect aliases (skip the primary)
-            if (row != primary) {
-                NameInfo alias = buildNameInfo(row, mapAliasType(row.aliasType));
-                if (alias != null) {
-                    aliases.add(alias);
-                }
+        for (Node name : designation.all("Names", "Name")) {
+            String nameType = name.text("NameType");
+            boolean primary =
+                    primaryName == null
+                            && nameType != null
+                            && nameType.equalsIgnoreCase("primary name");
+            NameInfo info =
+                    buildName(
+                            name,
+                            primary ? NameType.PRIMARY : mapAliasType(nameType),
+                            primary ? title : null,
+                            strengthOf(name.text("AliasStrength")));
+            if (info == null) {
+                continue;
             }
-
-            // Collect non-Latin script as additional alias
-            if (row.nameNonLatinScript != null && !row.nameNonLatinScript.isBlank()) {
-                ScriptType script = mapNonLatinScript(row.nonLatinScriptType);
+            if (primary) {
+                primaryName = info;
+            } else {
+                aliases.add(info);
+            }
+        }
+        if (primaryName == null && !aliases.isEmpty()) {
+            NameInfo first = aliases.removeFirst();
+            primaryName =
+                    new NameInfo(
+                            first.fullName(),
+                            first.givenName(),
+                            first.familyName(),
+                            first.middleName(),
+                            title,
+                            NameType.PRIMARY,
+                            NameStrength.STRONG,
+                            first.script());
+        }
+        if (primaryName == null) {
+            log.debug("Skipping UK designation with no usable name [id={}]", uniqueId);
+            return null;
+        }
+        for (Node nonLatin : designation.all("NonLatinNames", "NonLatinName")) {
+            String text = nonLatin.text("NameNonLatinScript");
+            if (text != null) {
                 aliases.add(
                         new NameInfo(
-                                row.nameNonLatinScript.strip(),
+                                text,
                                 null,
                                 null,
                                 null,
                                 null,
                                 NameType.AKA,
                                 NameStrength.STRONG,
-                                script));
-            }
-
-            // Merge addresses (deduplicate by full address string)
-            Address addr = buildAddress(row);
-            if (addr != null && addr.fullAddress() != null) {
-                if (seenAddresses.add(addr.fullAddress())) {
-                    addresses.add(addr);
-                }
-            }
-
-            // Merge identifiers
-            collectIdentifiers(row, identifiers);
-
-            // Merge nationalities / citizenships / DOBs / POBs
-            addIfPresent(nationalities, row.nationality);
-            addIfPresent(citizenships, row.nationality);
-            addIfPresent(placesOfBirth, row.townOfBirth);
-
-            LocalDate dob = parseDateOfBirth(row.dateOfBirth);
-            if (dob != null && !datesOfBirth.contains(dob)) {
-                datesOfBirth.add(dob);
-            }
-
-            // Merge regimes
-            if (row.regimeName != null && !row.regimeName.isBlank()) {
-                regimes.add(row.regimeName.strip());
-            }
-
-            // Merge the statement of reasons, other information, gender and ship details
-            addIfPresent(reasons, row.statementOfReasons);
-            addIfPresent(otherInformation, row.otherInformation);
-            if (gender == null) {
-                gender = Gender.parse(row.gender).orElse(null);
-            }
-            if (shipFlag == null) {
-                shipFlag = strip(row.shipFlag);
-            }
-            if (shipType == null) {
-                shipType = strip(row.shipType);
-            }
-            if (shipTonnage == null) {
-                shipTonnage = VesselDetails.tons(row.shipTonnage);
-            }
-
-            // Use latest update timestamp
-            Instant rowUpdated = parseInstant(row.lastUpdated);
-            if (rowUpdated != null && (lastUpdated == null || rowUpdated.isAfter(lastUpdated))) {
-                lastUpdated = rowUpdated;
-            }
-
-            // Use earliest listed date
-            Instant rowListed = parseInstant(row.dateListed);
-            if (rowListed != null && (listedDate == null || rowListed.isBefore(listedDate))) {
-                listedDate = rowListed;
+                                mapNonLatinScript(nonLatin.text("NonLatinScriptType"))));
             }
         }
 
-        NameInfo primaryName = buildNameInfo(primary, NameType.PRIMARY);
-        if (primaryName == null) {
-            log.debug("Skipping UK HMT group with no usable primary name [groupId={}]", groupId);
-            return null;
+        Set<String> seenAddresses = new LinkedHashSet<>();
+        List<Address> addresses = new ArrayList<>();
+        for (Node address : designation.all("Addresses", "Address")) {
+            Address built = buildAddress(address);
+            if (built != null && seenAddresses.add(built.fullAddress())) {
+                addresses.add(built);
+            }
         }
 
-        EntityType entityType = mapGroupType(primary.groupTypeDescription);
+        Node person =
+                designation
+                        .child("IndividualDetails")
+                        .flatMap(d -> d.child("Individual"))
+                        .orElse(Node.EMPTY);
+        Node company =
+                designation
+                        .child("EntityDetails")
+                        .flatMap(d -> d.child("Entity"))
+                        .orElse(Node.EMPTY);
+        Node ship =
+                designation.child("ShipDetails").flatMap(d -> d.child("Ship")).orElse(Node.EMPTY);
 
+        List<Identifier> identifiers = new ArrayList<>();
+        Set<String> seenIdentifiers = new LinkedHashSet<>();
+        for (Node passport : person.all("PassportDetails", "Passport")) {
+            addIdentifier(
+                    identifiers,
+                    seenIdentifiers,
+                    IdentifierType.PASSPORT,
+                    passport.text("PassportNumber"),
+                    passport.text("PassportAdditionalInformation"));
+        }
+        for (Node national : person.all("NationalIdentifierDetails", "NationalIdentifier")) {
+            addIdentifier(
+                    identifiers,
+                    seenIdentifiers,
+                    IdentifierType.NATIONAL_ID,
+                    national.text("NationalIdentifierNumber"),
+                    national.text("NationalIdentifierAdditionalInformation"));
+        }
+        for (String number :
+                company.texts("BusinessRegistrationNumbers", "BusinessRegistrationNumber")) {
+            addIdentifier(
+                    identifiers,
+                    seenIdentifiers,
+                    IdentifierType.BUSINESS_REGISTRATION,
+                    number,
+                    null);
+        }
+        for (String imo : ship.texts("IMONumbers", "IMONumber")) {
+            addIdentifier(
+                    identifiers, seenIdentifiers, IdentifierType.IMO_NUMBER, imoDigits(imo), null);
+        }
+
+        List<String> nationalities =
+                new ArrayList<>(new LinkedHashSet<>(person.texts("Nationalities", "Nationality")));
+
+        List<LocalDate> datesOfBirth = new ArrayList<>();
+        for (String dob : person.texts("DOBs", "DOB")) {
+            LocalDate date = parseDateOfBirth(dob);
+            if (date != null && !datesOfBirth.contains(date)) {
+                datesOfBirth.add(date);
+            }
+        }
+
+        Set<String> placesOfBirth = new LinkedHashSet<>();
+        for (Node location : person.all("BirthDetails", "Location")) {
+            String place =
+                    joinNonBlank(
+                            ", ", location.text("TownOfBirth"), location.text("CountryOfBirth"));
+            if (place != null) {
+                placesOfBirth.add(place);
+            }
+        }
+
+        String regime = designation.text("RegimeName");
         List<SanctionsProgram> programs =
-                regimes.stream().map(r -> new SanctionsProgram(r, r, ListSource.UK_HMT)).toList();
+                regime == null
+                        ? List.of()
+                        : List.of(new SanctionsProgram(regime, regime, ListSource.UK_HMT));
 
-        String entityId =
-                "uk-"
-                        + (primary.ukSanctionsListRef != null
-                                ? primary.ukSanctionsListRef
-                                : "group-" + groupId);
-
-        String remarks = otherInformation.isEmpty() ? null : String.join("; ", otherInformation);
-        boolean individual = entityType == EntityType.INDIVIDUAL;
+        String remarks = designation.text("OtherInformation");
+        String reasons = designation.text("UKStatementofReasons");
+        Gender gender =
+                individual
+                        ? Gender.parse(
+                                        person.child("Genders")
+                                                .map(g -> g.text("Gender"))
+                                                .orElse(null))
+                                .orElse(null)
+                        : null;
 
         return new SanctionedEntity(
-                        entityId,
+                        "uk-" + uniqueId,
                         entityType,
                         ListSource.UK_HMT,
                         primaryName,
                         aliases,
                         addresses,
                         identifiers,
+                        nationalities,
                         new ArrayList<>(nationalities),
-                        new ArrayList<>(citizenships),
                         datesOfBirth,
                         new ArrayList<>(placesOfBirth),
                         remarks,
                         programs,
-                        listedDate,
-                        lastUpdated)
-                .withGender(individual ? gender : null)
+                        parseDate(designation.text("DateDesignated")),
+                        parseDate(designation.text("LastUpdated")))
+                .withGender(gender)
                 .withDeceased(individual ? Deceased.statedIn(remarks) : null)
-                .withListingReasons(new ArrayList<>(reasons))
+                .withListingReasons(reasons == null ? List.of() : List.of(reasons))
                 .withVessel(
                         entityType == EntityType.VESSEL
-                                ? VesselDetails.of(shipFlag, shipType, null, shipTonnage, null)
+                                ? VesselDetails.of(
+                                        first(
+                                                ship.texts(
+                                                        "CurrentBelievedFlagOfShips",
+                                                        "CurrentBelievedFlagOfShip")),
+                                        first(ship.texts("TypeOfShipDetails", "TypeOfShip")),
+                                        null,
+                                        VesselDetails.tons(
+                                                first(
+                                                        ship.texts(
+                                                                "TonnageOfShipDetails",
+                                                                "TonnageOfShip"))),
+                                        null)
                                 : null);
     }
 
-    // ---- Row parsing -------------------------------------------------------
+    // ---- XML tree ------------------------------------------------------------
 
-    /** Intermediate holder for a single {@code <FinancialSanctionsTarget>} row before grouping. */
-    static final class HmtRow {
-        String name1; // given name
-        String name2; // middle name parts
-        String name3;
-        String name4;
-        String name5;
-        String name6; // surname / entity name
-        String title;
-        String nameNonLatinScript;
-        String nonLatinScriptType;
-        String nonLatinScriptLanguage;
-        String address1;
-        String address2;
-        String address3;
-        String address4;
-        String address5;
-        String address6;
-        String postCode;
-        String country;
-        String otherInformation;
-        String groupTypeDescription;
-        String aliasType;
-        String aliasQuality;
-        String regimeName;
-        String dateListed;
-        String dateDesignated;
-        String ukSanctionsListRef;
-        String statementOfReasons;
-        String dateOfBirth;
-        String townOfBirth;
-        String countryOfBirth;
-        String nationality;
-        String passportNumber;
-        String passportDetails;
-        String niNumber;
-        String niDetails;
-        String position;
-        String gender;
-        String entityType;
-        String businessRegNumber;
-        String shipImoNumber;
-        String shipFlag;
-        String shipType;
-        String shipTonnage;
-        String lastUpdated;
-        String groupId;
-        String grpStatus;
-    }
+    /** A small element tree for one designation, so fields can be read by name. */
+    static final class Node {
+        static final Node EMPTY = new Node("", null, List.of());
 
-    private HmtRow parseRow(XMLStreamReader reader) throws XMLStreamException {
-        HmtRow row = new HmtRow();
+        final String name;
+        final String text;
+        final List<Node> children;
 
-        while (reader.hasNext()) {
-            int event = reader.next();
+        Node(String name, String text, List<Node> children) {
+            this.name = name;
+            this.text = text;
+            this.children = children;
+        }
 
-            if (event == XMLStreamConstants.START_ELEMENT) {
-                String el = reader.getLocalName();
-                switch (el) {
-                    case "name1" -> row.name1 = readText(reader);
-                    case "name2" -> row.name2 = readText(reader);
-                    case "name3" -> row.name3 = readText(reader);
-                    case "name4" -> row.name4 = readText(reader);
-                    case "name5" -> row.name5 = readText(reader);
-                    case "Name6" -> row.name6 = readText(reader);
-                    case "Title" -> row.title = readText(reader);
-                    case "NameNonLatinScript" -> row.nameNonLatinScript = readText(reader);
-                    case "NonLatinScriptType" -> row.nonLatinScriptType = readText(reader);
-                    case "NonLatinScriptLanguage" -> row.nonLatinScriptLanguage = readText(reader);
-                    case "Address1" -> row.address1 = readText(reader);
-                    case "Address2" -> row.address2 = readText(reader);
-                    case "Address3" -> row.address3 = readText(reader);
-                    case "Address4" -> row.address4 = readText(reader);
-                    case "Address5" -> row.address5 = readText(reader);
-                    case "Address6" -> row.address6 = readText(reader);
-                    case "PostCode" -> row.postCode = readText(reader);
-                    case "Country" -> row.country = readText(reader);
-                    case "OtherInformation" -> row.otherInformation = readText(reader);
-                    case "GroupTypeDescription" -> row.groupTypeDescription = readText(reader);
-                    case "AliasType" -> row.aliasType = readText(reader);
-                    case "AliasQuality" -> row.aliasQuality = readText(reader);
-                    case "RegimeName" -> row.regimeName = readText(reader);
-                    case "DateListed" -> row.dateListed = readText(reader);
-                    case "DateDesignated" -> row.dateDesignated = readText(reader);
-                    case "UKSanctionsListRef" -> row.ukSanctionsListRef = readText(reader);
-                    case "UKStatementOfReasons" -> row.statementOfReasons = readText(reader);
-                    case "Individual_DateOfBirth" -> row.dateOfBirth = readText(reader);
-                    case "Individual_TownOfBirth" -> row.townOfBirth = readText(reader);
-                    case "Individual_CountryOfBirth" -> row.countryOfBirth = readText(reader);
-                    case "Individual_Nationality" -> row.nationality = readText(reader);
-                    case "Individual_PassportNumber" -> row.passportNumber = readText(reader);
-                    case "Individual_PassportDetails" -> row.passportDetails = readText(reader);
-                    case "Individual_NINumber" -> row.niNumber = readText(reader);
-                    case "Individual_NIDetails" -> row.niDetails = readText(reader);
-                    case "Individual_Position" -> row.position = readText(reader);
-                    case "Individual_Gender" -> row.gender = readText(reader);
-                    case "Entity_Type" -> row.entityType = readText(reader);
-                    case "Entity_BusinessRegNumber" -> row.businessRegNumber = readText(reader);
-                    case "Ship_IMONumber" -> row.shipImoNumber = readText(reader);
-                    case "Ship_Flag" -> row.shipFlag = readText(reader);
-                    case "Ship_Type" -> row.shipType = readText(reader);
-                    case "Ship_Tonnage" -> row.shipTonnage = readText(reader);
-                    case "LastUpdated" -> row.lastUpdated = readText(reader);
-                    case "GroupID" -> row.groupId = readText(reader);
-                    case "GrpStatus" -> row.grpStatus = readText(reader);
-                    default -> {
-                        /* skip unknown elements */
+        Optional<Node> child(String childName) {
+            for (Node c : children) {
+                if (c.name.equals(childName)) {
+                    return Optional.of(c);
+                }
+            }
+            return Optional.empty();
+        }
+
+        /** The stripped text of the first child with this name, or null when absent or blank. */
+        String text(String childName) {
+            return child(childName).map(c -> c.text).orElse(null);
+        }
+
+        /** Every grandchild named {@code item} under every child named {@code group}. */
+        List<Node> all(String group, String item) {
+            List<Node> out = new ArrayList<>();
+            for (Node g : children) {
+                if (g.name.equals(group)) {
+                    for (Node c : g.children) {
+                        if (c.name.equals(item)) {
+                            out.add(c);
+                        }
                     }
                 }
-            } else if (event == XMLStreamConstants.END_ELEMENT
-                    && "FinancialSanctionsTarget".equals(reader.getLocalName())) {
+            }
+            return out;
+        }
+
+        /** The non-blank texts of {@link #all(String, String)}. */
+        List<String> texts(String group, String item) {
+            List<String> out = new ArrayList<>();
+            for (Node n : all(group, item)) {
+                if (n.text != null) {
+                    out.add(n.text);
+                }
+            }
+            return out;
+        }
+    }
+
+    /** Reads the element the reader is on, with everything inside it. */
+    private static Node readNode(XMLStreamReader reader) throws XMLStreamException {
+        String name = reader.getLocalName();
+        List<Node> children = new ArrayList<>();
+        StringBuilder text = new StringBuilder();
+        while (reader.hasNext()) {
+            int event = reader.next();
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                children.add(readNode(reader));
+            } else if (event == XMLStreamConstants.CHARACTERS
+                    || event == XMLStreamConstants.CDATA) {
+                text.append(reader.getText());
+            } else if (event == XMLStreamConstants.END_ELEMENT) {
                 break;
             }
         }
-
-        return row;
+        return new Node(name, strip(text.toString()), children);
     }
 
     // ---- Field builders ----------------------------------------------------
 
-    private static NameInfo buildNameInfo(HmtRow row, NameType nameType) {
-        String familyName = strip(row.name6);
-        String givenName = strip(row.name1);
-        String middleName = joinNonBlank(" ", row.name2, row.name3, row.name4, row.name5);
-
+    private static NameInfo buildName(
+            Node name, NameType nameType, String title, NameStrength strength) {
+        String familyName = name.text("Name6");
+        String givenName = name.text("Name1");
+        String middleName =
+                joinNonBlank(
+                        " ",
+                        name.text("Name2"),
+                        name.text("Name3"),
+                        name.text("Name4"),
+                        name.text("Name5"));
         String fullName = buildFullName(givenName, familyName, middleName);
-        if (fullName == null || fullName.isBlank()) {
+        if (fullName == null) {
             return null;
         }
-
         return new NameInfo(
                 fullName,
                 givenName,
                 familyName,
                 middleName,
-                strip(row.title),
+                title,
                 nameType,
-                NameStrength.STRONG,
+                strength,
                 ScriptType.LATIN);
     }
 
-    private static Address buildAddress(HmtRow row) {
-        String street = joinNonBlank(", ", row.address1, row.address2, row.address3);
-        String city = joinNonBlank(", ", row.address4, row.address5, row.address6);
-        String postCode = strip(row.postCode);
-        String country = strip(row.country);
-
+    private static Address buildAddress(Node address) {
+        String street =
+                joinNonBlank(
+                        ", ",
+                        address.text("AddressLine1"),
+                        address.text("AddressLine2"),
+                        address.text("AddressLine3"));
+        String city =
+                joinNonBlank(
+                        ", ",
+                        address.text("AddressLine4"),
+                        address.text("AddressLine5"),
+                        address.text("AddressLine6"));
+        String postCode = address.text("AddressPostalCode");
+        String country = address.text("AddressCountry");
         String fullAddress = joinNonBlank(", ", street, city, postCode, country);
         if (fullAddress == null) {
             return null;
         }
-
         return new Address(street, city, null, postCode, country, fullAddress);
     }
 
-    private static void collectIdentifiers(HmtRow row, List<Identifier> identifiers) {
-        if (row.passportNumber != null && !row.passportNumber.isBlank()) {
-            identifiers.add(
-                    new Identifier(
-                            IdentifierType.PASSPORT,
-                            row.passportNumber.strip(),
-                            null,
-                            strip(row.passportDetails)));
+    private static void addIdentifier(
+            List<Identifier> identifiers,
+            Set<String> seen,
+            IdentifierType type,
+            String value,
+            String note) {
+        if (value == null || value.isBlank()) {
+            return;
         }
-        if (row.niNumber != null && !row.niNumber.isBlank()) {
-            identifiers.add(
-                    new Identifier(
-                            IdentifierType.NATIONAL_ID,
-                            row.niNumber.strip(),
-                            null,
-                            strip(row.niDetails)));
+        String stripped = value.strip();
+        if (seen.add(type + ":" + stripped)) {
+            identifiers.add(new Identifier(type, stripped, null, strip(note)));
         }
-        if (row.businessRegNumber != null && !row.businessRegNumber.isBlank()) {
-            identifiers.add(
-                    new Identifier(
-                            IdentifierType.BUSINESS_REGISTRATION,
-                            row.businessRegNumber.strip(),
-                            null,
-                            null));
-        }
-        if (row.shipImoNumber != null && !row.shipImoNumber.isBlank()) {
-            identifiers.add(
-                    new Identifier(
-                            IdentifierType.IMO_NUMBER, row.shipImoNumber.strip(), null, null));
-        }
+    }
+
+    /** The list writes IMO numbers both as {@code 9562233} and {@code IMO9562233}. */
+    private static String imoDigits(String imo) {
+        String stripped = imo.strip();
+        return stripped.regionMatches(true, 0, "IMO", 0, 3)
+                ? stripped.substring(3).strip()
+                : stripped;
     }
 
     // ---- Mapping helpers ---------------------------------------------------
 
-    private static EntityType mapGroupType(String groupType) {
-        if (groupType == null) {
+    private static EntityType mapType(String type) {
+        if (type == null) {
             return EntityType.ENTITY;
         }
-        return switch (groupType.strip().toLowerCase()) {
+        return switch (type.strip().toLowerCase()) {
             case "individual" -> EntityType.INDIVIDUAL;
-            case "entity" -> EntityType.ENTITY;
             case "ship" -> EntityType.VESSEL;
             default -> EntityType.ENTITY;
         };
@@ -639,12 +630,17 @@ public final class UkHmtProvider implements ListProvider {
         if (aliasType == null) {
             return NameType.AKA;
         }
-        return switch (aliasType.strip().toLowerCase()) {
-            case "primary name", "primary name variation" -> NameType.AKA;
-            case "aka", "a.k.a." -> NameType.AKA;
-            case "fka", "f.k.a." -> NameType.FKA;
-            default -> NameType.AKA;
-        };
+        String lower = aliasType.strip().toLowerCase();
+        return lower.equals("fka") || lower.equals("f.k.a.") || lower.startsWith("formerly")
+                ? NameType.FKA
+                : NameType.AKA;
+    }
+
+    /** "Low quality a.k.a" names are weak; every other name is strong. */
+    private static NameStrength strengthOf(String aliasStrength) {
+        return aliasStrength != null && aliasStrength.toLowerCase().startsWith("low")
+                ? NameStrength.WEAK
+                : NameStrength.STRONG;
     }
 
     private static ScriptType mapNonLatinScript(String scriptType) {
@@ -662,20 +658,6 @@ public final class UkHmtProvider implements ListProvider {
 
     // ---- Text / date utilities ---------------------------------------------
 
-    private String readText(XMLStreamReader reader) throws XMLStreamException {
-        StringBuilder sb = new StringBuilder();
-        while (reader.hasNext()) {
-            int event = reader.next();
-            if (event == XMLStreamConstants.CHARACTERS || event == XMLStreamConstants.CDATA) {
-                sb.append(reader.getText());
-            } else if (event == XMLStreamConstants.END_ELEMENT) {
-                break;
-            }
-        }
-        String text = sb.toString().strip();
-        return text.isEmpty() ? null : text;
-    }
-
     private static String buildFullName(String givenName, String familyName, String middleName) {
         if (familyName == null && givenName == null) {
             return null;
@@ -692,7 +674,7 @@ public final class UkHmtProvider implements ListProvider {
             if (!sb.isEmpty()) sb.append(" ");
             sb.append(middleName);
         }
-        return sb.isEmpty() ? null : sb.toString();
+        return sb.toString();
     }
 
     private static String joinNonBlank(String delimiter, String... parts) {
@@ -706,44 +688,47 @@ public final class UkHmtProvider implements ListProvider {
         return sb.isEmpty() ? null : sb.toString();
     }
 
-    private static LocalDate parseDateOfBirth(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) {
-            return null;
-        }
-        String stripped = dateStr.strip();
-        // HMT uses "dd/MM/yyyy" or ISO date or ISO datetime
-        try {
-            return LocalDate.parse(stripped, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        } catch (DateTimeParseException ignored) {
-        }
-        try {
-            return LocalDate.parse(stripped);
-        } catch (DateTimeParseException ignored) {
-        }
-        try {
-            return LocalDateTime.parse(stripped, HMT_DATETIME_FORMAT).toLocalDate();
-        } catch (DateTimeParseException ignored) {
-        }
-        log.debug("Unable to parse UK HMT date of birth [value={}]", dateStr);
-        return null;
+    private static String first(List<String> values) {
+        return values.isEmpty() ? null : values.getFirst();
     }
 
-    private static Instant parseInstant(String dateTimeStr) {
-        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+    /**
+     * Parses a date of birth. The list writes {@code dd/MM/yyyy} and marks unknown parts with
+     * {@code dd} or {@code mm}, as in {@code dd/mm/1945}; a date with only the year known becomes 1
+     * January of that year, and one with the month known the first of that month.
+     */
+    static LocalDate parseDateOfBirth(String value) {
+        if (value == null) {
+            return null;
+        }
+        String[] parts = value.strip().split("/");
+        if (parts.length != 3) {
             return null;
         }
         try {
-            return LocalDateTime.parse(dateTimeStr.strip(), HMT_DATETIME_FORMAT)
-                    .toInstant(ZoneOffset.UTC);
+            int year = Integer.parseInt(parts[2].strip());
+            boolean monthKnown = parts[1].chars().allMatch(Character::isDigit);
+            boolean dayKnown = parts[0].chars().allMatch(Character::isDigit);
+            int month = monthKnown ? Integer.parseInt(parts[1]) : 1;
+            int day = monthKnown && dayKnown ? Integer.parseInt(parts[0]) : 1;
+            return LocalDate.of(year, month, day);
+        } catch (RuntimeException e) {
+            log.debug("Unable to parse UK date of birth [value={}]", value);
+            return null;
+        }
+    }
+
+    private static Instant parseDate(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value.strip(), UK_DATE_FORMAT)
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .toInstant();
         } catch (DateTimeParseException e) {
-            log.debug("Unable to parse UK HMT datetime [value={}]", dateTimeStr);
+            log.debug("Unable to parse UK date [value={}]", value);
             return null;
-        }
-    }
-
-    private static void addIfPresent(Set<String> set, String value) {
-        if (value != null && !value.isBlank()) {
-            set.add(value.strip());
         }
     }
 

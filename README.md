@@ -69,7 +69,7 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 | EU Journal | EU Official Journal designations | XML | ~5,900 |
 | EU Sanctions Map | EU Sanctions Map API | JSON | ~1,000 |
 | EU Travel Bans | EU Travel Bans list | XML | ~5,900 |
-| UK HMT | HM Treasury — Financial Sanctions | XML | ~4,000 |
+| UK HMT | FCDO — UK Sanctions List | XML | ~6,400 |
 | CH SECO | Switzerland — State Secretariat for Economic Affairs | XML | ~5,700 |
 | FR Trésor | France — Direction Générale du Trésor | JSON | ~6,000 |
 | BE FOD | Belgium — FOD/SPF Finance | JSON | ~800 |

@@ -74,7 +74,7 @@ Supported Sanctions Lists
      - UN Security Council
      - ✅ Implemented
    * - UK HMT
-     - HM Treasury
+     - FCDO (UK Sanctions List)
      - ✅ Implemented
 
 .. toctree::

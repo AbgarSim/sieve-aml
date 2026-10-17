@@ -142,7 +142,7 @@ public final class BenchmarkRunner {
                                         "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML")),
                         new UkHmtProvider(
                                 URI.create(
-                                        "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml")),
+                                        "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml")),
                         new EuConsolidatedProvider(
                                 URI.create(
                                         "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw")),
