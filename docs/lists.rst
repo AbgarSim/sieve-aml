@@ -31,9 +31,9 @@ Supported Lists
      - As needed
      - ``dev.sieve.ingest.un.UnConsolidatedProvider``
    * - UK HMT
-     - UK Gov
-     - CSV
-     - ~Weekly
+     - FCDO (UK Sanctions List)
+     - XML
+     - As needed
      - ``dev.sieve.ingest.uk.UkHmtProvider``
 
 Entity Model

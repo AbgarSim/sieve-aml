@@ -227,7 +227,7 @@ public final class SieveServer {
         if (config.ukEnabled()) {
             URI uri =
                     URI.create(
-                            "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml");
+                            "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml");
             providers.add(new UkHmtProvider(uri));
             log.info("Registered UK HMT provider");
         }

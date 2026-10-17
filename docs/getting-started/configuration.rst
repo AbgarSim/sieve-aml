@@ -28,7 +28,7 @@ scheduled for automatic refresh.
          refresh-cron: "0 0 4 * * *"
        uk-hmt:
          enabled: false
-         url: https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml
+         url: https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml
          refresh-cron: "0 0 5 * * *"
 
 Screening
