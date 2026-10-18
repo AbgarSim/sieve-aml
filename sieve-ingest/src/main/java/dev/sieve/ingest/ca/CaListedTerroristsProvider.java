@@ -111,7 +111,7 @@ public final class CaListedTerroristsProvider extends AbstractListProvider {
                     } else if (entry != null
                             && Set.of("title", "summary", "content", "published", "updated")
                                     .contains(name)) {
-                        entry.put(name, reader.getElementText().strip());
+                        entry.put(name, text(reader));
                     }
                 } else if (name.equals("entry") && entry != null) {
                     SanctionedEntity entity = toEntity(entry, ids, now);
@@ -129,6 +129,34 @@ public final class CaListedTerroristsProvider extends AbstractListProvider {
                     e);
         }
         return entities;
+    }
+
+    /**
+     * Reads all text inside the current element, including text inside child elements: some
+     * entries carry their content as XHTML paragraphs rather than plain text.
+     */
+    private static String text(XMLStreamReader reader) throws XMLStreamException {
+        StringBuilder text = new StringBuilder();
+        int depth = 1;
+        while (depth > 0) {
+            int event = reader.next();
+            switch (event) {
+                case XMLStreamConstants.START_ELEMENT -> {
+                    depth++;
+                    text.append(' ');
+                }
+                case XMLStreamConstants.END_ELEMENT -> {
+                    depth--;
+                    text.append(' ');
+                }
+                case XMLStreamConstants.CHARACTERS,
+                        XMLStreamConstants.CDATA,
+                        XMLStreamConstants.SPACE,
+                        XMLStreamConstants.ENTITY_REFERENCE -> text.append(reader.getText());
+                default -> {}
+            }
+        }
+        return text.toString().replaceAll("\\s+", " ").replaceAll(" ([.,;:])", "$1").strip();
     }
 
     private static SanctionedEntity toEntity(
