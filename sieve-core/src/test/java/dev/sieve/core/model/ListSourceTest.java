@@ -50,7 +50,13 @@ class ListSourceTest {
         "GLEIF_STATE_OWNED, GLEIF State-Owned",
         "GLEIF_SANCTION_LINKED, GLEIF Sanction-Linked",
         "US_HHS_LEIE, US HHS-OIG LEIE",
-        "TW_SHTC, TW SHTC"
+        "TW_SHTC, TW SHTC",
+        "CA_LISTED_TERRORISTS, CA Listed Terrorists",
+        "NL_TERRORISM, NL Terrorism List",
+        "SA_PCCT, SA PCCT",
+        "IQ_AML, IQ AML",
+        "LT_ENTRY_BAN, LT Entry Bans",
+        "BR_SLAVE_LABOUR, BR Slave Labour Register"
     })
     void shouldReturnCorrectDisplayName(String enumName, String expectedDisplay) {
         ListSource source = ListSource.valueOf(enumName);
@@ -89,6 +95,6 @@ class ListSourceTest {
 
     @Test
     void shouldHaveExpectedValues() {
-        assertThat(ListSource.values()).hasSize(38);
+        assertThat(ListSource.values()).hasSize(44);
     }
 }

@@ -1,0 +1,4 @@
+{"error":false,"message":"Success","data":{"data":[
+{"name":"شركة النور","type":1,"typeEn":"Entities","alias":null,"birthYear":null,"decisionNumber":"7","motherName":null,"decisionYear":2019,"isExcluded":false,"excludeAttachment":null,"id":"11111111-2222-3333-4444-555555555555","createdAt":"2019-03-01T10:00:00"},
+{"name":"محمد صالح مصطفى","type":0,"typeEn":"Individuals","alias":"","birthYear":1967,"decisionNumber":"33","motherName":"عمشة ولو","decisionYear":2020,"isExcluded":true,"excludeAttachment":"x.pdf","id":"08defd16-9e4e-4dea-80e0-fb535dc4d159","createdAt":"2020-08-18T13:51:12.121298"}
+],"rowCount":4,"pageCount":2},"errors":[]}

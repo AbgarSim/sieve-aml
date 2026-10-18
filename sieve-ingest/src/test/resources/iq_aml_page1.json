@@ -1,0 +1,4 @@
+{"error":false,"message":"Success","data":{"data":[
+{"name":"احمد عبدالكريم عبدالجليل عبدالرحمن الراوي","type":0,"typeEn":"Individuals","alias":"","birthYear":null,"decisionNumber":"42","motherName":"بهية صبري عبداللطيف","decisionYear":2026,"isExcluded":false,"excludeAttachment":null,"id":"08df284b-5fdc-407d-845d-9320825576a6","createdAt":"2026-10-12T13:27:10.583318"},
+{"name":"احمد صالح مهدي جبير ظاهر","type":0,"typeEn":"Individuals","alias":"ابو علي؛ ابو احمد","birthYear":1993,"decisionNumber":"54","motherName":"اسراء ناصر خليفة","decisionYear":2026,"isExcluded":false,"excludeAttachment":null,"id":"08df1e19-f8a0-40f3-8c10-1a7390fd1424","createdAt":"2026-09-29T14:08:20.416006"}
+],"rowCount":4,"pageCount":2},"errors":[]}

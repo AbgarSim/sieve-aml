@@ -127,7 +127,25 @@ public enum ListSource {
     US_HHS_LEIE("US HHS-OIG LEIE"),
 
     /** Taiwan entity list for strategic high-technology commodities (SHTC). */
-    TW_SHTC("TW SHTC");
+    TW_SHTC("TW SHTC"),
+
+    /** Canada listed terrorist entities under section 83.05 of the Criminal Code. */
+    CA_LISTED_TERRORISTS("CA Listed Terrorists"),
+
+    /** Netherlands national terrorism list (Sanctieregeling terrorisme 2007-II). */
+    NL_TERRORISM("NL Terrorism List"),
+
+    /** Saudi Arabia Presidency of State Security national terrorism designations. */
+    SA_PCCT("SA PCCT"),
+
+    /** Iraq local list of terrorists whose funds are frozen (AML/CFT Office). */
+    IQ_AML("IQ AML"),
+
+    /** Lithuania Migration Department list of foreigners banned from entry. */
+    LT_ENTRY_BAN("LT Entry Bans"),
+
+    /** Brazil register of employers that kept workers in conditions analogous to slavery. */
+    BR_SLAVE_LABOUR("BR Slave Labour Register");
 
     private final String displayName;
 
