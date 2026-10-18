@@ -7,6 +7,8 @@ import dev.sieve.core.model.SanctionedEntity;
 import dev.sieve.ingest.ar.ArRepetProvider;
 import dev.sieve.ingest.au.AuDfatProvider;
 import dev.sieve.ingest.be.BeFodProvider;
+import dev.sieve.ingest.br.BrSlaveLabourProvider;
+import dev.sieve.ingest.ca.CaListedTerroristsProvider;
 import dev.sieve.ingest.ca.CanadaConsolidatedProvider;
 import dev.sieve.ingest.ch.ChSecoProvider;
 import dev.sieve.ingest.eu.EuConsolidatedProvider;
@@ -20,15 +22,19 @@ import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaOrgProvider;
 import dev.sieve.ingest.in.InMhaProvider;
+import dev.sieve.ingest.iq.IqAmlProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
+import dev.sieve.ingest.lt.LtEntryBanProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
 import dev.sieve.ingest.mc.McFundFreezingProvider;
 import dev.sieve.ingest.md.MdTerrorProvider;
+import dev.sieve.ingest.nl.NlTerrorismProvider;
 import dev.sieve.ingest.nz.NzRussiaProvider;
 import dev.sieve.ingest.ofac.OfacNonSdnProvider;
 import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.pl.PlMswiaProvider;
 import dev.sieve.ingest.qa.QaNctcProvider;
+import dev.sieve.ingest.sa.SaPcctProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.tw.TwShtcProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
@@ -503,6 +509,66 @@ class ProviderIntegrationTest {
         log.info("TW SHTC: fetched {} entities", entities.size());
         assertThat(entities).hasSizeGreaterThan(5_000);
         assertCommonInvariants(entities, ListSource.TW_SHTC);
+    }
+
+    @Test
+    void caListedTerrorists_shouldFetchAndParseEntities() throws Exception {
+        var provider = new CaListedTerroristsProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("CA listed terrorists: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(50);
+        assertCommonInvariants(entities, ListSource.CA_LISTED_TERRORISTS);
+    }
+
+    @Test
+    void nlTerrorism_shouldFetchAndParseEntities() throws Exception {
+        var provider = new NlTerrorismProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("NL terrorism list: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(50);
+        assertCommonInvariants(entities, ListSource.NL_TERRORISM);
+    }
+
+    @Test
+    void saPcct_shouldFetchAndParseEntities() throws Exception {
+        var provider = new SaPcctProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("SA PCCT: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(100);
+        assertCommonInvariants(entities, ListSource.SA_PCCT);
+    }
+
+    @Test
+    void iqAml_shouldFetchAndParseEntities() throws Exception {
+        var provider = new IqAmlProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("IQ AML: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(1_000);
+        assertCommonInvariants(entities, ListSource.IQ_AML);
+    }
+
+    @Test
+    void ltEntryBan_shouldFetchAndParseEntities() throws Exception {
+        var provider = new LtEntryBanProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("LT entry bans: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(100);
+        assertCommonInvariants(entities, ListSource.LT_ENTRY_BAN);
+    }
+
+    @Test
+    void brSlaveLabour_shouldFetchAndParseEntities() throws Exception {
+        var provider = new BrSlaveLabourProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("BR slave labour register: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(100);
+        assertCommonInvariants(entities, ListSource.BR_SLAVE_LABOUR);
     }
 
     @Test

@@ -3,6 +3,8 @@ package dev.sieve.ingest;
 import dev.sieve.ingest.ar.ArRepetProvider;
 import dev.sieve.ingest.au.AuDfatProvider;
 import dev.sieve.ingest.be.BeFodProvider;
+import dev.sieve.ingest.br.BrSlaveLabourProvider;
+import dev.sieve.ingest.ca.CaListedTerroristsProvider;
 import dev.sieve.ingest.ca.CanadaConsolidatedProvider;
 import dev.sieve.ingest.ch.ChSecoProvider;
 import dev.sieve.ingest.eu.EuConsolidatedProvider;
@@ -16,15 +18,19 @@ import dev.sieve.ingest.gleif.GleifStateOwnedProvider;
 import dev.sieve.ingest.il.IlWmdTerrorProvider;
 import dev.sieve.ingest.in.InMhaOrgProvider;
 import dev.sieve.ingest.in.InMhaProvider;
+import dev.sieve.ingest.iq.IqAmlProvider;
 import dev.sieve.ingest.jp.JpMofProvider;
+import dev.sieve.ingest.lt.LtEntryBanProvider;
 import dev.sieve.ingest.lv.LvFiuProvider;
 import dev.sieve.ingest.mc.McFundFreezingProvider;
 import dev.sieve.ingest.md.MdTerrorProvider;
+import dev.sieve.ingest.nl.NlTerrorismProvider;
 import dev.sieve.ingest.nz.NzRussiaProvider;
 import dev.sieve.ingest.ofac.OfacNonSdnProvider;
 import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.pl.PlMswiaProvider;
 import dev.sieve.ingest.qa.QaNctcProvider;
+import dev.sieve.ingest.sa.SaPcctProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
 import dev.sieve.ingest.tw.TwShtcProvider;
 import dev.sieve.ingest.ua.UaNsdcProvider;
@@ -92,6 +98,12 @@ public final class ProviderRegistry {
                 new GleifStateOwnedProvider(),
                 new GleifSanctionLinkedProvider(),
                 new HhsOigLeieProvider(),
-                new TwShtcProvider());
+                new TwShtcProvider(),
+                new CaListedTerroristsProvider(),
+                new NlTerrorismProvider(),
+                new SaPcctProvider(),
+                new IqAmlProvider(),
+                new LtEntryBanProvider(),
+                new BrSlaveLabourProvider());
     }
 }

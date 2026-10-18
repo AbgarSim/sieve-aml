@@ -304,6 +304,48 @@ public final class SourceCatalog {
                 "TW",
                 Format.CSV,
                 "https://www.trade.gov.tw/");
+        put(
+                map,
+                ListSource.CA_LISTED_TERRORISTS,
+                "Public Safety Canada",
+                "CA",
+                Format.XML,
+                "https://www.publicsafety.gc.ca/cnt/ntnl-scrt/cntr-trrrsm/lstd-ntts/crrnt-lstd-ntts-en.aspx");
+        put(
+                map,
+                ListSource.NL_TERRORISM,
+                "Ministry of Foreign Affairs of the Netherlands",
+                "NL",
+                Format.ODS,
+                "https://www.government.nl/topics/terrorism/national-terrorism-list");
+        put(
+                map,
+                ListSource.SA_PCCT,
+                "Presidency of State Security of Saudi Arabia",
+                "SA",
+                Format.XLSX,
+                "https://pctc.pss.gov.sa/");
+        put(
+                map,
+                ListSource.IQ_AML,
+                "Anti-Money Laundering and Counter-Terrorism Financing Office of Iraq",
+                "IQ",
+                Format.JSON,
+                "https://aml.iq/");
+        put(
+                map,
+                ListSource.LT_ENTRY_BAN,
+                "Migration Department of Lithuania",
+                "LT",
+                Format.JSON,
+                "https://www.migracija.lt/");
+        put(
+                map,
+                ListSource.BR_SLAVE_LABOUR,
+                "Ministry of Labour and Employment of Brazil",
+                "BR",
+                Format.CSV,
+                "https://www.gov.br/trabalho-e-emprego/");
         return Collections.unmodifiableMap(map);
     }
 
@@ -480,6 +522,30 @@ public final class SourceCatalog {
                             + "organisations that need an export permit before strategic goods may be shipped"
                             + " to them, gathering the UN, US and other export-control and terrorism "
                             + "designations Taiwan follows.";
+            case CA_LISTED_TERRORISTS ->
+                    "The groups Canada lists as terrorist entities under section 83.05 of the "
+                            + "Criminal Code, published by Public Safety Canada with the other names each "
+                            + "group uses and a description of it.";
+            case NL_TERRORISM ->
+                    "The Netherlands' national terrorism list: people whose assets the Minister of "
+                            + "Foreign Affairs has frozen under the Sanctieregeling terrorisme 2007-II, most "
+                            + "of them Dutch residents who joined armed groups abroad.";
+            case SA_PCCT ->
+                    "Saudi Arabia's national terrorism designations, published by the Presidency of "
+                            + "State Security: people, entities and vessels linked to groups such as "
+                            + "Hizballah, the Houthi movement and Al-Qaida.";
+            case IQ_AML ->
+                    "Iraq's local list of terrorists whose funds are frozen, published by the "
+                            + "Anti-Money Laundering and Counter-Terrorism Financing Office, with names in Arabic"
+                            + " and the decision that listed each person.";
+            case LT_ENTRY_BAN ->
+                    "Foreigners Lithuania bans from entering the country, published by the "
+                            + "Migration Department; most are banned under Lithuania's Magnitsky provision "
+                            + "for human rights abuses, money laundering or corruption.";
+            case BR_SLAVE_LABOUR ->
+                    "Brazil's register of employers found keeping workers in conditions analogous to"
+                            + " slavery, published by the Ministry of Labour and Employment after a labour "
+                            + "inspection and a final administrative decision.";
         };
     }
 }

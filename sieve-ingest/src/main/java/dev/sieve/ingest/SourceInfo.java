@@ -30,7 +30,8 @@ public record SourceInfo(
         XLSX,
         CSV,
         HTML,
-        PDF
+        PDF,
+        ODS
     }
 
     public SourceInfo {

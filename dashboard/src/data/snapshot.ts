@@ -123,6 +123,7 @@ const REGION: Record<string, string> = {
   US: 'North America', CA: 'North America', UN: 'International', WB: 'International', WD: 'International', LE: 'International',
   AU: 'Asia-Pacific', NZ: 'Asia-Pacific', JP: 'Asia-Pacific', TW: 'Asia-Pacific',
   TR: 'Middle East & Africa', IL: 'Middle East & Africa', QA: 'Middle East & Africa', ZA: 'Middle East & Africa',
+  SA: 'Middle East & Africa', IQ: 'Middle East & Africa', IN: 'Asia-Pacific', AR: 'Latin America', BR: 'Latin America',
 };
 /** Where flows from EU lists are drawn from on the map. */
 const EU_SEAT = 'BE';

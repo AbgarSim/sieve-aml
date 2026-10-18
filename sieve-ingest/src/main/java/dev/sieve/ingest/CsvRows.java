@@ -3,7 +3,10 @@ package dev.sieve.ingest;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Reads comma-separated text into rows of fields, honouring quotes and doubled quotes. */
+/**
+ * Reads comma-separated (or otherwise delimited) text into rows of fields, honouring quotes and
+ * doubled quotes.
+ */
 public final class CsvRows {
 
     private CsvRows() {}
@@ -16,6 +19,18 @@ public final class CsvRows {
      * @return the rows, header included, each as its list of fields
      */
     public static List<List<String>> parse(String text) {
+        return parse(text, ',');
+    }
+
+    /**
+     * Splits delimited text into rows, as {@link #parse(String)} does, with another delimiter such
+     * as a semicolon.
+     *
+     * @param text the whole file
+     * @param delimiter the character between fields
+     * @return the rows, header included, each as its list of fields
+     */
+    public static List<List<String>> parse(String text, char delimiter) {
         List<List<String>> rows = new ArrayList<>();
         List<String> row = new ArrayList<>();
         StringBuilder field = new StringBuilder();
@@ -36,7 +51,7 @@ public final class CsvRows {
                 }
             } else if (c == '"') {
                 quoted = true;
-            } else if (c == ',') {
+            } else if (c == delimiter) {
                 row.add(field.toString());
                 field.setLength(0);
             } else if (c == '\n' || c == '\r') {

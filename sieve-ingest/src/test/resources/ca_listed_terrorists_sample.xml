@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Currently listed entities</title>
+  <entry>
+    <title>Abdullah Azzam Brigades (AAB)</title>
+    <link rel="alternate" type="text/html" href="http://www.publicsafety.gc.ca/cnt/ntnl-scrt/cntr-trrrsm/lstd-ntts/crrnt-lstd-ntts-en.aspx"/>
+    <id>1</id>
+    <summary>The Abdullah Azzam Brigades; the Ziyad al-Jarrah Battalions; and the Marwan Hadid Brigades.</summary>
+    <content>The AAB is an Al Qaida affiliated militant group.</content>
+    <published>2015-06-29</published>
+    <updated>2024-06-07</updated>
+  </entry>
+  <entry>
+    <title>Abu Nidal Organization (ANO)</title>
+    <id>2</id>
+    <summary>Fatah Revolutionary Council, Black June, Arab Revolutionary Brigades.</summary>
+    <content>From the mid-1970s to the early 1990s, the ANO was one of the most feared groups.</content>
+    <published>2003-02-12</published>
+    <updated>2024-06-07</updated>
+  </entry>
+  <entry>
+    <title>Proud Boys</title>
+    <id>3</id>
+    <summary></summary>
+    <content>A neo-fascist organization.</content>
+    <published>2021-02-03</published>
+    <updated>2023-02-03</updated>
+  </entry>
+</feed>

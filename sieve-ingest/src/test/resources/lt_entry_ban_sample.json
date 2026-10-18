@@ -1,0 +1,5 @@
+{"list":[
+{"vardas":"KHABIB","pavarde":"SHARIPOV","gimimoData":"1990-06-01","lytis":"V","pilietybes":[{"valstybe":{"pilietybeClaEntry":{"key":"RUS","titleEn":"RUSSIA","properties":{"kodas2s":"RU"}}}}],"uzdraustaIki":"2027-01-21","priezastis":"UTPĮ 133 str. 4 d., galiojanti nuo 2018-01-01","sprendimoTipoKodas":"NEPASM"},
+{"vardas":"NATASHA","pavarde":"KOROLEVA","gimimoData":"1973-05-31","lytis":"M","pilietybes":[{"valstybe":{"pilietybeClaEntry":{"key":"RUS","properties":{"kodas2s":"RU"}}}},{"valstybe":{"pilietybeClaEntry":{"key":"SRB","properties":{"kodas2s":"RS"}}}}],"uzdraustaIki":"2027-01-21","priezastis":"užsienietis gali kelti grėsmę valstybės saugumui","sprendimoTipoKodas":"NEPASM"},
+{"vardas":"IVAN","pavarde":"PETROV","gimimoData":null,"lytis":null,"pilietybes":[],"uzdraustaIki":null,"priezastis":null}
+],"numFound":4,"page":{"pageNo":0,"pageSize":500}}

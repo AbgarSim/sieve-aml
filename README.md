@@ -15,7 +15,7 @@
 
 | Area | State |
 |------|-------|
-| Data coverage | 38 list sources, 37 fetched nightly (Ukraine waits on an API key); roadmap Phase 1 complete |
+| Data coverage | 44 list sources, 43 fetched nightly (Ukraine waits on an API key); roadmap Phase 1 complete |
 | Matching | Exact, Jaro-Winkler, Double Metaphone and token engines on one transliterating name key; cross-list entity resolution in the published snapshot |
 | Storage | In memory (Vert.x server, CLI); PostgreSQL system of record with first-seen and last-seen per value (Spring Boot server) |
 | Interfaces | CLI, REST API (two servers), entity import and export in an open JSON-lines format, public dashboard |
@@ -42,7 +42,7 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 
 ## Supported Sanctions Lists
 
-**38 list sources**: 21 national governments, the United Nations, the European Union (5 lists, including Europol's most wanted), the World Bank, and two open registries (Wikidata for PEPs, GLEIF for state-owned and sanction-linked companies). Each list is fetched from its publisher, parsed into the unified entity model and indexed for screening; 37 are fetched today and Ukraine's list waits on an API key.
+**44 list sources**: 26 national governments, the United Nations, the European Union (5 lists, including Europol's most wanted), the World Bank, and two open registries (Wikidata for PEPs, GLEIF for state-owned and sanction-linked companies). Each list is fetched from its publisher, parsed into the unified entity model and indexed for screening; 43 are fetched today and Ukraine's list waits on an API key.
 
 ### International
 
@@ -61,6 +61,7 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 | US BIS MEU | U.S. Commerce Dept — Bureau of Industry and Security Military End-User List (from the CSL) | JSON | ~70 |
 | US HHS-OIG LEIE | U.S. Dept of Health and Human Services, Office of Inspector General — people and businesses excluded from Medicare, Medicaid and other federal health care programs, with date of birth, NPI, address and the exclusion authority | CSV | ~84,000 |
 | Canada Consolidated | Global Affairs Canada (SEMA, FACFOA, Terrorists) | XML | ~2,700 |
+| CA Listed Terrorists | Public Safety Canada — entities listed as terrorist under section 83.05 of the Criminal Code, with aliases and the listing text | XML (Atom) | ~90 |
 
 ### Europe
 
@@ -87,6 +88,8 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 | GLEIF Sanction-Linked | Global Legal Entity Identifier Foundation — companies whose accounts a party on the OFAC SDN or EU consolidated list consolidates, directly or through other companies, found by following the LEI register's relationship records down from the LEIs those lists state (the OFAC and EU 50% rules); each carries a link to the listed owner's record and is left out when it is listed itself | JSON (API) + CSV (relationship file) | ~70 |
 | MC Fund Freezing | Monaco — Budget and Treasury Dept | JSON | ~6,000 |
 | MD Terror | Moldova — Security and Intelligence Service | XLSX | ~710 |
+| NL Terrorism List | Netherlands — Ministry of Foreign Affairs national terrorism list (Sanctieregeling terrorisme 2007-II), with aliases, date and place of birth and the decision date | ODS | ~115 |
+| LT Entry Bans | Lithuania — Migration Department list of foreigners banned from entering, with citizenship, date of birth, ban end date and legal basis (Magnitsky-type bans under Art. 133(4) of the Aliens Law) | JSON | ~285 |
 
 ### Asia-Pacific
 
@@ -105,6 +108,14 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 | TR MASAK | Turkey — Financial Crimes Investigation Board | XLSX | ~1,800 |
 | QA NCTC | Qatar — National Counter Terrorism Committee | XML | ~800 |
 | ZA FIC | South Africa — Financial Intelligence Centre | XML | ~800 |
+| SA PCCT | Saudi Arabia — Presidency of State Security local terrorism list of individuals, entities and vessels, with documents, IMO numbers and the organisation each is linked to | XLSX | ~330 |
+| IQ AML | Iraq — Anti-Money Laundering and Counter-Terrorism Financing Office list of persons whose funds are frozen, names in Arabic, with the freezing decision | JSON (API) | ~6,000 |
+
+### Latin America
+
+| Provider | Source | Format | Entities |
+|----------|--------|--------|----------|
+| BR Slave Labour Register | Brazil — Ministry of Labour and Employment register of employers found keeping workers in conditions analogous to slavery, with CPF or CNPJ, establishment, workers rescued and inclusion date | CSV | ~500 |
 
 ### Not Yet Available
 
@@ -121,7 +132,7 @@ How data moves through Sieve:
 
 ```mermaid
 flowchart LR
-    SRC["38 publishers<br/>XML · JSON · CSV · XLSX · HTML · PDF · SPARQL"] -->|"providers fetch in parallel<br/>(virtual threads)"| ING["sieve-ingest<br/>parse · stable ids · relations<br/>country and name normalisation"]
+    SRC["44 publishers<br/>XML · JSON · CSV · XLSX · ODS · HTML · PDF · SPARQL"] -->|"providers fetch in parallel<br/>(virtual threads)"| ING["sieve-ingest<br/>parse · stable ids · relations<br/>country and name normalisation"]
     ING -->|"replace a list on refresh<br/>stamp first/last seen"| IDX[("Entity index<br/>in memory")]
     ING -->|Spring Boot server| PG[("PostgreSQL<br/>system of record<br/>removed-entity history")]
     PG -->|load at startup| IDX
