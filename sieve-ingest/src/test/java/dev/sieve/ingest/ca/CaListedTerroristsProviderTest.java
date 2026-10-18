@@ -70,6 +70,11 @@ class CaListedTerroristsProviderTest {
         assertThat(aab.lastUpdated()).isEqualTo(Instant.parse("2024-06-07T00:00:00Z"));
     }
 
+    @Test
+    void shouldReadXhtmlContentAsPlainText() throws Exception {
+        assertThat(parseSample().get(2).remarks()).isEqualTo("A neo-fascist organization.");
+    }
+
     private static List<SanctionedEntity> parseSample() throws Exception {
         try (InputStream in =
                 CaListedTerroristsProviderTest.class.getResourceAsStream(

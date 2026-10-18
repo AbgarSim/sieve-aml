@@ -22,7 +22,7 @@
     <title>Proud Boys</title>
     <id>3</id>
     <summary></summary>
-    <content>A neo-fascist organization.</content>
+    <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><p>A neo-fascist</p><p><strong>organization</strong>.</p></div></content>
     <published>2021-02-03</published>
     <updated>2023-02-03</updated>
   </entry>
