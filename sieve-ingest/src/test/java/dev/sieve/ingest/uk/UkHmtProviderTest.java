@@ -14,6 +14,8 @@ import dev.sieve.core.model.VesselDetails;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,20 +35,26 @@ class UkHmtProviderTest {
     }
 
     @Test
-    void shouldGroupByGroupIdAndProduceFiveEntities() throws IOException {
-        byte[] xml = loadTestResource("uk_hmt_test_sample.xml");
-        List<SanctionedEntity> entities = provider.parseXml(xml);
-
-        // 6 rows in XML → 5 unique GroupIDs (100, 200, 300, 400, 500)
-        assertThat(entities).hasSize(5);
+    void shouldReadTheUkSanctionsListByDefault() {
+        assertThat(new UkHmtProvider().metadata().sourceUri())
+                .hasToString("https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml");
     }
 
-    // ---- Group 100: Individual with aliases --------------------------------
+    @Test
+    void shouldProduceOneEntityPerDesignation() throws IOException {
+        assertThat(loadEntities())
+                .extracting(SanctionedEntity::id)
+                .containsExactly(
+                        "uk-GHR0100", "uk-RUS0200", "uk-DPR0300", "uk-RUS0400", "uk-AQD0500");
+    }
+
+    // ---- Individual -------------------------------------------------------
 
     @Test
-    void shouldSelectPrimaryNameRow() throws IOException {
+    void shouldReadThePrimaryNameWithItsTitle() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
+        assertThat(smith.entityType()).isEqualTo(EntityType.INDIVIDUAL);
         assertThat(smith.primaryName().fullName()).isEqualTo("SMITH, John Edward");
         assertThat(smith.primaryName().givenName()).isEqualTo("John");
         assertThat(smith.primaryName().familyName()).isEqualTo("SMITH");
@@ -58,30 +66,21 @@ class UkHmtProviderTest {
     }
 
     @Test
-    void shouldCollectAliases() throws IOException {
+    void shouldMarkLowQualityAliasesWeak() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
-        // 2 alias rows: AKA "SMYTH, Johnny" + FKA "JONES, John"
         assertThat(smith.aliases()).hasSize(2);
-
         assertThat(smith.aliases().get(0).fullName()).isEqualTo("SMYTH, Johnny");
-        assertThat(smith.aliases().get(0).nameType()).isEqualTo(NameType.AKA);
-
+        assertThat(smith.aliases().get(0).strength()).isEqualTo(NameStrength.STRONG);
         assertThat(smith.aliases().get(1).fullName()).isEqualTo("JONES, John");
-        assertThat(smith.aliases().get(1).nameType()).isEqualTo(NameType.FKA);
-    }
-
-    @Test
-    void shouldParseEntityTypeIndividual() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.entityType()).isEqualTo(EntityType.INDIVIDUAL);
+        assertThat(smith.aliases().get(1).strength()).isEqualTo(NameStrength.WEAK);
+        assertThat(smith.aliases()).allMatch(a -> a.nameType() == NameType.AKA);
     }
 
     @Test
     void shouldParseAddress() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
-        // Addresses are deduplicated — the AKA alias has the same address, so only 1
         assertThat(smith.addresses()).hasSize(1);
         assertThat(smith.addresses().get(0).street()).isEqualTo("10 Downing Street");
         assertThat(smith.addresses().get(0).city()).isEqualTo("London");
@@ -92,189 +91,139 @@ class UkHmtProviderTest {
     }
 
     @Test
-    void shouldParseIdentifiers() throws IOException {
+    void shouldReadPassportsOnceAndNationalIds() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
-        // Passport + NI from primary row
-        assertThat(smith.identifiers()).hasSizeGreaterThanOrEqualTo(2);
-
-        assertThat(smith.identifiers())
-                .anyMatch(
-                        id ->
-                                id.type() == IdentifierType.PASSPORT
-                                        && "GB123456".equals(id.value())
-                                        && "Issued 2020".equals(id.remarks()));
-
-        assertThat(smith.identifiers())
-                .anyMatch(
-                        id ->
-                                id.type() == IdentifierType.NATIONAL_ID
-                                        && "AB123456C".equals(id.value()));
+        assertThat(smith.identifiers()).hasSize(2);
+        assertThat(smith.identifiers().get(0).type()).isEqualTo(IdentifierType.PASSPORT);
+        assertThat(smith.identifiers().get(0).value()).isEqualTo("GB123456");
+        assertThat(smith.identifiers().get(0).remarks()).isEqualTo("Issued 2020");
+        assertThat(smith.identifiers().get(1).type()).isEqualTo(IdentifierType.NATIONAL_ID);
+        assertThat(smith.identifiers().get(1).value()).isEqualTo("AB123456C");
     }
 
     @Test
-    void shouldParseDateOfBirth() throws IOException {
+    void shouldReadFullAndYearOnlyDatesOfBirth() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
 
-        assertThat(smith.datesOfBirth()).hasSize(1);
-        assertThat(smith.datesOfBirth().get(0).getYear()).isEqualTo(1985);
-        assertThat(smith.datesOfBirth().get(0).getMonthValue()).isEqualTo(3);
-        assertThat(smith.datesOfBirth().get(0).getDayOfMonth()).isEqualTo(1);
+        assertThat(smith.datesOfBirth())
+                .containsExactly(LocalDate.of(1985, 3, 1), LocalDate.of(1986, 1, 1));
     }
 
     @Test
-    void shouldParseNationalities() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.nationalities()).contains("British");
+    void shouldReadPartialDatesOfBirth() {
+        assertThat(UkHmtProvider.parseDateOfBirth("dd/07/1960"))
+                .isEqualTo(LocalDate.of(1960, 7, 1));
+        assertThat(UkHmtProvider.parseDateOfBirth("dd/mm/1945"))
+                .isEqualTo(LocalDate.of(1945, 1, 1));
+        assertThat(UkHmtProvider.parseDateOfBirth("unknown")).isNull();
+        assertThat(UkHmtProvider.parseDateOfBirth(null)).isNull();
     }
 
     @Test
-    void shouldParsePlacesOfBirth() throws IOException {
+    void shouldReadNationalityBirthplaceAndGender() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.placesOfBirth()).contains("Manchester");
+
+        assertThat(smith.nationalities()).containsExactly("United Kingdom");
+        assertThat(smith.citizenships()).containsExactly("United Kingdom");
+        assertThat(smith.placesOfBirth()).containsExactly("Manchester, United Kingdom");
+        assertThat(smith.gender()).isEqualTo(Gender.MALE);
+        assertThat(smith.deceased()).isNull();
+        assertThat(smith.vessel()).isNull();
     }
 
     @Test
-    void shouldParseRemarks() throws IOException {
+    void shouldReadRegimeReasonsAndDates() throws IOException {
         SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
+
+        assertThat(smith.programs())
+                .singleElement()
+                .satisfies(
+                        p ->
+                                assertThat(p.code())
+                                        .isEqualTo(
+                                                "The Global Human Rights Sanctions Regulations 2020"));
+        assertThat(smith.remarks()).isEqualTo("Test individual for unit testing purposes.");
         assertThat(smith.listingReasons())
-                .containsExactly("Test individual for unit testing purposes.");
-        assertThat(smith.remarks()).as("other information is nil for every row").isNull();
+                .containsExactly("Involved in serious human rights violations.");
+        assertThat(smith.listedDate()).isEqualTo(Instant.parse("2023-06-15T00:00:00Z"));
+        assertThat(smith.lastUpdated()).isEqualTo(Instant.parse("2024-01-10T00:00:00Z"));
     }
 
-    @Test
-    void shouldParsePrograms() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.programs()).hasSize(1);
-        assertThat(smith.programs().get(0).code()).isEqualTo("Global Human Rights");
-    }
+    // ---- Entity -----------------------------------------------------------
 
     @Test
-    void shouldParseListedDate() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.listedDate()).isNotNull();
-    }
-
-    @Test
-    void shouldParseLastUpdated() throws IOException {
-        SanctionedEntity smith = findById(loadEntities(), "uk-GHR0100");
-        assertThat(smith.lastUpdated()).isNotNull();
-    }
-
-    // ---- Group 200: Entity -------------------------------------------------
-
-    @Test
-    void shouldParseEntityType() throws IOException {
+    void shouldReadAnEntityWithItsNameVariationAndRegistrationNumber() throws IOException {
         SanctionedEntity acme = findById(loadEntities(), "uk-RUS0200");
 
         assertThat(acme.entityType()).isEqualTo(EntityType.ENTITY);
         assertThat(acme.primaryName().fullName()).isEqualTo("ACME HOLDINGS LTD");
-    }
-
-    @Test
-    void shouldParseBusinessRegistrationNumber() throws IOException {
-        SanctionedEntity acme = findById(loadEntities(), "uk-RUS0200");
-
+        assertThat(acme.aliases()).extracting(n -> n.fullName()).containsExactly("ACME CORP");
         assertThat(acme.identifiers())
-                .anyMatch(
-                        id ->
-                                id.type() == IdentifierType.BUSINESS_REGISTRATION
-                                        && "REG-98765".equals(id.value()));
-    }
-
-    // ---- Group 300: Ship ---------------------------------------------------
-
-    @Test
-    void shouldParseVessel() throws IOException {
-        SanctionedEntity vessel = findById(loadEntities(), "uk-RUS0300");
-
-        assertThat(vessel.entityType()).isEqualTo(EntityType.VESSEL);
-        assertThat(vessel.primaryName().fullName()).isEqualTo("MV OCEAN STAR");
-    }
-
-    @Test
-    void shouldParseShipImoNumber() throws IOException {
-        SanctionedEntity vessel = findById(loadEntities(), "uk-RUS0300");
-
-        assertThat(vessel.identifiers()).hasSize(1);
-        assertThat(vessel.identifiers().get(0).type()).isEqualTo(IdentifierType.IMO_NUMBER);
-        assertThat(vessel.identifiers().get(0).value()).isEqualTo("1234567");
-    }
-
-    @Test
-    void shouldKeepTheShipFlagTypeAndTonnage() throws IOException {
-        SanctionedEntity vessel = findById(loadEntities(), "uk-RUS0300");
-
-        assertThat(vessel.vessel())
-                .isEqualTo(new VesselDetails("Panama", "Cargo", null, 5_100, null));
-        assertThat(vessel.listingReasons()).containsExactly("Test vessel entry.");
-        assertThat(vessel.gender()).isNull();
-    }
-
-    @Test
-    void shouldKeepTheGenderAndOtherInformation() throws IOException {
-        List<SanctionedEntity> entities = loadEntities();
-
-        SanctionedEntity smith = findById(entities, "uk-GHR0100");
-        assertThat(smith.gender()).isEqualTo(Gender.MALE);
-        assertThat(smith.deceased()).isNull();
-        assertThat(smith.vessel()).isNull();
-
-        SanctionedEntity acme = findById(entities, "uk-RUS0200");
+                .singleElement()
+                .satisfies(
+                        id -> {
+                            assertThat(id.type()).isEqualTo(IdentifierType.BUSINESS_REGISTRATION);
+                            assertThat(id.value()).isEqualTo("UK Company no. 06527449");
+                        });
         assertThat(acme.remarks()).isEqualTo("Formerly known as Acme Corp.");
         assertThat(acme.listingReasons()).containsExactly("Test entity for unit testing.");
         assertThat(acme.gender()).isNull();
     }
 
-    // ---- Group 400: Non-Latin script alias ---------------------------------
+    // ---- Ship -------------------------------------------------------------
 
     @Test
-    void shouldCollectNonLatinScriptAlias() throws IOException {
+    void shouldReadAShipWithItsImoNumberWithoutThePrefix() throws IOException {
+        SanctionedEntity vessel = findById(loadEntities(), "uk-DPR0300");
+
+        assertThat(vessel.entityType()).isEqualTo(EntityType.VESSEL);
+        assertThat(vessel.primaryName().fullName()).isEqualTo("MV OCEAN STAR");
+        assertThat(vessel.identifiers())
+                .singleElement()
+                .satisfies(
+                        id -> {
+                            assertThat(id.type()).isEqualTo(IdentifierType.IMO_NUMBER);
+                            assertThat(id.value()).isEqualTo("1234567");
+                        });
+        assertThat(vessel.vessel())
+                .isEqualTo(new VesselDetails("Panama", "Cargo", null, 5_100, null));
+        assertThat(vessel.listingReasons()).containsExactly("Test vessel entry.");
+    }
+
+    // ---- Non-Latin names and missing primary names --------------------------
+
+    @Test
+    void shouldCollectNonLatinNamesAsAliases() throws IOException {
         SanctionedEntity ivanov = findById(loadEntities(), "uk-RUS0400");
 
         assertThat(ivanov.primaryName().fullName()).isEqualTo("IVANOV, Sergei Petrovich");
-
         assertThat(ivanov.aliases()).hasSize(1);
         assertThat(ivanov.aliases().get(0).fullName()).isEqualTo("Сергей Петрович ИВАНОВ");
         assertThat(ivanov.aliases().get(0).script()).isEqualTo(ScriptType.CYRILLIC);
         assertThat(ivanov.aliases().get(0).nameType()).isEqualTo(NameType.AKA);
+        assertThat(ivanov.listingReasons()).as("a blank statement of reasons").isEmpty();
+        assertThat(ivanov.datesOfBirth()).containsExactly(LocalDate.of(1970, 5, 20));
     }
 
     @Test
-    void shouldParseDateOfBirthFromIsoDatetime() throws IOException {
-        SanctionedEntity ivanov = findById(loadEntities(), "uk-RUS0400");
-
-        assertThat(ivanov.datesOfBirth()).hasSize(1);
-        assertThat(ivanov.datesOfBirth().get(0).getYear()).isEqualTo(1970);
-        assertThat(ivanov.datesOfBirth().get(0).getMonthValue()).isEqualTo(5);
-        assertThat(ivanov.datesOfBirth().get(0).getDayOfMonth()).isEqualTo(20);
-    }
-
-    // ---- Group 500: No "Primary name" row ----------------------------------
-
-    @Test
-    void shouldFallbackToFirstRowWhenNoPrimaryName() throws IOException {
-        SanctionedEntity ahmed = findById(loadEntities(), "uk-SYR0500");
+    void shouldUseTheFirstNameWhenNoneIsPrimary() throws IOException {
+        SanctionedEntity ahmed = findById(loadEntities(), "uk-AQD0500");
 
         assertThat(ahmed.primaryName().fullName()).isEqualTo("AL-HASSAN, Ahmed");
         assertThat(ahmed.primaryName().nameType()).isEqualTo(NameType.PRIMARY);
+        assertThat(ahmed.aliases())
+                .extracting(n -> n.fullName())
+                .containsExactly("AL HASAN, Ahmad");
+        assertThat(ahmed.listedDate()).isNull();
     }
-
-    // ---- Edge cases --------------------------------------------------------
 
     @Test
     void shouldHandleEmptyXml() {
         byte[] emptyXml =
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ArrayOfFinancialSanctionsTarget xmlns=\"http://schemas.hmtreasury.gov.uk/ofsi/consolidatedlist\"></ArrayOfFinancialSanctionsTarget>"
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Designations><DateGenerated>16/10/2026</DateGenerated></Designations>"
                         .getBytes();
-        List<SanctionedEntity> entities = provider.parseXml(emptyXml);
-        assertThat(entities).isEmpty();
-    }
-
-    // ---- Helpers -----------------------------------------------------------
-
-    private List<SanctionedEntity> loadEntities() throws IOException {
-        return provider.parseXml(loadTestResource("uk_hmt_test_sample.xml"));
+        assertThat(provider.parseXml(emptyXml)).isEmpty();
     }
 
     @Test
@@ -282,21 +231,24 @@ class UkHmtProviderTest {
         String xml =
                 """
                 <?xml version="1.0" encoding="utf-8"?>
-                <ArrayOfFinancialSanctionsTarget>
-                  <FinancialSanctionsTarget>
-                    <Name6>PETROV</Name6><name1>Ivan</name1><name2>Sergeyevich</name2>
-                    <AliasType>Primary name</AliasType>
-                    <GroupTypeDescription>Individual</GroupTypeDescription>
-                    <GroupID>1</GroupID>
-                  </FinancialSanctionsTarget>
-                  <FinancialSanctionsTarget>
-                    <Name6>NORTHWIND TRADING LLC</Name6>
-                    <AliasType>Primary name</AliasType>
-                    <GroupTypeDescription>Entity</GroupTypeDescription>
+                <Designations>
+                  <Designation>
+                    <UniqueID>RUS0001</UniqueID>
+                    <Names><Name>
+                      <Name1>Ivan</Name1><Name2>Sergeyevich</Name2><Name6>PETROV</Name6>
+                      <NameType>Primary Name</NameType>
+                    </Name></Names>
+                    <IndividualEntityShip>Individual</IndividualEntityShip>
+                  </Designation>
+                  <Designation>
+                    <UniqueID>RUS0002</UniqueID>
+                    <Names><Name>
+                      <Name6>NORTHWIND TRADING LLC</Name6><NameType>Primary Name</NameType>
+                    </Name></Names>
+                    <IndividualEntityShip>Entity</IndividualEntityShip>
                     <OtherInformation>Owned by Ivan Sergeyevich Petrov.</OtherInformation>
-                    <GroupID>2</GroupID>
-                  </FinancialSanctionsTarget>
-                </ArrayOfFinancialSanctionsTarget>
+                  </Designation>
+                </Designations>
                 """;
 
         List<SanctionedEntity> entities = provider.parseXml(xml.strip().getBytes());
@@ -310,6 +262,12 @@ class UkHmtProviderTest {
                             assertThat(r.role()).isEqualTo("owned by");
                         });
         assertThat(entities.get(0).relations()).isEmpty();
+    }
+
+    // ---- Helpers -----------------------------------------------------------
+
+    private List<SanctionedEntity> loadEntities() throws IOException {
+        return provider.parseXml(loadTestResource("uk_hmt_test_sample.xml"));
     }
 
     private static SanctionedEntity findById(List<SanctionedEntity> entities, String id) {
