@@ -1,13 +1,271 @@
 Benchmarks
 ==========
 
-This page records measured runs. The first section is a run against every list
-Sieve fetches, with a labelled matching evaluation; the later sections are the
-earlier OFAC SDN-only results, kept for comparison.
+This page records measured runs, newest first. The first two sections are runs
+against every list Sieve fetches, with a labelled matching evaluation; the later
+sections are the earlier OFAC SDN-only results, kept for comparison.
 
 .. contents:: On this page
    :local:
    :depth: 2
+
+All lists, 18 October 2026
+--------------------------
+
+The first run after screening on facts beyond the name (date of birth, place of
+birth, country, address, identifiers, gender) was added. Run by the
+``Benchmark`` workflow on a GitHub-hosted runner, `run 39158406158
+<https://github.com/AbgarSim/sieve-aml/actions/runs/39158406158>`_, with
+``sieve-benchmark real`` (seed 20261005) and ``sieve-benchmark http``.
+
+- **Machine:** GitHub-hosted ``ubuntu-latest`` runner, 4 vCPUs, 15 GiB RAM;
+  Java 21.0.12, 10 GB maximum heap
+- **Data:** every list fetched live from its publisher at run time: 322,043
+  records from 39 lists in 250 s (Turkey's and Israel's lists and both Indian
+  lists failed to download that day; Ukraine's needs an API key and was left
+  out), 318,261 distinct records and 585,808 names including aliases once
+  indexed. The index is half as large again as on 5 October, mostly from lists
+  added since (US HHS-OIG exclusions alone add 84,067 records)
+- **Engine:** the same four-engine composite the servers use (exact, fuzzy,
+  phonetic, token), called in process
+
+Index
+^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 60 20
+
+   * - Measure
+     - Value
+   * - Name cache and trigram index built in
+     - 6.4 s
+   * - Heap in use for records, name cache and index (after GC)
+     - 1,074 MB
+
+Matching accuracy, name only
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The same three query sets as on 5 October, 2,000 queries each, screened by name
+only. Share of same-entity and spelling queries whose expected record is
+returned at or above the threshold (recall):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 10 10 10 10 10
+
+   * - Query set
+     - 0.70
+     - 0.80
+     - 0.85
+     - 0.90
+     - 0.95
+   * - Same entity on another list (2,000)
+     - 95.1%
+     - 93.0%
+     - 92.9%
+     - 92.1%
+     - 91.1%
+   * - … of which spelled differently (920)
+     - 89.2%
+     - 84.8%
+     - 84.5%
+     - 82.7%
+     - 80.7%
+   * - Spelling variants (2,000)
+     - 99.1%
+     - 97.2%
+     - 97.1%
+     - 96.8%
+     - 95.3%
+
+Spelling variants by change, found at 0.80: dropped letter 98.0%, swapped
+letters 98.2%, transliteration 99.2%, typo 99.2%, reversed word order 95.3%,
+dropped middle word 91.2%.
+
+Unlisted customers (2,000 generated names, on no list):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 10 10 10 10 10
+
+   * - Measure
+     - 0.70
+     - 0.80
+     - 0.85
+     - 0.90
+     - 0.95
+   * - Names raising at least one alert
+     - 100%
+     - 99.3%
+     - 97.1%
+     - 78.3%
+     - 52.1%
+   * - Hits per alerted name
+     - 599
+     - 335
+     - 120
+     - 29.3
+     - 23.3
+
+9.1% of the unlisted names are identical to a listed name after normalisation
+(5.6% on 5 October): the larger index holds more namesakes.
+
+Screening with date of birth and country
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The same queries screened again with facts beyond the name, weighed by
+``EvidenceScorer`` (see :doc:`/api/screening`). Each unlisted customer gets a
+random date of birth between 1940 and 1999 and a random country from twenty;
+each listed person whose record gives a date of birth (1,844 of the
+same-entity and spelling queries) gets that record's own first date of birth
+and nationality, as a customer file would hold them.
+
+Unlisted customers raising at least one alert:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 10 10 10 10 10
+
+   * - Facts given
+     - 0.70
+     - 0.80
+     - 0.85
+     - 0.90
+     - 0.95
+   * - Name only
+     - 100%
+     - 99.3%
+     - 97.1%
+     - 78.3%
+     - 52.1%
+   * - Name and date of birth
+     - 99.9%
+     - 98.0%
+     - 93.3%
+     - 64.7%
+     - 36.8%
+   * - Name, date of birth and country
+     - 99.5%
+     - 89.7%
+     - 75.4%
+     - 40.8%
+     - 19.1%
+
+Listed people found (recall), 1,844 queries:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 10 10 10 10 10
+
+   * - Facts given
+     - 0.70
+     - 0.80
+     - 0.85
+     - 0.90
+     - 0.95
+   * - Name only
+     - 99.7%
+     - 99.5%
+     - 99.3%
+     - 99.1%
+     - 98.2%
+   * - Name, own date of birth and nationality
+     - 99.7%
+     - 99.7%
+     - 99.6%
+     - 99.4%
+     - 99.0%
+
+**Date of birth and country halve the false alerts at 0.90 and cut them by
+nearly two thirds at 0.95, without losing listed people**, whose recall rises
+slightly at every threshold. At 0.80 the effect is small (99.3% to 89.7%):
+an alerted name meets 335 records on average at that threshold, and a record
+that states no date of birth or country is left at its name score, so one such
+record is enough to keep the alert. Restricting a person's screening to
+individuals, and tuning the weights, are the next steps.
+
+Latency and throughput
+^^^^^^^^^^^^^^^^^^^^^^
+
+One name-only screening at threshold 0.80 over all 318,261 records, single
+thread, 6,000 queries: mean 65.9 ms, p50 57.2 ms, p95 145.8 ms, p99 214.7 ms,
+maximum 511.6 ms.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 25 25 25
+
+   * - Threads (in process)
+     - Screenings/s
+     - p50
+     - p99
+   * - 1
+     - 13
+     - 57 ms
+     - 229 ms
+   * - 2
+     - 25
+     - 66 ms
+     - 258 ms
+   * - 4
+     - 35
+     - 95 ms
+     - 358 ms
+   * - 8
+     - 33
+     - 186 ms
+     - 844 ms
+   * - 16
+     - 34
+     - 381 ms
+     - 1,538 ms
+   * - 64
+     - 33
+     - 1,532 ms
+     - 6,039 ms
+
+Over HTTP, the Vert.x server loaded with every list (323,874 records loaded in
+344 s; 4.6 GB resident afterwards) served the 6,000 names at threshold 0.80,
+with client and server sharing the 4 vCPUs:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 20 20 20
+
+   * - Clients
+     - Requests/s
+     - p50
+     - p95
+     - p99
+   * - 1
+     - 12
+     - 73 ms
+     - 198 ms
+     - 297 ms
+   * - 4
+     - 33
+     - 104 ms
+     - 266 ms
+     - 378 ms
+   * - 16
+     - 31
+     - 423 ms
+     - 1,153 ms
+     - 1,621 ms
+   * - 64
+     - 31
+     - 1,897 ms
+     - 2,828 ms
+     - 3,486 ms
+   * - 256
+     - 31
+     - 7,836 ms
+     - 8,786 ms
+     - 9,415 ms
+
+No request failed. Throughput is about 8% below 5 October in process (35
+against 38 screenings a second at 4 threads) with an index half as large again.
 
 All lists, 5 October 2026
 -------------------------

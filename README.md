@@ -281,19 +281,21 @@ The published snapshot also resolves entities across lists: records of the same 
 
 ## Performance and accuracy
 
-The [Benchmark workflow](.github/workflows/benchmark.yml) fetches every list live and measures Sieve on it. The latest published run, on 5 October 2026 on a 4-vCPU GitHub runner against 210,833 records and 458,635 names from 34 lists, screened by name only:
+The [Benchmark workflow](.github/workflows/benchmark.yml) fetches every list live and measures Sieve on it. The latest published run, on 18 October 2026 on a 4-vCPU GitHub runner against 318,261 records and 585,808 names from 39 lists:
 
 | Measure | Result |
 |---------|--------|
-| Index build and memory | 4.9 s to build the name cache and trigram index; 790 MB of heap |
-| Latency, one thread | p50 51 ms, p95 136 ms, p99 215 ms |
-| Throughput, in process | about 38 screenings/s at 4 threads and above (3.3 million a day) |
-| Throughput over HTTP (Vert.x server) | about 45 requests/s from 4 clients up, p50 74 ms at 4 clients; 3.3 GB resident with every list loaded |
-| Same entity found on another list (2,000 pairs tied by a shared identifier) | 93.4% at threshold 0.80; 86.5% when the two lists spell the name differently |
-| Spelling variants found (typos, transliteration, word order) | 96.5% at 0.80 |
-| Unlisted names that raise an alert (false positives) | 99.4% at 0.80, 73.0% at 0.90, 44.1% at 0.95 |
+| Index build and memory | 6.4 s to build the name cache and trigram index; 1,074 MB of heap |
+| Latency, one thread | p50 57 ms, p95 146 ms, p99 215 ms |
+| Throughput, in process | about 35 screenings/s at 4 threads (3 million a day) |
+| Throughput over HTTP (Vert.x server) | about 33 requests/s from 4 clients, p50 104 ms; 4.6 GB resident with every list loaded |
+| Same entity found on another list (2,000 pairs tied by a shared identifier) | 93.0% at threshold 0.80; 84.8% when the two lists spell the name differently |
+| Spelling variants found (typos, transliteration, word order) | 97.2% at 0.80 |
+| Unlisted names that raise an alert, name only | 99.3% at 0.80, 78.3% at 0.90, 52.1% at 0.95 |
+| … with date of birth and country | 89.7% at 0.80, 40.8% at 0.90, 19.1% at 0.95 |
+| Listed people found with their own date of birth and nationality | 99.7% at 0.80 (99.5% by name only) |
 
-Name-only screening of common names against this many records almost always finds a similar listed name, and 5.6% of the unlisted test names are exact namesakes of a listed person. Screening on date of birth, country and identifiers, and calibrating each engine's scores, are the next matching milestones ([ROADMAP.md](ROADMAP.md)). Method, every table, limits of the evaluation and the earlier OFAC SDN-only results are in [docs/performance/benchmarks.rst](docs/performance/benchmarks.rst); [sieve-benchmark](sieve-benchmark/README.md) reproduces them.
+Name-only screening of common names against this many records almost always finds a similar listed name, and 9.1% of the unlisted test names are exact namesakes of a listed person. Giving a date of birth and country halves the false alerts at 0.90 without losing listed people; at 0.80 the gain is smaller because many records state no date of birth or country. Method, every table, limits of the evaluation and earlier runs are in [docs/performance/benchmarks.rst](docs/performance/benchmarks.rst); [sieve-benchmark](sieve-benchmark/README.md) reproduces them.
 
 ## Adverse Media (experimental)
 
