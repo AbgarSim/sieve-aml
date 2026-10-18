@@ -196,6 +196,7 @@ java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar screen "John Doe"
 
 # Screen with options
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar screen "John Doe" --threshold=0.85 --list=ofac-sdn
+java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar screen "John Doe" --dob=1970-05-12 --country=GB --id=AB123456
 
 # View index statistics
 java -jar sieve-cli/target/sieve-cli-0.1.0-SNAPSHOT.jar stats
@@ -246,6 +247,11 @@ Every other list is always fetched by the Vert.x server.
 curl -X POST http://localhost:8080/api/v1/screen \
   -H "Content-Type: application/json" \
   -d '{"name": "John Doe", "threshold": 0.80}'
+
+# Screen a name with date of birth, country and an identifier: each is weighed into the score
+curl -X POST http://localhost:8080/api/v1/screen \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "dateOfBirth": "1970", "country": "GB", "identifiers": ["AB123456"]}'
 
 # List status
 curl http://localhost:8080/api/v1/lists

@@ -3,6 +3,7 @@ package dev.sieve.match;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
+import dev.sieve.core.match.ScreeningCriteria;
 import dev.sieve.core.match.ScreeningRequest;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,12 +17,18 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Runs all registered engines, deduplicates results by entity ID, and keeps the highest score
  * per entity. The final result list is sorted by score in descending order.
+ *
+ * <p>When the request carries facts beyond the name ({@link ScreeningCriteria}), names are matched
+ * down to a lower floor ({@link EvidenceScorer#candidateThreshold}) and each name match is then
+ * re-scored by the {@link EvidenceScorer}; only results at or above the requested threshold are
+ * returned. A name-only request is screened exactly as before.
  */
 public final class CompositeMatchEngine implements MatchEngine {
 
     private static final Logger log = LoggerFactory.getLogger(CompositeMatchEngine.class);
 
     private final List<MatchEngine> engines;
+    private final EvidenceScorer evidenceScorer;
 
     /**
      * Creates a composite engine delegating to the given engines.
@@ -36,10 +43,35 @@ public final class CompositeMatchEngine implements MatchEngine {
             throw new IllegalArgumentException("At least one MatchEngine is required");
         }
         this.engines = List.copyOf(engines);
+        this.evidenceScorer = new EvidenceScorer();
     }
 
     @Override
     public List<MatchResult> screen(ScreeningRequest request, EntityIndex index) {
+        ScreeningCriteria criteria = request.criteria();
+        if (criteria.isEmpty()) {
+            return screenNames(request, index);
+        }
+        double floor = EvidenceScorer.candidateThreshold(criteria, request.threshold());
+        List<MatchResult> names = screenNames(request.withThreshold(floor), index);
+        List<MatchResult> results = new ArrayList<>(names.size());
+        for (MatchResult name : names) {
+            MatchResult scored = evidenceScorer.score(name, criteria);
+            if (scored.score() >= request.threshold()) {
+                results.add(scored);
+            }
+        }
+        results.sort(null);
+        log.debug(
+                "Evidence screening [query={}, nameFloor={}, nameMatches={}, matches={}]",
+                request.name(),
+                floor,
+                names.size(),
+                results.size());
+        return results;
+    }
+
+    private List<MatchResult> screenNames(ScreeningRequest request, EntityIndex index) {
         // Fast path: single engine — no dedup needed
         if (engines.size() == 1) {
             return engines.getFirst().screen(request, index);

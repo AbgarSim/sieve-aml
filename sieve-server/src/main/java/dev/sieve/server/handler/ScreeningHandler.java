@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sieve.core.audit.ScreeningAuditEmitter;
 import dev.sieve.core.audit.ScreeningAuditEvent;
 import dev.sieve.core.index.EntityIndex;
+import dev.sieve.core.match.FieldMatch;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
+import dev.sieve.core.match.ScreeningCriteria;
 import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
@@ -130,7 +132,15 @@ public final class ScreeningHandler {
                                     .collect(Collectors.toSet()));
         }
 
-        ScreeningRequest request = new ScreeningRequest(name, entityType, sources, threshold);
+        ScreeningCriteria criteria;
+        try {
+            criteria = criteria(body);
+        } catch (IllegalArgumentException | ClassCastException e) {
+            return Reply.error(String.valueOf(e.getMessage()).replace("\"", "'"));
+        }
+
+        ScreeningRequest request =
+                new ScreeningRequest(name, entityType, sources, threshold, criteria);
         long startNanos = System.nanoTime();
         List<MatchResult> results = matchEngine.screen(request, entityIndex);
         long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
@@ -208,7 +218,15 @@ public final class ScreeningHandler {
                                     .collect(Collectors.toSet()));
         }
 
-        ScreeningRequest request = new ScreeningRequest(name, entityType, sources, threshold);
+        ScreeningCriteria criteria;
+        try {
+            criteria = criteria(item);
+        } catch (IllegalArgumentException | ClassCastException e) {
+            return Map.of("query", name, "error", String.valueOf(e.getMessage()));
+        }
+
+        ScreeningRequest request =
+                new ScreeningRequest(name, entityType, sources, threshold, criteria);
         List<MatchResult> results = matchEngine.screen(request, entityIndex);
 
         int limit = Math.min(results.size(), config.maxResults());
@@ -249,7 +267,45 @@ public final class ScreeningHandler {
         map.put("score", result.score());
         map.put("matchedField", result.matchedField());
         map.put("matchAlgorithm", result.matchAlgorithm());
+        if (!result.evidence().isEmpty()) {
+            map.put("nameScore", result.nameScore());
+            map.put("evidence", result.evidence().stream().map(this::toEvidenceMap).toList());
+        }
         return map;
+    }
+
+    private Map<String, Object> toEvidenceMap(FieldMatch match) {
+        Map<String, Object> map = new HashMap<>(4);
+        map.put("field", match.field());
+        map.put("outcome", match.outcome().name());
+        map.put("recordValue", match.recordValue());
+        return map;
+    }
+
+    /**
+     * Reads the facts beyond the name: dateOfBirth, placeOfBirth, country, address, identifiers (a
+     * string or an array of strings) and gender.
+     */
+    private static ScreeningCriteria criteria(Map<String, Object> body) {
+        Object ids = body.get("identifiers");
+        List<String> identifiers =
+                ids == null
+                        ? List.of()
+                        : ids instanceof List<?> list
+                                ? list.stream().map(String::valueOf).toList()
+                                : List.of(String.valueOf(ids));
+        return ScreeningCriteria.parse(
+                text(body, "dateOfBirth"),
+                text(body, "placeOfBirth"),
+                text(body, "country"),
+                text(body, "address"),
+                identifiers,
+                text(body, "gender"));
+    }
+
+    private static String text(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        return value == null ? null : String.valueOf(value);
     }
 
     private Map<String, Object> toAddressMap(Address address) {

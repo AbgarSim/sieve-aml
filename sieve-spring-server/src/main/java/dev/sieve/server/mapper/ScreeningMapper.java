@@ -2,6 +2,7 @@ package dev.sieve.server.mapper;
 
 import dev.sieve.core.index.IndexStats;
 import dev.sieve.core.match.MatchResult;
+import dev.sieve.core.match.ScreeningCriteria;
 import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.Address;
 import dev.sieve.core.model.EntityType;
@@ -17,6 +18,7 @@ import dev.sieve.ingest.ProviderResult;
 import dev.sieve.server.dto.AddressDto;
 import dev.sieve.server.dto.EntityDto;
 import dev.sieve.server.dto.EntityPageDto;
+import dev.sieve.server.dto.FieldMatchDto;
 import dev.sieve.server.dto.ImageDto;
 import dev.sieve.server.dto.IndexStatsDto;
 import dev.sieve.server.dto.LinkDto;
@@ -68,7 +70,16 @@ public class ScreeningMapper {
 
         double threshold = dto.threshold() != null ? dto.threshold() : defaultThreshold;
 
-        return new ScreeningRequest(dto.name(), entityType, sources, threshold);
+        ScreeningCriteria criteria =
+                ScreeningCriteria.parse(
+                        dto.dateOfBirth(),
+                        dto.placeOfBirth(),
+                        dto.country(),
+                        dto.address(),
+                        dto.identifiers(),
+                        dto.gender());
+
+        return new ScreeningRequest(dto.name(), entityType, sources, threshold, criteria);
     }
 
     /**
@@ -223,11 +234,23 @@ public class ScreeningMapper {
     }
 
     private MatchResultDto toMatchResultDto(MatchResult result) {
+        boolean weighed = !result.evidence().isEmpty();
         return new MatchResultDto(
                 toEntityDto(result.entity()),
                 result.score(),
                 result.matchedField(),
-                result.matchAlgorithm());
+                result.matchAlgorithm(),
+                weighed ? result.nameScore() : null,
+                weighed
+                        ? result.evidence().stream()
+                                .map(
+                                        f ->
+                                                new FieldMatchDto(
+                                                        f.field(),
+                                                        f.outcome().name(),
+                                                        f.recordValue()))
+                                .toList()
+                        : null);
     }
 
     private ProviderResultDto toProviderResultDto(ProviderResult result) {

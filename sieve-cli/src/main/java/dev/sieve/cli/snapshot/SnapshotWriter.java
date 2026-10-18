@@ -25,6 +25,7 @@ import dev.sieve.core.stats.StatsAggregator;
 import dev.sieve.ingest.ListMetadata;
 import dev.sieve.ingest.SourceCatalog;
 import dev.sieve.ingest.SourceInfo;
+import dev.sieve.match.EvidenceScorer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,7 +61,9 @@ import org.slf4j.LoggerFactory;
  *   overview.json             headline numbers, type mix, scripts, identifiers, top programs
  *   sources.json              one row per list: catalog facts, fetch outcome, aggregates
  *   countries.json            per-country counts for the map, plus unresolved country values
- *   search-index.json         names, aliases, type, source, countries and shard of every entity
+ *   search-index.json         names, aliases, type, source, countries and shard of every entity,
+ *                             and the facts search weighs beyond the name (birth dates, places
+ *                             of birth, identifiers, gender, addresses)
  *   entities/SOURCE/N.json    full entity records, sorted by id, {@code shardSize} per file
  *   history.json              one row per day with totals per list; rows are kept across runs
  *   relations.json            links between published records, and the country each is placed at
@@ -99,6 +102,9 @@ import org.slf4j.LoggerFactory;
  * RelationGraph}.
  */
 public final class SnapshotWriter {
+
+    /** Addresses per record in the search index; a few records list dozens of branch offices. */
+    private static final int MAX_INDEX_ADDRESSES = 5;
 
     /** Format version of the files, bumped on incompatible changes. */
     public static final int FORMAT_VERSION = 1;
@@ -445,6 +451,12 @@ public final class SnapshotWriter {
         return byTopic;
     }
 
+    private static void putIfAny(Map<String, Object> entry, String key, List<String> values) {
+        if (!values.isEmpty()) {
+            entry.put(key, values);
+        }
+    }
+
     private Map<String, Object> indexEntry(SanctionedEntity entity, Overlap overlap, int shard) {
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("k", key(entity));
@@ -465,6 +477,34 @@ public final class SnapshotWriter {
             entry.put("o", entity.topics().stream().map(RiskTopic::name).toList());
         }
         entry.put("f", shard);
+        putIfAny(
+                entry,
+                "b",
+                entity.datesOfBirth().stream().map(LocalDate::toString).distinct().toList());
+        putIfAny(
+                entry,
+                "pb",
+                entity.placesOfBirth().stream().filter(p -> !p.isBlank()).distinct().toList());
+        putIfAny(
+                entry,
+                "i",
+                entity.identifiers().stream()
+                        .map(id -> EvidenceScorer.identifierKey(id.value()))
+                        .filter(k -> !k.isEmpty())
+                        .distinct()
+                        .toList());
+        putIfAny(
+                entry,
+                "ad",
+                entity.addresses().stream()
+                        .map(EvidenceScorer::addressText)
+                        .filter(a -> !a.isBlank())
+                        .distinct()
+                        .limit(MAX_INDEX_ADDRESSES)
+                        .toList());
+        if (entity.gender() != null) {
+            entry.put("x", entity.gender().name().substring(0, 1));
+        }
         return entry;
     }
 

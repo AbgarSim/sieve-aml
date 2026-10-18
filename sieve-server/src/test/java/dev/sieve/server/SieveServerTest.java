@@ -153,6 +153,63 @@ class SieveServerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void screenEndpointReturnsEvidenceWhenFactsBeyondTheNameAreGiven(
+            Vertx vertx, VertxTestContext testContext) throws Exception {
+        HttpClient client = vertx.createHttpClient();
+        String requestBody =
+                "{\"name\":\"Vladimir Putin\",\"threshold\":0.50,\"country\":\"RU\","
+                        + "\"identifiers\":\"X1\"}";
+
+        client.request(HttpMethod.POST, actualPort, "localhost", "/api/v1/screen")
+                .compose(
+                        req ->
+                                req.putHeader("content-type", "application/json")
+                                        .send(Buffer.buffer(requestBody)))
+                .compose(HttpClientResponse::body)
+                .onSuccess(
+                        body ->
+                                testContext.verify(
+                                        () -> {
+                                            Map<String, Object> json =
+                                                    objectMapper.readValue(
+                                                            body.getBytes(), Map.class);
+                                            List<Map<String, Object>> results =
+                                                    (List<Map<String, Object>>) json.get("results");
+                                            assertThat(results).isNotEmpty();
+                                            assertThat(results.getFirst())
+                                                    .containsKeys("nameScore", "evidence");
+                                            testContext.completeNow();
+                                        }))
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void screenEndpointRejectsUnreadableDateOfBirth(Vertx vertx, VertxTestContext testContext)
+            throws Exception {
+        HttpClient client = vertx.createHttpClient();
+        String requestBody = "{\"name\":\"Vladimir Putin\",\"dateOfBirth\":\"soon\"}";
+
+        client.request(HttpMethod.POST, actualPort, "localhost", "/api/v1/screen")
+                .compose(
+                        req ->
+                                req.putHeader("content-type", "application/json")
+                                        .send(Buffer.buffer(requestBody)))
+                .onSuccess(
+                        response ->
+                                testContext.verify(
+                                        () -> {
+                                            assertThat(response.statusCode()).isEqualTo(400);
+                                            testContext.completeNow();
+                                        }))
+                .onFailure(testContext::failNow);
+
+        assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void riskEndpointScoresEachSubject(Vertx vertx, VertxTestContext testContext) throws Exception {
         HttpClient client = vertx.createHttpClient();
         String requestBody =

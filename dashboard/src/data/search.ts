@@ -2,6 +2,7 @@
 import { fetchJson, RAW_TYPE, type EntityType } from './snapshot';
 import type { RawEntity, RawIndex, RawIndexEntry } from './raw';
 import { jaroWinkler as jw, normalize as norm, tokens } from '../lib/jw';
+import { candidateThreshold, hasCriteria, identifierKey, weigh, type Criteria, type FieldMatch } from './evidence';
 
 /** Entity types by the one-letter code of the index and the change log. */
 export const TYPE_BY_CODE: Record<RawIndexEntry['t'], EntityType> = { I: 'individual', E: 'entity', C: 'company', O: 'organization', V: 'vessel', A: 'aircraft', W: 'wallet', S: 'security' };
@@ -13,6 +14,8 @@ export interface Entry {
   topics: string[];
   /** The entity this record is one listing of: shared by its records on other lists, or the record's own key. */
   group: string;
+  /** Facts search can weigh beyond the name; empty when the list does not state them. */
+  dobs: string[]; birthplaces: string[]; ids: string[]; addresses: string[]; gender?: 'M' | 'F' | 'O';
 }
 
 export interface Index {
@@ -37,7 +40,7 @@ export function loadIndex(): Promise<Index> {
 export function build(raw: RawIndex): Index {
   const entries: Entry[] = (raw.entries ?? []).map(e => {
     const slash = e.k.indexOf('/');
-    return { key: e.k, source: e.s, id: e.k.slice(slash + 1), name: e.n, aliases: e.a ?? [], type: T[e.t], countries: e.c ?? [], programs: e.p ?? [], topics: e.o ?? ['SANCTION'], shard: e.f, group: e.g ?? e.k };
+    return { key: e.k, source: e.s, id: e.k.slice(slash + 1), name: e.n, aliases: e.a ?? [], type: T[e.t], countries: e.c ?? [], programs: e.p ?? [], topics: e.o ?? ['SANCTION'], shard: e.f, group: e.g ?? e.k, dobs: e.b ?? [], birthplaces: e.pb ?? [], ids: e.i ?? [], addresses: e.ad ?? [], gender: e.x };
   });
   const names: string[][] = [];
   const vocab = new Map<string, number[]>();
@@ -52,13 +55,37 @@ export function build(raw: RawIndex): Index {
   return { entries, byKey: new Map(entries.map(e => [e.key, e])), names, vocab, byGroup };
 }
 
-export interface Hit { e: Entry; s: number; name: string }
+export interface Hit {
+  e: Entry; s: number; name: string;
+  /** With facts beyond the name: the name's own score and how each fact compared with the record. */
+  nameScore?: number; evidence?: FieldMatch[];
+}
 
 /**
  * Scores entries against a query with Jaro-Winkler, as sieve-match does: the whole name, each
  * token, and substring containment. Only entries sharing a similar token are scored.
  */
-export function search(ix: Index, q: string, threshold: number): Hit[] {
+export function search(ix: Index, q: string, threshold: number, criteria: Criteria = {}): Hit[] {
+  if (!hasCriteria(criteria)) return searchNames(ix, q, threshold);
+  const byName = q.trim() !== '';
+  // Without a name, an identifier alone finds records: they start from a full score, which the other facts can lower
+  const names = byName ? searchNames(ix, q, candidateThreshold(criteria, threshold)) : idHits(ix, criteria.identifier ?? '');
+  const hits: Hit[] = [];
+  for (const h of names) {
+    const { s, evidence } = weigh(h.e, h.s, criteria);
+    if (s >= threshold) hits.push({ ...h, s, nameScore: byName ? h.s : undefined, evidence });
+  }
+  return hits.sort((a, b) => b.s - a.s);
+}
+
+/** Records carrying one of the given identifiers, for a search by identifier without a name. */
+function idHits(ix: Index, ids: string): Hit[] {
+  const wanted = ids.split(/[,;]/).map(identifierKey).filter(Boolean);
+  if (!wanted.length) return [];
+  return ix.entries.filter(e => e.ids.some(i => wanted.includes(i))).map(e => ({ e, s: 1, name: e.name }));
+}
+
+function searchNames(ix: Index, q: string, threshold: number): Hit[] {
   const qn = norm(q); if (!qn) return [];
   const qt = tokens(qn);
   const floor = Math.min(threshold, 0.8);

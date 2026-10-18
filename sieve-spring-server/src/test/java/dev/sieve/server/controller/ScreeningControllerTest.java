@@ -1,12 +1,14 @@
 package dev.sieve.server.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.sieve.core.index.EntityIndex;
+import dev.sieve.core.match.FieldMatch;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
 import dev.sieve.core.model.EntityType;
@@ -58,6 +60,72 @@ class ScreeningControllerTest {
                 .andExpect(jsonPath("$.results").isArray())
                 .andExpect(jsonPath("$.results[0].score").value(0.95))
                 .andExpect(jsonPath("$.results[0].entity.id").value("1"));
+    }
+
+    @Test
+    void shouldPassFactsBeyondTheNameAndReturnEvidence() throws Exception {
+        SanctionedEntity entity = createEntity("1", "DOE, John");
+        MatchResult matchResult =
+                new MatchResult(
+                        entity,
+                        0.94,
+                        "primaryName",
+                        "JARO_WINKLER",
+                        0.9,
+                        List.of(
+                                new FieldMatch(
+                                        "dateOfBirth", FieldMatch.Outcome.MATCH, "1970-05-12")));
+
+        when(matchEngine.screen(
+                        argThat(
+                                r ->
+                                        r != null
+                                                && r.criteria().dateOfBirth().isPresent()
+                                                && r.criteria().identifiers().equals(List.of("AB1"))
+                                                && r.criteria().country().orElse("").equals("GB")),
+                        any()))
+                .thenReturn(List.of(matchResult));
+        when(properties.screening()).thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
+
+        mockMvc.perform(
+                        post("/api/v1/screen")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"name": "John Doe", "dateOfBirth": "1970",
+                                         "country": "GB", "identifiers": ["AB1"]}
+                                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].score").value(0.94))
+                .andExpect(jsonPath("$.results[0].nameScore").value(0.9))
+                .andExpect(jsonPath("$.results[0].evidence[0].field").value("dateOfBirth"))
+                .andExpect(jsonPath("$.results[0].evidence[0].outcome").value("MATCH"));
+    }
+
+    @Test
+    void shouldLeaveNameOnlyResponsesWithoutEvidenceFields() throws Exception {
+        SanctionedEntity entity = createEntity("1", "DOE, John");
+        when(matchEngine.screen(any(), any()))
+                .thenReturn(List.of(new MatchResult(entity, 0.95, "primaryName", "JARO_WINKLER")));
+        when(properties.screening()).thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
+
+        mockMvc.perform(
+                        post("/api/v1/screen")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\": \"John Doe\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].nameScore").doesNotExist())
+                .andExpect(jsonPath("$.results[0].evidence").doesNotExist());
+    }
+
+    @Test
+    void shouldReturn400WhenDateOfBirthIsNotADate() throws Exception {
+        when(properties.screening()).thenReturn(new SieveProperties.ScreeningProperties(0.80, 50));
+        mockMvc.perform(
+                        post("/api/v1/screen")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\": \"John Doe\", \"dateOfBirth\": \"May 1970\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
