@@ -11,6 +11,8 @@ reconstructed afterwards from the existing code, so its dates are approximate.
 ## [Unreleased]
 
 ### Added
+- US HHS-OIG LEIE (`US_HHS_LEIE`, ids `leie-` plus a hash of name, date of birth, exclusion type and date, since the file has no record id): the people and businesses the HHS Office of Inspector General excludes from federal health care programs, tagged `DEBARMENT`, with date of birth, address, NPI and UPIN, the Social Security Act section as the program (`1128(b)(4)`) and its meaning as the listing reason
+- TW SHTC (`TW_SHTC`, ids `tw-shtc-` plus a hash of the name, because the file's item numbers are row positions): Taiwan's entity list for strategic high-technology commodities, tagged `EXPORT_CONTROL`, with aliases, names in Chinese and Cyrillic script as aliases in that script, addresses paired with their country codes, and ID numbers
 - Maven Central release setup: the library modules (`sieve-core`, `sieve-address`, `sieve-ingest`, `sieve-match`, `sieve-risk` and the parent POM) carry the metadata Central requires, a `release` profile builds sources and javadoc jars, signs them and uploads them to the Central Portal, and the Release workflow runs it when a `vX.Y.Z` tag is pushed; see RELEASING.md
 
 - Breach reports from users: a report form on the dashboard (`/report`, also as a GitHub issue form) takes a report with its public sources; the maintainer accepts it by adding the `report-accepted` label, the Breach report workflow freezes the accepted text as a bot comment, and the nightly Dashboard build publishes the frozen reports in `reports.json`, shown on the Monitoring page in a "User reports (reviewed)" map tab and table marked as not an official finding

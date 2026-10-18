@@ -48,7 +48,9 @@ class ListSourceTest {
         "WB_DEBARRED, World Bank Debarred",
         "WIKIDATA_PEP, Wikidata PEPs",
         "GLEIF_STATE_OWNED, GLEIF State-Owned",
-        "GLEIF_SANCTION_LINKED, GLEIF Sanction-Linked"
+        "GLEIF_SANCTION_LINKED, GLEIF Sanction-Linked",
+        "US_HHS_LEIE, US HHS-OIG LEIE",
+        "TW_SHTC, TW SHTC"
     })
     void shouldReturnCorrectDisplayName(String enumName, String expectedDisplay) {
         ListSource source = ListSource.valueOf(enumName);
@@ -87,6 +89,6 @@ class ListSourceTest {
 
     @Test
     void shouldHaveExpectedValues() {
-        assertThat(ListSource.values()).hasSize(36);
+        assertThat(ListSource.values()).hasSize(38);
     }
 }

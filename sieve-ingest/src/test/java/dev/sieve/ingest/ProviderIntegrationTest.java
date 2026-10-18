@@ -30,9 +30,11 @@ import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.pl.PlMswiaProvider;
 import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
+import dev.sieve.ingest.tw.TwShtcProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import dev.sieve.ingest.usfbi.FbiWantedProvider;
+import dev.sieve.ingest.ushhs.HhsOigLeieProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
@@ -481,6 +483,26 @@ class ProviderIntegrationTest {
         log.info("World Bank Debarred: fetched {} entities", entities.size());
         assertThat(entities).isNotEmpty();
         assertCommonInvariants(entities, ListSource.WB_DEBARRED);
+    }
+
+    @Test
+    void hhsOigLeie_shouldFetchAndParseEntities() throws Exception {
+        var provider = new HhsOigLeieProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("US HHS-OIG LEIE: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(50_000);
+        assertCommonInvariants(entities, ListSource.US_HHS_LEIE);
+    }
+
+    @Test
+    void twShtc_shouldFetchAndParseEntities() throws Exception {
+        var provider = new TwShtcProvider();
+        List<SanctionedEntity> entities = provider.fetch();
+
+        log.info("TW SHTC: fetched {} entities", entities.size());
+        assertThat(entities).hasSizeGreaterThan(5_000);
+        assertCommonInvariants(entities, ListSource.TW_SHTC);
     }
 
     @Test

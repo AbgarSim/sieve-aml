@@ -26,10 +26,12 @@ import dev.sieve.ingest.ofac.OfacSdnProvider;
 import dev.sieve.ingest.pl.PlMswiaProvider;
 import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
+import dev.sieve.ingest.tw.TwShtcProvider;
 import dev.sieve.ingest.ua.UaNsdcProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import dev.sieve.ingest.usfbi.FbiWantedProvider;
+import dev.sieve.ingest.ushhs.HhsOigLeieProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
@@ -88,6 +90,8 @@ public final class ProviderRegistry {
                 new WorldBankDebarredProvider(),
                 new WikidataPepProvider(),
                 new GleifStateOwnedProvider(),
-                new GleifSanctionLinkedProvider());
+                new GleifSanctionLinkedProvider(),
+                new HhsOigLeieProvider(),
+                new TwShtcProvider());
     }
 }

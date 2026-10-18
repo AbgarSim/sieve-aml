@@ -39,9 +39,11 @@ import dev.sieve.ingest.pep.PublicFunctionCatalog;
 import dev.sieve.ingest.pl.PlMswiaProvider;
 import dev.sieve.ingest.qa.QaNctcProvider;
 import dev.sieve.ingest.tr.TrMasakProvider;
+import dev.sieve.ingest.tw.TwShtcProvider;
 import dev.sieve.ingest.uk.UkHmtProvider;
 import dev.sieve.ingest.un.UnConsolidatedProvider;
 import dev.sieve.ingest.usfbi.FbiWantedProvider;
+import dev.sieve.ingest.ushhs.HhsOigLeieProvider;
 import dev.sieve.ingest.ustrade.BisEntityListProvider;
 import dev.sieve.ingest.ustrade.BisMilitaryEndUserProvider;
 import dev.sieve.ingest.ustrade.UsTradeCslProvider;
@@ -225,9 +227,7 @@ public final class SieveServer {
             log.info("Registered UN Consolidated provider");
         }
         if (config.ukEnabled()) {
-            URI uri =
-                    URI.create(
-                            "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml");
+            URI uri = URI.create("https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.xml");
             providers.add(new UkHmtProvider(uri));
             log.info("Registered UK HMT provider");
         }
@@ -264,6 +264,8 @@ public final class SieveServer {
         providers.add(new WikidataPepProvider());
         providers.add(new GleifStateOwnedProvider());
         providers.add(new GleifSanctionLinkedProvider());
+        providers.add(new HhsOigLeieProvider());
+        providers.add(new TwShtcProvider());
         log.info("Registered {} providers total", providers.size());
 
         return providers;
