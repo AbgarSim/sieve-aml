@@ -63,7 +63,9 @@ export interface RawHistoryRow { date: string; totalEntities: number; distinctEn
  * for a record that is only sanctioned), and for a record of an entity found on several lists the group's id (the
  * key of its first record in list order).
  */
-export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; o?: string[]; f: number; g?: string }
+export interface RawIndexEntry { k: string; n: string; a?: string[]; t: 'I' | 'E' | 'V' | 'A' | 'C' | 'O' | 'W' | 'S'; s: string; c?: string[]; p?: string[]; o?: string[]; f: number; g?: string;
+  /** Dates of birth (YYYY-MM-DD; 1 January often stands for a year-only date), places of birth, identifier keys (upper case, letters and digits only), addresses, and gender (M, F or O). */
+  b?: string[]; pb?: string[]; i?: string[]; ad?: string[]; x?: 'M' | 'F' | 'O' }
 export interface RawIndex extends Header { shardSize: number; entries?: RawIndexEntry[] }
 
 export interface RawName { fullName: string; nameType: string; strength?: string; script?: string }

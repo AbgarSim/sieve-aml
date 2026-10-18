@@ -8,7 +8,9 @@ Synopsis
 
 .. code-block:: text
 
-   sieve screen [-hV] [-l=<list>] [-n=<maxResults>] [-t=<threshold>] <name>
+   sieve screen [-hV] [-l=<list>] [-n=<maxResults>] [-t=<threshold>] [--dob=<date>]
+                [--country=<country>] [--place-of-birth=<place>] [--address=<address>]
+                [--id=<identifier>]... [--gender=<gender>] <name>
 
 Arguments
 ---------
@@ -41,9 +43,39 @@ Options
    * - ``-n, --max-results=<n>``
      - ``20``
      - Maximum number of results to display
+   * - ``--dob=<date>``
+     -
+     - Date of birth: ``YYYY``, ``YYYY-MM`` or ``YYYY-MM-DD``
+   * - ``--country=<country>``
+     -
+     - Country of nationality, citizenship, residence or registration (name or ISO code)
+   * - ``--place-of-birth=<place>``
+     -
+     - Place of birth
+   * - ``--address=<address>``
+     -
+     - Address
+   * - ``--id=<identifier>``
+     -
+     - Identifier value (passport, national id, tax id, LEI, registration number); repeatable
+   * - ``--gender=<gender>``
+     -
+     - ``male``, ``female`` or ``other``
    * - ``-h, --help``
      -
      - Show help message and exit
+
+Facts beyond the name
+---------------------
+
+Each of ``--dob``, ``--country``, ``--place-of-birth``, ``--address``, ``--id`` and ``--gender`` is
+weighed against every name match: agreement raises the score, a clear difference lowers it, and a
+fact the record does not state changes nothing (see :doc:`/api/screening` for the weights). The
+output then lists, for each match, the name score, the final score and how each fact compared:
+
+.. code-block:: bash
+
+   sieve screen "Viktor Dubrovin" --dob=1968 --country=RU
 
 Exit Codes
 ----------

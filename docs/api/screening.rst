@@ -56,6 +56,79 @@ Screen a name against all loaded sanctions lists.
      - number
      - No
      - Minimum match score (0.0–1.0). Defaults to server-configured value (0.80)
+   * - ``dateOfBirth``
+     - string
+     - No
+     - Date of birth: ``YYYY``, ``YYYY-MM`` or ``YYYY-MM-DD`` (``DD.MM.YYYY`` is also read)
+   * - ``placeOfBirth``
+     - string
+     - No
+     - Place of birth, such as a city
+   * - ``country``
+     - string
+     - No
+     - Country of nationality, citizenship, residence or registration, as a name or ISO code.
+       Compared with the record's nationalities, citizenships and address countries
+   * - ``address``
+     - string
+     - No
+     - Address, free text
+   * - ``identifiers``
+     - string[]
+     - No
+     - Identifier values of any type: passport, national id, tax id, LEI, registration number.
+       Case, spaces and punctuation are ignored
+   * - ``gender``
+     - string
+     - No
+     - ``male``, ``female`` or ``other``
+
+Facts beyond the name
+^^^^^^^^^^^^^^^^^^^^^
+
+A name alone matches many people: on real list data, made-up names that are on no list reach
+0.80 most of the time. The optional fields above let a screening say more about the party, and
+each one given is weighed against the matched record:
+
+- **agreement raises the score**, moving it part of the way towards 1.0;
+- **a clear difference lowers it**, taking a share off it;
+- **a fact the record does not state changes nothing.**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Field
+     - Agrees (share of the gap to 1.0 closed)
+     - Differs (share of the score removed)
+   * - ``dateOfBirth``
+     - same day 0.40; same year (or month) 0.25; one year off or day and month swapped 0.10
+     - 0.30
+   * - ``identifiers``
+     - 0.60
+     - 0.05 (the record lists other identifiers)
+   * - ``country``
+     - 0.15
+     - 0.15
+   * - ``placeOfBirth``
+     - 0.15 (all words found); 0.075 (some)
+     - 0.05
+   * - ``address``
+     - 0.15 (all words found); 0.05 (some)
+     - 0.05
+   * - ``gender``
+     - 0.05
+     - 0.25
+
+Many lists give only a birth year, which Sieve stores as 1 January of that year, so a record date
+of 1 January agrees with any date in that year. A query of ``"1970"`` agrees with any record date
+in 1970.
+
+The score stays between 0 and 1 and the threshold keeps its meaning. A name that scores 0.95 on its
+own falls to 0.67 when the date of birth differs, and a name at 0.80 rises to 0.92 when an
+identifier matches. Facts can lift a name match up to the threshold only from a name score of
+0.70 or more. A request with none of these fields is screened by name exactly as before, and its
+response carries no new fields.
 
 **Response**
 
@@ -140,6 +213,32 @@ Screen a name against all loaded sanctions lists.
    * - ``results[].matchAlgorithm``
      - string
      - Algorithm used: ``EXACT`` or ``JARO_WINKLER``
+   * - ``results[].nameScore``
+     - number
+     - Score of the name alone, before the facts beyond the name were weighed. Only present when
+       the request gave one of them
+   * - ``results[].evidence[]``
+     - array
+     - How each fact beyond the name compared with the record: ``field`` (``dateOfBirth``,
+       ``identifier``, ``country``, ``placeOfBirth``, ``address``, ``gender``), ``outcome``
+       (``MATCH``, ``PARTIAL``, ``MISMATCH`` or ``NOT_ON_RECORD``) and ``recordValue``, the
+       record's value that decided it. Only present when the request gave one of them
+
+With facts beyond the name, a result reads:
+
+.. code-block:: json
+
+   {
+     "entity": { "id": "ofac-sdn-36735", "primaryName": "PUTIN, Vladimir Vladimirovich" },
+     "score": 0.9647,
+     "matchedField": "alias[0]",
+     "matchAlgorithm": "JARO_WINKLER",
+     "nameScore": 0.9412,
+     "evidence": [
+       { "field": "dateOfBirth", "outcome": "MATCH", "recordValue": "1952-10-07" },
+       { "field": "country", "outcome": "MATCH", "recordValue": "RU" }
+     ]
+   }
 
 **Examples**
 

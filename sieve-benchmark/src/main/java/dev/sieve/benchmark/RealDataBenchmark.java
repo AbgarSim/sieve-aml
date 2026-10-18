@@ -8,6 +8,8 @@ import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.index.InMemoryEntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
+import dev.sieve.core.match.PartialDate;
+import dev.sieve.core.match.ScreeningCriteria;
 import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.ListSource;
 import dev.sieve.core.model.SanctionedEntity;
@@ -30,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -215,6 +219,7 @@ final class RealDataBenchmark {
             outcomes.add(Outcome.of(q, results));
         }
         reportEvaluation(report, outcomes);
+        reportFactsBeyondName(report, engine, index, outcomes, byId, new Random(seed + 1));
         reportLatency(report, latencyNanos);
         reportThroughput(report, engine, index, queries);
         writeQueries(outcomes, byId);
@@ -378,6 +383,132 @@ final class RealDataBenchmark {
                         + " normalisation, which only a date of birth, country or identifier can"
                         + " clear.");
         report.line("");
+    }
+
+    /** Countries given with made-up customers, spread over regions the lists cover. */
+    private static final String[] CUSTOMER_COUNTRIES = {
+        "US", "GB", "DE", "FR", "RU", "CN", "IR", "SY", "IQ", "AF", "PK", "IN", "TR", "AE", "NG",
+        "VE", "MX", "BR", "UA", "KP"
+    };
+
+    /**
+     * Re-screens the evaluation set with facts beyond the name: made-up customers get a random date
+     * of birth (and country), listed people their record's own date of birth and nationality, so
+     * the report shows how much the facts cut false alerts and whether true matches survive.
+     */
+    private void reportFactsBeyondName(
+            Report report,
+            MatchEngine engine,
+            EntityIndex index,
+            List<Outcome> nameOnly,
+            Map<String, SanctionedEntity> byId,
+            Random random) {
+        double minThreshold = THRESHOLDS[0];
+        List<Outcome> negatives =
+                nameOnly.stream().filter(o -> o.query().kind() == Kind.UNLISTED_CUSTOMER).toList();
+        List<Outcome> withDob = new ArrayList<>();
+        List<Outcome> withDobCountry = new ArrayList<>();
+        for (Outcome o : negatives) {
+            LocalDate dob = LocalDate.of(1940, 1, 1).plusDays(random.nextInt(60 * 365));
+            String country = CUSTOMER_COUNTRIES[random.nextInt(CUSTOMER_COUNTRIES.length)];
+            withDob.add(screen(engine, index, o.query(), minThreshold, criteria(dob, null)));
+            withDobCountry.add(
+                    screen(engine, index, o.query(), minThreshold, criteria(dob, country)));
+        }
+
+        List<Outcome> listedNameOnly = new ArrayList<>();
+        List<Outcome> listedWithFacts = new ArrayList<>();
+        for (Outcome o : nameOnly) {
+            if (o.query().kind() == Kind.UNLISTED_CUSTOMER) {
+                continue;
+            }
+            SanctionedEntity expected = byId.get(o.query().expectedId());
+            if (expected == null || expected.datesOfBirth().isEmpty()) {
+                continue;
+            }
+            String nationality =
+                    expected.nationalities().isEmpty() ? null : expected.nationalities().getFirst();
+            listedNameOnly.add(o);
+            listedWithFacts.add(
+                    screen(
+                            engine,
+                            index,
+                            o.query(),
+                            minThreshold,
+                            criteria(expected.datesOfBirth().getFirst(), nationality)));
+        }
+
+        report.line("## Screening with date of birth and country");
+        report.line("");
+        report.line(
+                "The same queries with facts beyond the name, weighed by `EvidenceScorer`."
+                        + " Made-up customers get a random date of birth between 1940 and 1999"
+                        + " and a random country from twenty; listed people get their record's"
+                        + " own first date of birth and nationality, as a customer file would"
+                        + " hold them.");
+        report.line("");
+        StringBuilder header = new StringBuilder("| Alert rate, unlisted customers |");
+        StringBuilder rule = new StringBuilder("| --- |");
+        for (double t : THRESHOLDS) {
+            header.append(" ").append(String.format(Locale.ROOT, "%.2f", t)).append(" |");
+            rule.append(" ---: |");
+        }
+        report.line(header.toString());
+        report.line(rule.toString());
+        alertRow(report, "Name only (" + negatives.size() + ")", negatives);
+        alertRow(report, "Name and date of birth", withDob);
+        alertRow(report, "Name, date of birth and country", withDobCountry);
+        report.line("");
+        report.line(
+                "Listed people whose record gives a date of birth ("
+                        + listedNameOnly.size()
+                        + " same-entity and spelling queries): share found.");
+        report.line("");
+        report.line(header.toString().replace("Alert rate, unlisted customers", "Recall"));
+        report.line(rule.toString());
+        recallRow(report, "Name only", listedNameOnly);
+        recallRow(report, "Name, own date of birth and nationality", listedWithFacts);
+        report.line("");
+    }
+
+    private static ScreeningCriteria criteria(LocalDate dob, String country) {
+        return new ScreeningCriteria(
+                Optional.of(PartialDate.of(dob)),
+                Optional.empty(),
+                Optional.ofNullable(country),
+                Optional.empty(),
+                List.of(),
+                Optional.empty());
+    }
+
+    private static Outcome screen(
+            MatchEngine engine,
+            EntityIndex index,
+            Query q,
+            double threshold,
+            ScreeningCriteria criteria) {
+        ScreeningRequest request =
+                new ScreeningRequest(
+                        q.name(), Optional.empty(), Optional.empty(), threshold, criteria);
+        return Outcome.of(q, engine.screen(request, index));
+    }
+
+    private static void alertRow(Report report, String label, List<Outcome> outcomes) {
+        StringBuilder row = new StringBuilder("| " + label + " |");
+        for (double t : THRESHOLDS) {
+            long alerted = outcomes.stream().filter(o -> o.topScore() >= t).count();
+            row.append(" ").append(pct(alerted, outcomes.size())).append(" |");
+        }
+        report.line(row.toString());
+    }
+
+    private static void recallRow(Report report, String label, List<Outcome> outcomes) {
+        StringBuilder row = new StringBuilder("| " + label + " |");
+        for (double t : THRESHOLDS) {
+            long found = outcomes.stream().filter(o -> o.expectedScore() >= t).count();
+            row.append(" ").append(pct(found, outcomes.size())).append(" |");
+        }
+        report.line(row.toString());
     }
 
     private void reportLatency(Report report, long[] latencyNanos) {

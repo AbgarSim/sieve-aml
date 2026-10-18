@@ -4,12 +4,15 @@ import dev.sieve.cli.CliContext;
 import dev.sieve.core.index.EntityIndex;
 import dev.sieve.core.match.MatchEngine;
 import dev.sieve.core.match.MatchResult;
+import dev.sieve.core.match.ScreeningCriteria;
 import dev.sieve.core.match.ScreeningRequest;
 import dev.sieve.core.model.ListSource;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ExitCode;
 import picocli.CommandLine.Help.Ansi;
@@ -45,6 +48,32 @@ public class ScreenCommand implements Callable<Integer> {
     private String list;
 
     @Option(
+            names = "--dob",
+            description = "Date of birth: YYYY, YYYY-MM or YYYY-MM-DD; weighed into the score")
+    private String dateOfBirth;
+
+    @Option(names = "--place-of-birth", description = "Place of birth")
+    private String placeOfBirth;
+
+    @Option(
+            names = "--country",
+            description = "Country of nationality, citizenship, residence or registration")
+    private String country;
+
+    @Option(names = "--address", description = "Address")
+    private String address;
+
+    @Option(
+            names = "--id",
+            description =
+                    "Identifier value (passport, national id, tax id, LEI, registration number);"
+                            + " repeatable")
+    private List<String> identifiers;
+
+    @Option(names = "--gender", description = "Gender: male, female or other")
+    private String gender;
+
+    @Option(
             names = {"--max-results", "-n"},
             description = "Maximum results to display (default: 20)",
             defaultValue = "20")
@@ -53,6 +82,16 @@ public class ScreenCommand implements Callable<Integer> {
     /** Screens the name and returns the exit code: 0 for no match, 1 for a match. */
     @Override
     public Integer call() {
+        ScreeningCriteria criteria;
+        try {
+            criteria =
+                    ScreeningCriteria.parse(
+                            dateOfBirth, placeOfBirth, country, address, identifiers, gender);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error: " + e.getMessage());
+            return 2;
+        }
+
         CliContext ctx = CliContext.instance();
         EntityIndex index = ctx.entityIndex();
 
@@ -66,7 +105,8 @@ public class ScreenCommand implements Callable<Integer> {
         Optional<Set<ListSource>> sources =
                 list != null ? Optional.of(Set.of(ListSource.fromString(list))) : Optional.empty();
 
-        ScreeningRequest request = new ScreeningRequest(name, Optional.empty(), sources, threshold);
+        ScreeningRequest request =
+                new ScreeningRequest(name, Optional.empty(), sources, threshold, criteria);
 
         MatchEngine engine = ctx.matchEngine();
         List<MatchResult> results = engine.screen(request, index);
@@ -87,6 +127,9 @@ public class ScreenCommand implements Callable<Integer> {
                                 results.size(), name, threshold)));
 
         printResultsTable(results.stream().limit(maxResults).toList());
+        if (!criteria.isEmpty()) {
+            printEvidence(results.stream().limit(maxResults).toList());
+        }
         return 1;
     }
 
@@ -108,6 +151,30 @@ public class ScreenCommand implements Callable<Integer> {
                                     result.entity().listSource().name(),
                                     result.entity().entityType().name(),
                                     result.matchAlgorithm())));
+        }
+    }
+
+    private static void printEvidence(List<MatchResult> results) {
+        System.out.println();
+        System.out.println("  Facts beyond the name (name score -> score):");
+        for (MatchResult result : results) {
+            String facts =
+                    result.evidence().stream()
+                            .map(
+                                    f ->
+                                            f.field()
+                                                    + " "
+                                                    + f.outcome().name().toLowerCase(Locale.ROOT)
+                                                    + (f.recordValue().isEmpty()
+                                                            ? ""
+                                                            : " (" + f.recordValue() + ")"))
+                            .collect(Collectors.joining(", "));
+            System.out.printf(
+                    "  %.4f -> %.4f  %-40s  %s%n",
+                    result.nameScore(),
+                    result.score(),
+                    truncate(result.entity().primaryName().fullName(), 40),
+                    facts);
         }
     }
 

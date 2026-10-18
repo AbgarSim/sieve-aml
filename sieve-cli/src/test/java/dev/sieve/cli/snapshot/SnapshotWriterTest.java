@@ -209,6 +209,76 @@ class SnapshotWriterTest {
     }
 
     @Test
+    void shouldCarryBirthDatesIdentifiersAddressesAndGenderInSearchIndex() throws IOException {
+        SanctionedEntity person =
+                new SanctionedEntity(
+                        "un-9",
+                        EntityType.INDIVIDUAL,
+                        ListSource.UN_CONSOLIDATED,
+                        new NameInfo(
+                                "Olga Ivanova",
+                                null,
+                                null,
+                                null,
+                                null,
+                                NameType.PRIMARY,
+                                null,
+                                null),
+                        List.of(),
+                        List.of(
+                                new dev.sieve.core.model.Address(
+                                        "Tverskaya 7", "Moscow", null, null, "Russia", null)),
+                        List.of(
+                                new dev.sieve.core.model.Identifier(
+                                        dev.sieve.core.model.IdentifierType.PASSPORT,
+                                        "ab-123 456",
+                                        "RU",
+                                        null)),
+                        List.of("RU"),
+                        List.of(),
+                        List.of(java.time.LocalDate.of(1970, 5, 12)),
+                        List.of("Leningrad"),
+                        dev.sieve.core.model.Gender.FEMALE,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        NOW,
+                        Set.of(RiskTopic.SANCTION),
+                        List.of(),
+                        List.of());
+        List<FetchedSource> fetched = new ArrayList<>(fetch(Set.of()));
+        fetched.removeIf(f -> f.source() == ListSource.UN_CONSOLIDATED);
+        fetched.add(
+                new FetchedSource(
+                        ListSource.UN_CONSOLIDATED,
+                        FetchedSource.Status.LOADED,
+                        List.of(person),
+                        Optional.empty(),
+                        Duration.ZERO,
+                        Optional.empty()));
+        write(fetched, NOW);
+
+        JsonNode entry = null;
+        for (JsonNode e : read("search-index.json").get("entries")) {
+            if (e.get("k").asText().equals("UN_CONSOLIDATED/un-9")) {
+                entry = e;
+            }
+        }
+        assertThat(entry).isNotNull();
+        assertThat(entry.get("b").get(0).asText()).isEqualTo("1970-05-12");
+        assertThat(entry.get("pb").get(0).asText()).isEqualTo("Leningrad");
+        assertThat(entry.get("i").get(0).asText()).isEqualTo("AB123456");
+        assertThat(entry.get("ad").get(0).asText()).isEqualTo("Tverskaya 7, Moscow, Russia");
+        assertThat(entry.get("x").asText()).isEqualTo("F");
+        // Records without these facts carry none of the keys
+        JsonNode first = read("search-index.json").get("entries").get(0);
+        assertThat(first.has("x")).isFalse();
+    }
+
+    @Test
     void shouldGroupTheRecordsOfOneEntityAcrossLists() throws IOException {
         List<FetchedSource> fetched = new ArrayList<>(fetch(Set.of()));
         fetched.removeIf(f -> f.source() == ListSource.UN_CONSOLIDATED);
