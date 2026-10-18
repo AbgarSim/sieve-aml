@@ -15,7 +15,7 @@
 
 | Area | State |
 |------|-------|
-| Data coverage | 36 list sources, 35 fetched nightly (Ukraine waits on an API key); roadmap Phase 1 complete |
+| Data coverage | 38 list sources, 37 fetched nightly (Ukraine waits on an API key); roadmap Phase 1 complete |
 | Matching | Exact, Jaro-Winkler, Double Metaphone and token engines on one transliterating name key; cross-list entity resolution in the published snapshot |
 | Storage | In memory (Vert.x server, CLI); PostgreSQL system of record with first-seen and last-seen per value (Spring Boot server) |
 | Interfaces | CLI, REST API (two servers), entity import and export in an open JSON-lines format, public dashboard |
@@ -42,7 +42,7 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 
 ## Supported Sanctions Lists
 
-**36 list sources**: 20 national governments, the United Nations, the European Union (5 lists, including Europol's most wanted), the World Bank, and two open registries (Wikidata for PEPs, GLEIF for state-owned and sanction-linked companies). Each list is fetched from its publisher, parsed into the unified entity model and indexed for screening; 35 are fetched today and Ukraine's list waits on an API key.
+**38 list sources**: 21 national governments, the United Nations, the European Union (5 lists, including Europol's most wanted), the World Bank, and two open registries (Wikidata for PEPs, GLEIF for state-owned and sanction-linked companies). Each list is fetched from its publisher, parsed into the unified entity model and indexed for screening; 37 are fetched today and Ukraine's list waits on an API key.
 
 ### International
 
@@ -59,6 +59,7 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 | US Trade CSL | U.S. Commerce Dept — Consolidated Screening List | JSON | ~12,500 |
 | US BIS Entity List | U.S. Commerce Dept — Bureau of Industry and Security Entity List (from the CSL) | JSON | ~3,400 |
 | US BIS MEU | U.S. Commerce Dept — Bureau of Industry and Security Military End-User List (from the CSL) | JSON | ~70 |
+| US HHS-OIG LEIE | U.S. Dept of Health and Human Services, Office of Inspector General — people and businesses excluded from Medicare, Medicaid and other federal health care programs, with date of birth, NPI, address and the exclusion authority | CSV | ~84,000 |
 | Canada Consolidated | Global Affairs Canada (SEMA, FACFOA, Terrorists) | XML | ~2,700 |
 
 ### Europe
@@ -94,6 +95,7 @@ The recorder is [`dashboard/demo/record.mjs`](dashboard/demo/record.mjs); `npm r
 | AU DFAT | Australia — Dept of Foreign Affairs and Trade | XLSX | ~900 |
 | NZ Russia | New Zealand — Russia Sanctions Register | JSON | ~1,900 |
 | JP MoF | Japan — Ministry of Finance | CSV | ~4,200 |
+| TW SHTC | Taiwan — International Trade Administration entity list for strategic high-tech commodities (export control), with aliases, names in Chinese and Cyrillic script, addresses and ID numbers | CSV | ~11,600 |
 
 ### Middle East & Africa
 
@@ -119,7 +121,7 @@ How data moves through Sieve:
 
 ```mermaid
 flowchart LR
-    SRC["36 publishers<br/>XML · JSON · CSV · XLSX · HTML · PDF · SPARQL"] -->|"providers fetch in parallel<br/>(virtual threads)"| ING["sieve-ingest<br/>parse · stable ids · relations<br/>country and name normalisation"]
+    SRC["38 publishers<br/>XML · JSON · CSV · XLSX · HTML · PDF · SPARQL"] -->|"providers fetch in parallel<br/>(virtual threads)"| ING["sieve-ingest<br/>parse · stable ids · relations<br/>country and name normalisation"]
     ING -->|"replace a list on refresh<br/>stamp first/last seen"| IDX[("Entity index<br/>in memory")]
     ING -->|Spring Boot server| PG[("PostgreSQL<br/>system of record<br/>removed-entity history")]
     PG -->|load at startup| IDX

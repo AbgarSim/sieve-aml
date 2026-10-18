@@ -121,7 +121,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
 
 const REGION: Record<string, string> = {
   US: 'North America', CA: 'North America', UN: 'International', WB: 'International', WD: 'International', LE: 'International',
-  AU: 'Asia-Pacific', NZ: 'Asia-Pacific', JP: 'Asia-Pacific',
+  AU: 'Asia-Pacific', NZ: 'Asia-Pacific', JP: 'Asia-Pacific', TW: 'Asia-Pacific',
   TR: 'Middle East & Africa', IL: 'Middle East & Africa', QA: 'Middle East & Africa', ZA: 'Middle East & Africa',
 };
 /** Where flows from EU lists are drawn from on the map. */

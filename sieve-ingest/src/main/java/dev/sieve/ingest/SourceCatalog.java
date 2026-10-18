@@ -290,6 +290,20 @@ public final class SourceCatalog {
                 "LE",
                 Format.JSON,
                 "https://www.gleif.org/en/lei-data/gleif-golden-copy");
+        put(
+                map,
+                ListSource.US_HHS_LEIE,
+                "U.S. Department of Health and Human Services, Office of Inspector General",
+                "US",
+                Format.CSV,
+                "https://oig.hhs.gov/exclusions/");
+        put(
+                map,
+                ListSource.TW_SHTC,
+                "International Trade Administration, Ministry of Economic Affairs",
+                "TW",
+                Format.CSV,
+                "https://www.trade.gov.tw/");
         return Collections.unmodifiableMap(map);
     }
 
@@ -456,6 +470,16 @@ public final class SourceCatalog {
                     "Companies that are not listed themselves but whose accounts a sanctioned party "
                             + "consolidates, directly or through other companies, according to the Global LEI "
                             + "register's parent relationships.";
+            case US_HHS_LEIE ->
+                    "People and businesses the U.S. Department of Health and Human Services' Office "
+                            + "of Inspector General has excluded from Medicare, Medicaid and all other federal"
+                            + " health care programs, for example after a fraud conviction, patient abuse or "
+                            + "the loss of a licence.";
+            case TW_SHTC ->
+                    "Taiwan's entity list for strategic high-technology commodities: people and "
+                            + "organisations that need an export permit before strategic goods may be shipped"
+                            + " to them, gathering the UN, US and other export-control and terrorism "
+                            + "designations Taiwan follows.";
         };
     }
 }

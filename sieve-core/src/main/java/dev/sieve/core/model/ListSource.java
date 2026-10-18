@@ -121,7 +121,13 @@ public enum ListSource {
     GLEIF_STATE_OWNED("GLEIF State-Owned"),
 
     /** Companies consolidated by sanctioned parties, derived from the GLEIF LEI register. */
-    GLEIF_SANCTION_LINKED("GLEIF Sanction-Linked");
+    GLEIF_SANCTION_LINKED("GLEIF Sanction-Linked"),
+
+    /** U.S. HHS Office of Inspector General List of Excluded Individuals/Entities (LEIE). */
+    US_HHS_LEIE("US HHS-OIG LEIE"),
+
+    /** Taiwan entity list for strategic high-technology commodities (SHTC). */
+    TW_SHTC("TW SHTC");
 
     private final String displayName;
 
