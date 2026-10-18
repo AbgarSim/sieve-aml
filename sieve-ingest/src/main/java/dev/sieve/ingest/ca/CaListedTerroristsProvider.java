@@ -62,9 +62,12 @@ public final class CaListedTerroristsProvider extends AbstractListProvider {
                     "Listed terrorist entities under section 83.05 of the Criminal Code",
                     ListSource.CA_LISTED_TERRORISTS);
 
+    /** The feed answers 406 to a bare {@code application/xml}, so any type is accepted. */
+    private static final String ACCEPT = "application/atom+xml, application/xml;q=0.9, */*;q=0.8";
+
     /** Creates a provider that reads the published feed. */
     public CaListedTerroristsProvider() {
-        super(ListSource.CA_LISTED_TERRORISTS, URI.create(DEFAULT_URL), "application/xml");
+        super(ListSource.CA_LISTED_TERRORISTS, URI.create(DEFAULT_URL), ACCEPT);
     }
 
     /**
@@ -77,7 +80,7 @@ public final class CaListedTerroristsProvider extends AbstractListProvider {
         super(
                 ListSource.CA_LISTED_TERRORISTS,
                 sourceUri,
-                "application/xml",
+                ACCEPT,
                 httpClient,
                 Duration.ofSeconds(60));
     }
