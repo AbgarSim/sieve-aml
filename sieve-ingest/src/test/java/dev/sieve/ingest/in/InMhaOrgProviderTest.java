@@ -21,25 +21,65 @@ import org.junit.jupiter.api.Test;
 
 class InMhaOrgProviderTest {
 
-    private static final URI PAGE =
-            URI.create(
-                    "https://www.mha.gov.in/en/divisionofmha/counter-terrorism-and-counter-radicalization-division/Banned-Organizations");
+    private static final URI PAGE = URI.create("https://www.mha.gov.in/banned-organizations");
     private static final URI TERRORIST_PDF =
             URI.create(
-                    "https://www.mha.gov.in/sites/default/files/2026-09/List46TerroristOrganisations_16092026.pdf");
+                    "https://www.mha.gov.in/files/documents/List46TerroristOrganisationsWebsite.pdf");
+    private static final URI UNLAWFUL_PAGE =
+            URI.create(
+                    "https://www.mha.gov.in/unlawful-associations-section3-unlawful-activities-prevention-act-1967");
     private static final URI UNLAWFUL_PDF =
             URI.create(
                     "https://www.mha.gov.in/sites/default/files/2025-03/ListUNLAWFUL_17032025.pdf");
 
+    /** The page as the redesigned site has served it since October 2026, trimmed. */
     private static final String PAGE_HTML =
             """
-            <table><thead><tr><th>SR-No</th><th>Title</th><th>Download/Link</th></tr></thead><tbody>
-            <tr><td>1 </td><td>TERRORIST ORGANISATIONS LISTED IN THE FIRST SCHEDULE OF THE UNLAWFUL ACTIVITIES (PREVENTION) ACT, 1967. </td>
-            <td><span class="file"> <a href="/sites/default/files/2026-09/List46TerroristOrganisations_16092026.pdf" class="ext" target="_blank">Download (100.11 KB) </a> </span></td></tr>
-            <tr><td>2 </td><td>UNLAWFUL ASSOCIATIONS UNDER SECTION 3 OF UNLAWFUL ACTIVITIES (PREVENTION) ACT, 1967 </td>
-            <td><span class="file"> <a href="/sites/default/files/2025-03/ListUNLAWFUL_17032025.pdf" class="ext" target="_blank">Download (107.78 KB) </a> </span></td></tr>
-            </tbody></table>
+            <div class="views-table customTable cols-2">
+            <div class="mt-2 customTablebdr"> <div class="row align-items-lg-center">
+            <div class="col-md-6 col-lg-8 mb-2 "> <div class="documentRecordTitle"> UNLAWFUL ASSOCIATIONS UNDER SECTION 3 OF UNLAWFUL ACTIVITIES (PREVENTION) ACT, 1967 </div> </div>
+            <div class="col text-end"> <div class="viewButton"> <a href="/unlawful-associations-section3-unlawful-activities-prevention-act-1967" class="viewInternalBtn" target="_self" title="VISIT">VISIT</a> </div> </div>
+            </div> </div>
+            <div class="mt-2 customTablebdr"> <div class="row align-items-lg-center">
+            <div class="col-md-6 col-lg-8 mb-2 "> <div class="documentRecordTitle"> TERRORIST ORGANISATIONS LISTED IN THE FIRST SCHEDULE OF THE UNLAWFUL ACTIVITIES (PREVENTION) ACT, 1967 </div> </div>
+            <div class="col text-start"> <div class="fileSize">100.11 KB</div> </div>
+            <div class="col text-end"> <div class="viewButton"> <a href="/files/documents/List46TerroristOrganisationsWebsite.pdf" class="viewBtn" target="_blank" title="Open PDF file in new window">VIEW</a> </div> </div>
+            </div> </div>
+            <div class="mt-2 customTablebdr"> <div class="row align-items-lg-center">
+            <div class="col-md-6 col-lg-8 mb-2 "> <div class="documentRecordTitle"> INDIVIDUALS TERRORISTS LISTED IN THE FOURTH SCHEDULE OF THE UNLAWFUL ACTIVITIES (PREVENTION) ACT, 1967 </div> </div>
+            <div class="col text-end"> <div class="viewButton"> <a href="/individuals-terrorists-fourth-schedule-unlawful-activities-prevention-act" class="viewInternalBtn" target="_self">VISIT</a> </div> </div>
+            </div> </div>
+            </div>
             """;
+
+    /**
+     * The 23 rows of the unlawful associations table, oldest first, as read on 15 November 2026.
+     */
+    private static final List<String> UNLAWFUL_TITLES =
+            List.of(
+                    "Student’s Islamic Movement of India (SIMI)",
+                    "United Liberation Front of Asom (ULFA)",
+                    "All Tripura Tiger Force (ATTF)",
+                    "Meitei Extremist Organization of Manipur namely: PLA and its political wing RPF, UNLF and its armed wing MPA, PREPAK and its armed wing the red army, KCP, KYKL, CorCom, ASUK",
+                    "National Liberation Front of Tripura (NLFT)",
+                    "Hynniewtrep National Liberation Council (HNLC)",
+                    "Liberation Tigers of Tamil Eelam.",
+                    "National Socialist Council of Nagaland (Khaplang)",
+                    "Islamic Research Foundation (IRF)",
+                    "Jamaat-e- Islami (JeI), Jammu and Kashmir",
+                    "Jammu and Kashmir Liberation Front (Mohd. Yasin Malik faction)",
+                    "Sikhs for Justice (SFJ)",
+                    "Popular Front of India (PFI) and its associates or affiliates or fronts",
+                    "Jammu and Kashmir Democratic Freedom Party (JKDFP)",
+                    "Muslim Conference Jammu and Kashmir (Bhat faction) (MCJK-B)",
+                    "Muslim League Jammu Kashmir (Masarat Alam faction) / MLJK-MA",
+                    "Tehreek-e-Hurriyat, Jammu and Kashmir (TeH)",
+                    "Muslim Conference Jammu and Kashmir (Sumji faction) (MCJK-S)",
+                    "Jammu Kashmir National Front (JKNF)",
+                    "Four factions of Jammu and Kashmir Peoples League (JKPL), namely : JKPL (Mukhtar Ahmed Waza), JKPL (Bashir Ahmad Tota), JKPL (Ghulam Mohammad Khan @Sopori) and JKPL (Aziz Sheikh) led by Yaqoob Sheikh",
+                    "Jammu and Kashmir Peoples Freedom League (JKPFL)",
+                    "Jammu and Kashmir Ittihadul Muslimeen (JKIM)",
+                    "Awami Action Committee (AAC)");
 
     @Test
     void shouldReturnSource() {
@@ -47,13 +87,60 @@ class InMhaOrgProviderTest {
     }
 
     @Test
-    void shouldFindBothPdfLinksOnThePage() throws Exception {
+    void shouldFindWhereBothListsAreOnThePage() throws Exception {
         Map<Schedule, URI> links = InMhaOrgProvider.fileLinks(PAGE_HTML, PAGE);
 
         assertThat(links)
                 .containsExactly(
                         Map.entry(Schedule.TERRORIST, TERRORIST_PDF),
-                        Map.entry(Schedule.UNLAWFUL, UNLAWFUL_PDF));
+                        Map.entry(Schedule.UNLAWFUL, UNLAWFUL_PAGE));
+    }
+
+    @Test
+    void shouldParseTheUnlawfulAssociationsTable() throws Exception {
+        List<MhaDocumentList.Row> rows =
+                UNLAWFUL_TITLES.stream()
+                        .map(
+                                t ->
+                                        new MhaDocumentList.Row(
+                                                t,
+                                                URI.create(
+                                                        "https://www.mha.gov.in/files/documents/x.pdf")))
+                        .toList();
+
+        List<SanctionedEntity> entities =
+                InMhaOrgProvider.parse(
+                        InMhaOrgProvider.numbered(rows), Schedule.UNLAWFUL, UNLAWFUL_PAGE);
+
+        // 23 rows, of which the Meitei heading stands for seven organisations
+        assertThat(entities).hasSize(29);
+        assertThat(entities)
+                .extracting(SanctionedEntity::id)
+                .doesNotContain("in-mha-ua-4")
+                .contains("in-mha-ua-1", "in-mha-ua-4-1", "in-mha-ua-4-7", "in-mha-ua-23");
+
+        SanctionedEntity pla = byId(entities, "in-mha-ua-4-1");
+        assertThat(pla.primaryName().fullName()).isEqualTo("PLA");
+        assertThat(pla.aliases()).extracting(NameInfo::fullName).containsExactly("RPF");
+        assertThat(pla.remarks()).contains("(under \"Meitei Extremist Organization of Manipur\")");
+        assertThat(byId(entities, "in-mha-ua-4-3").aliases())
+                .extracting(NameInfo::fullName)
+                .containsExactly("red army");
+        assertThat(byId(entities, "in-mha-ua-4-5").primaryName().fullName()).isEqualTo("KYKL");
+
+        assertThat(byId(entities, "in-mha-ua-13").primaryName().fullName())
+                .isEqualTo("Popular Front of India (PFI)");
+        assertThat(byId(entities, "in-mha-ua-10").primaryName().fullName())
+                .isEqualTo("Jamaat-e-Islami (JeI), Jammu and Kashmir");
+        assertThat(byId(entities, "in-mha-ua-7").primaryName().fullName())
+                .isEqualTo("Liberation Tigers of Tamil Eelam");
+        assertThat(byId(entities, "in-mha-ua-20").primaryName().fullName())
+                .isEqualTo("Jammu and Kashmir Peoples League (JKPL)");
+        assertThat(byId(entities, "in-mha-ua-20").aliases())
+                .extracting(NameInfo::fullName)
+                .contains("JKPL (Mukhtar Ahmed Waza)", "JKPL (Aziz Sheikh)");
+        assertThat(byId(entities, "in-mha-ua-23").primaryName().fullName())
+                .isEqualTo("Awami Action Committee (AAC)");
     }
 
     @Test

@@ -24,13 +24,16 @@ import java.util.regex.Pattern;
  */
 public final class FincenEnforcementParser {
 
-    /** The table. */
-    public static final URI PAGE =
-            URI.create("https://www.fincen.gov/news-room/enforcement-actions");
+    /**
+     * The table. FinCEN moved it from {@code /news-room/enforcement-actions} in November 2026; the
+     * old address now serves a page that only redirects here.
+     */
+    public static final URI PAGE = URI.create("https://www.fincen.gov/news/enforcement-actions/");
 
     private static final Pattern ROW = Pattern.compile("(?s)<tr[^>]*>(.*?)</tr>");
     private static final Pattern CELL = Pattern.compile("(?s)<td[^>]*>(.*?)</td>");
-    private static final Pattern HREF = Pattern.compile("href=\"([^\"]+)\"");
+    // The page is minified, so attribute values come unquoted when they can.
+    private static final Pattern HREF = Pattern.compile("href=(?:\"([^\"]+)\"|([^\\s>\"]+))");
     private static final Pattern DATE = Pattern.compile("(\\d{1,2})/(\\d{1,2})/(\\d{4})");
     private static final Pattern IN_THE_MATTER = Pattern.compile("(?i)^in the matter of:?\\s*");
     private static final DateTimeFormatter MDY = DateTimeFormatter.ofPattern("M/d/yyyy");
@@ -85,7 +88,11 @@ public final class FincenEnforcementParser {
             Matcher h = HREF.matcher(cells.get(0));
             String url =
                     h.find()
-                            ? PAGE.resolve(h.group(1).replace("&amp;", "&")).toString()
+                            ? PAGE.resolve(
+                                            (h.group(1) != null ? h.group(1) : h.group(2))
+                                                    .replace("&amp;", "&")
+                                                    .replace(" ", "%20"))
+                                    .toString()
                             : PAGE.toString();
             String sector = cells.size() > 3 ? Html.text(cells.get(3)) : "";
             out.add(

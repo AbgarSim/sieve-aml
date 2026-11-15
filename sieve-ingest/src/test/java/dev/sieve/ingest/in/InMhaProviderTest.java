@@ -11,13 +11,19 @@ import dev.sieve.core.model.NameStrength;
 import dev.sieve.core.model.RiskTopic;
 import dev.sieve.core.model.SanctionedEntity;
 import java.io.InputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class InMhaProviderTest {
 
+    private static final URI PAGE =
+            URI.create(
+                    "https://www.mha.gov.in/individuals-terrorists-fourth-schedule-unlawful-activities-prevention-act?page=0");
+
     @Test
-    void shouldParseOnePersonPerNumberedParagraph() throws Exception {
+    void shouldNumberThePeopleInListOrder() throws Exception {
         List<SanctionedEntity> entities = parseSample();
 
         assertThat(entities)
@@ -70,23 +76,41 @@ class InMhaProviderTest {
 
         assertThat(person.remarks())
                 .isEqualTo(
-                        "Notification: https://www.mha.gov.in/sites/default/files/"
-                                + "Individual_Terrorists/SL%20NO%2003_TEST.pdf");
+                        "Notification: https://www.mha.gov.in/files/documents/"
+                                + "UAPANewList_06072026_3%20TEST.pdf");
     }
 
     @Test
-    void shouldFailWhenPageHasNoEntries() {
-        byte[] html = "<html><body><p>Maintenance</p></body></html>".getBytes();
+    void shouldFindNoRowsWhenThePageHasNone() {
+        assertThat(MhaDocumentList.rows("<html><body><p>Maintenance</p></body></html>", PAGE))
+                .isEmpty();
+    }
 
-        assertThatThrownBy(() -> new InMhaProvider().parseResponse(html))
+    @Test
+    void shouldFailWhenNoRowNamesAnyone() {
+        assertThatThrownBy(
+                        () ->
+                                InMhaProvider.parse(
+                                        List.of(
+                                                new MhaDocumentList.Row(
+                                                        "@ .", URI.create("https://x/y.pdf")))))
                 .isInstanceOf(ListIngestionException.class)
                 .hasMessageContaining("layout");
+    }
+
+    @Test
+    void shouldAskForTheListOldestFirstTwentyToAPage() {
+        assertThat(MhaDocumentList.page(PAGE, 3))
+                .hasToString(
+                        "https://www.mha.gov.in/individuals-terrorists-fourth-schedule-unlawful-activities-prevention-act"
+                                + "?sort_order=ASC&items_per_page=20&page=3");
     }
 
     private static List<SanctionedEntity> parseSample() throws Exception {
         try (InputStream in =
                 InMhaProviderTest.class.getResourceAsStream("/in_mha_test_sample.html")) {
-            return new InMhaProvider().parseResponse(in.readAllBytes());
+            String html = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            return InMhaProvider.parse(MhaDocumentList.rows(html, PAGE));
         }
     }
 }
