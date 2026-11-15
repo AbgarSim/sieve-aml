@@ -15,8 +15,6 @@ import dev.sieve.ingest.ListProvider;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,6 +25,7 @@ import java.util.EnumMap;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -43,12 +42,15 @@ import org.slf4j.LoggerFactory;
  * (Prevention) Act, 1967 (UAPA): the terrorist organisations listed in the Act's First Schedule and
  * the associations declared unlawful under its Section 3.
  *
- * <p>The ministry publishes both only as PDF files linked from its "Banned Organisations" page, one
- * numbered entry per organisation. The provider reads the page to find the current files, extracts
- * their text with PDFBox and parses the numbered entries. Ids follow the lists' serial numbers:
- * {@code in-mha-to-<n>} for a terrorist organisation, {@code in-mha-ua-<n>} for an unlawful
- * association and {@code in-mha-ua-<n>-<k>} for the k-th organisation of an entry that groups
- * several, such as the Meitei extremist organisations.
+ * <p>The ministry's "Banned Organisations" page links to both. The First Schedule is a PDF, one
+ * numbered entry per organisation, whose text the provider extracts with PDFBox. Since the site's
+ * redesign in October 2026 the unlawful associations are a paged table instead, one row per
+ * association; the provider reads it oldest first and numbers the rows itself, splitting a row that
+ * groups several organisations ("... namely: PLA and its political wing RPF, UNLF ...") into one
+ * item each, as the PDF it replaced did. Ids follow the lists' serial numbers: {@code
+ * in-mha-to-<n>} for a terrorist organisation, {@code in-mha-ua-<n>} for an unlawful association
+ * and {@code in-mha-ua-<n>-<k>} for the k-th organisation of an entry that groups several, such as
+ * the Meitei extremist organisations.
  *
  * <p>An entry often names one organisation in several ways. Names it joins with a slash or "or" are
  * aliases of each other; the wing, fronts or factions an entry enumerates after the organisation it
@@ -56,18 +58,14 @@ import org.slf4j.LoggerFactory;
  * The First Schedule's entry that only points at the UN sanctions lists is skipped, since those
  * lists are sources of their own.
  *
- * @see <a
- *     href="https://www.mha.gov.in/en/divisionofmha/counter-terrorism-and-counter-radicalization-division/Banned-Organizations">Banned
- *     Organisations</a>
+ * @see <a href="https://www.mha.gov.in/banned-organizations">Banned Organisations</a>
  */
 public final class InMhaOrgProvider implements ListProvider {
 
     private static final Logger log = LoggerFactory.getLogger(InMhaOrgProvider.class);
 
-    private static final String DEFAULT_PAGE =
-            "https://www.mha.gov.in/en/divisionofmha/counter-terrorism-and-counter-radicalization-division/Banned-Organizations";
+    private static final String DEFAULT_PAGE = "https://www.mha.gov.in/banned-organizations";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
     /** The two lists the page links to, each a PDF of its own. */
     enum Schedule {
@@ -102,10 +100,6 @@ public final class InMhaOrgProvider implements ListProvider {
         }
     }
 
-    private static final Pattern ROW = Pattern.compile("(?is)<tr[^>]*>(.*?)</tr>");
-    private static final Pattern PDF_LINK = Pattern.compile("(?i)href=\"([^\"]+\\.pdf)\"");
-    private static final Pattern TAG = Pattern.compile("<[^>]+>");
-
     private static final Pattern ENTRY = Pattern.compile("^\\s*(\\d{1,3})\\.\\s+(\\S.*)$");
     private static final Pattern SUB_ITEM = Pattern.compile("^\\s*\\(([ivxl]+)\\)\\s+(\\S.*)$");
     private static final Pattern END = Pattern.compile("^\\s*\\*{3,}\\s*$");
@@ -132,6 +126,20 @@ public final class InMhaOrgProvider implements ListProvider {
             Pattern.compile("^\\(([A-Za-z][A-Za-z0-9\\-]{1,11})\\)$");
     private static final Pattern QUOTES = Pattern.compile("^[\"']+|[\"']+$");
     private static final Pattern TRAILING = Pattern.compile("(?:[.,;:]+|\\s+and)\\s*$");
+
+    /** A table row that groups organisations under a heading: "heading namely: a, b, c". */
+    private static final Pattern GROUP =
+            Pattern.compile("(?i)^(.+?),?\\s+namely\\s*[:\\-]\\s*(.+)$");
+
+    /** The fronts tail of a row that, unlike the PDF, does not go on to name the fronts. */
+    private static final Pattern BARE_FRONTS =
+            Pattern.compile("(?i)\\s+and its associates or affiliates or fronts$");
+
+    private static final Pattern FACTIONS = Pattern.compile("(?i)\\bfactions?\\s+of\\b");
+
+    /** "PLA and its political wing RPF", as a table row writes what the PDF wrote out in full. */
+    private static final Pattern WING_SHORT =
+            Pattern.compile("(?i)^(.+?)\\s+and its (political|armed) wing\\s+(?:the\\s+)?(.+)$");
 
     /** A hyphen the PDF sets off from the word that follows it: "Sham- Khorasan". */
     private static final Pattern SPACED_HYPHEN = Pattern.compile("(?<=\\w)- (?=\\w)");
@@ -188,15 +196,29 @@ public final class InMhaOrgProvider implements ListProvider {
         log.info("Fetching India MHA organisations [uri={}]", pageUri);
         Instant start = Instant.now();
         try {
-            String page = new String(download(pageUri, "text/html"), StandardCharsets.UTF_8);
+            String page =
+                    new String(
+                            MhaDocumentList.get(
+                                    httpClient, pageUri, "text/html", ListSource.IN_MHA_ORG),
+                            StandardCharsets.UTF_8);
             Map<Schedule, URI> files = fileLinks(page, pageUri);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             List<SanctionedEntity> entities = new ArrayList<>();
             for (Schedule schedule : Schedule.values()) {
                 URI file = files.get(schedule);
-                byte[] pdf = download(file, "application/pdf");
-                digest.update(pdf);
-                List<SanctionedEntity> parsed = parse(extractText(pdf), schedule, file);
+                List<SanctionedEntity> parsed;
+                if (file.getPath().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+                    byte[] pdf =
+                            MhaDocumentList.get(
+                                    httpClient, file, "application/pdf", ListSource.IN_MHA_ORG);
+                    digest.update(pdf);
+                    parsed = parse(extractText(pdf), schedule, file);
+                } else {
+                    List<MhaDocumentList.Row> rows =
+                            MhaDocumentList.all(httpClient, file, ListSource.IN_MHA_ORG);
+                    digest.update(rows.toString().getBytes(StandardCharsets.UTF_8));
+                    parsed = parse(numbered(rows), schedule, file);
+                }
                 log.info(
                         "India MHA {}: {} entities [uri={}]",
                         schedule.description,
@@ -240,62 +262,70 @@ public final class InMhaOrgProvider implements ListProvider {
         return true;
     }
 
-    private byte[] download(URI uri, String accept)
-            throws IOException, InterruptedException, ListIngestionException {
-        HttpRequest request =
-                HttpRequest.newBuilder(uri)
-                        .timeout(REQUEST_TIMEOUT)
-                        .header("Accept", accept)
-                        .header("User-Agent", "sieve-aml/1.0")
-                        .GET()
-                        .build();
-        HttpResponse<byte[]> response =
-                httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        if (response.statusCode() != 200) {
-            throw new ListIngestionException(
-                    String.format(
-                            "India MHA organisations fetch failed [status=%d, uri=%s]",
-                            response.statusCode(), uri),
-                    ListSource.IN_MHA_ORG);
-        }
-        return response.body();
-    }
-
     /**
-     * Finds the PDF each list is published as: the table on the page has one row per list, with the
-     * list's title and a download link.
+     * Finds where each list is published: the page has one row per list, with the list's title and
+     * a link to a PDF or to a page of its own.
      *
      * @param html the "Banned Organisations" page
      * @param page the page's URI, to resolve the links against
-     * @return the file of each schedule
-     * @throws ListIngestionException if a schedule's row or link is missing
+     * @return the file or page of each schedule
+     * @throws ListIngestionException if a schedule's row is missing
      */
     static Map<Schedule, URI> fileLinks(String html, URI page) throws ListIngestionException {
         Map<Schedule, URI> links = new EnumMap<>(Schedule.class);
-        Matcher rows = ROW.matcher(html);
-        while (rows.find()) {
-            String row = rows.group(1);
-            Matcher link = PDF_LINK.matcher(row);
-            if (!link.find()) {
-                continue;
-            }
-            String title = text(row);
+        for (MhaDocumentList.Row row : MhaDocumentList.rows(html, page)) {
             for (Schedule schedule : Schedule.values()) {
-                if (schedule.title.matcher(title).find()) {
-                    links.putIfAbsent(schedule, page.resolve(link.group(1).replace(" ", "%20")));
+                if (schedule.title.matcher(row.title()).find()) {
+                    links.putIfAbsent(schedule, row.link());
                 }
             }
         }
         for (Schedule schedule : Schedule.values()) {
             if (!links.containsKey(schedule)) {
                 throw new ListIngestionException(
-                        "India MHA organisations page has no PDF link for the "
+                        "India MHA organisations page has no link for the "
                                 + schedule.description
                                 + "; the page layout may have changed",
                         ListSource.IN_MHA_ORG);
             }
         }
         return links;
+    }
+
+    /**
+     * Writes a table's rows out as the numbered text the PDF lists use, so that one parser reads
+     * both: row k becomes entry k, and a row that groups organisations under a heading ("Meitei
+     * Extremist Organization of Manipur namely: PLA and its political wing RPF, UNLF ...") gets one
+     * item line per organisation. A row naming the factions of one organisation stays one entry,
+     * since the factions are that organisation's aliases.
+     *
+     * @param rows the rows, oldest first
+     * @return the text
+     */
+    static String numbered(List<MhaDocumentList.Row> rows) {
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < rows.size(); i++) {
+            String title =
+                    BARE_FRONTS
+                            .matcher(clean(rows.get(i).title()))
+                            .replaceFirst("")
+                            .replaceAll("(?i)namely\\s+:", "namely:");
+            Matcher group = GROUP.matcher(title);
+            if (group.matches() && !FACTIONS.matcher(group.group(1)).find()) {
+                text.append(i + 1).append(". ").append(group.group(1)).append(", namely:\n");
+                List<String> items = new ArrayList<>(List.of(group.group(2).split(",\\s*")));
+                for (int k = 0; k < items.size(); k++) {
+                    String item =
+                            WING_SHORT
+                                    .matcher(items.get(k).strip())
+                                    .replaceFirst("$1 and its $2 wing, the $3");
+                    text.append('(').append(roman(k + 1)).append(") ").append(item).append('\n');
+                }
+            } else {
+                text.append(i + 1).append(". ").append(title).append('\n');
+            }
+        }
+        return text.toString();
     }
 
     /** Extracts the text of a PDF, page by page, in the order the file stores it. */
@@ -580,14 +610,5 @@ public final class InMhaOrgProvider implements ListProvider {
             }
         }
         return String.valueOf(n);
-    }
-
-    private static String text(String html) {
-        return TAG.matcher(html)
-                .replaceAll(" ")
-                .replace("&nbsp;", " ")
-                .replace("&amp;", "&")
-                .replaceAll("\\s+", " ")
-                .strip();
     }
 }

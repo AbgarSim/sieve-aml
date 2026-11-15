@@ -29,6 +29,32 @@ class FincenEnforcementParserTest {
     }
 
     @Test
+    void shouldParseTheMinifiedTableWhenAttributesAreUnquoted() {
+        // The layout fincen.gov/news/enforcement-actions/ has served since November 2026.
+        String page =
+                "<table class=\"usa-table\" id=enforcement-actions-table><thead><tr>"
+                        + "<th id=view-title-table-column scope=col>Enforcement Action</th></tr></thead><tbody>"
+                        + "<tr data-live-order-binding=source:22686 data-date=2026-10-13>"
+                        + "<td headers=view-title-table-column class=\"views-field views-field-title\">"
+                        + "<a href=/system/files/2026-10/BoA-Consent-Order-Execution-Final.pdf target=_blank>"
+                        + "In the Matter of Bank of America, N.A.</a></td>"
+                        + "<td headers=view-field-date-release-table-column class=\"views-field\">"
+                        + "<time datetime=2026-10-13T12:00:00Z>10/13/2026</time></td>"
+                        + "<td headers=view-field-matter-no-table-column>2026-03</td>"
+                        + "<td headers=view-field-tags-financial-institution-table-column>Depository Institutions</td></tr>"
+                        + "</tbody></table>";
+
+        var actions = FincenEnforcementParser.parse(page);
+
+        assertThat(actions).hasSize(1);
+        assertThat(actions.get(0).id()).isEqualTo("FINCEN-20261013-bank-of-america-n-a");
+        assertThat(actions.get(0).summary()).contains("Depository Institutions");
+        assertThat(actions.get(0).url())
+                .isEqualTo(
+                        "https://www.fincen.gov/system/files/2026-10/BoA-Consent-Order-Execution-Final.pdf");
+    }
+
+    @Test
     void shouldReadOnlyCountriesTiedToSanctions() {
         String text =
                 "The bank has offices in Mexico and Cuba. Paxful facilitated trades by users in Iran,"
