@@ -184,7 +184,7 @@ public final class SourceCatalog {
                 "National Bureau for Counter Terror Financing (NBCTF)",
                 "IL",
                 Format.XLSX,
-                "https://nbctf.mod.gov.il/en");
+                "https://matal.mod.gov.il/en/sanctions/");
         put(
                 map,
                 ListSource.MD_TERROR,
@@ -455,9 +455,8 @@ public final class SourceCatalog {
                             + "Administration, of people and companies supporting Russia's aggression against "
                             + "Ukraine.";
             case IL_WMD_TERROR ->
-                    "Israel's lists of terrorist organisations, terror operatives and people involved"
-                            + " in weapons of mass destruction proliferation, published by the National Bureau "
-                            + "for Counter Terror Financing.";
+                    "Israel's lists of designated terrorist organisations and terror operatives,"
+                            + " published by the National Bureau for Counter Terror Financing.";
             case MD_TERROR ->
                     "Moldova's list of people and entities involved in terrorist activity, kept by "
                             + "the Intelligence and Security Service.";
